@@ -1,0 +1,113 @@
+# global_config.yaml
+
+globals:
+  # Financial Settings
+  currency_symbol: "$"
+  analysis_period_years: 3  # The duration over which financial benefits are projected
+  discount_rate: 0.10       # Annual discount rate for NPV calculations (e.g., 0.10 for 10%)
+
+  # Solution Cost (example - this could also be an input or calculated by a separate 'Cost Agent')
+  annual_solution_cost_usd: 500000 # Placeholder: Annual cost of the AI solution in USD
+
+  # Other Global Parameters (can be extended as needed)
+  company_name: "AI-Powered Solutions Inc."
+  report_date_format: "YYYY-MM-DD"
+2. main_orchestrator_agent.yaml
+This file defines the overarching workflow, coordinating the execution of individual agents and managing the flow of data through the Model Context Protocol (MCP).
+
+YAML
+
+# agents/main_orchestrator_agent.yaml
+
+agent_id: main_orchestrator
+name: "Main Value Model Orchestrator"
+description: "Manages the end-to-end execution flow of the business value model agents, coordinating data flow and assembling deliverables."
+purpose: "To coordinate all agents, ensure data consistency via Model Context, trigger calculations, and prepare final value deliverables."
+tier_mapping: # The Orchestrator sits above the tiers, managing their interconnections
+  - orchestrator_role: true
+
+workflow_definition:
+  # This section outlines the sequential stages and agent interactions
+
+  - stage_id: "initial_data_collection"
+    name: "Initial Data Gathering & Validation"
+    description: "Collects and validates baseline business data from the user or integrated systems."
+    tasks:
+      - action: "Trigger Intake Assistant Agent to gather high-level context."
+        agent_id: "intake_assistant_agent" # (Conceptual agent for initial conversation)
+        store_output_to_model_context: ["company_profile", "initial_pain_points", "strategic_alignment"]
+      - action: "Prompt user for specific baseline metrics via UI, managed by Data Input Agent."
+        agent_id: "data_input_agent" # (Conceptual agent for UI interaction / data ingestion)
+        store_output_to_model_context:
+          - "revenue_data_inputs"
+          - "cost_reduction_data_inputs"
+          - "productivity_data_inputs"
+          - "risk_mitigation_data_inputs"
+        # An implicit Data Validation Agent would typically run here before proceeding.
+
+  - stage_id: "value_driver_quantification"
+    name: "Quantifying Individual Business Value Drivers"
+    description: "Executes specialized calculative agents to determine the monetary impact of each value driver."
+    tasks:
+      # These calculative agents can often run in parallel once their specific inputs are available in the Model Context
+      - action: "Trigger Revenue Lead Conversion Calculator."
+        agent_id: "revenue_lead_conversion_calculator"
+        requires_from_model_context: ["revenue_data_inputs", "global_settings"]
+        store_output_to_model_context: ["annual_incremental_revenue_usd", "total_annual_revenue_uplift_usd"]
+      - action: "Trigger Cost Reduction Calculator."
+        agent_id: "cost_reduction_calculator"
+        requires_from_model_context: ["cost_reduction_data_inputs", "global_settings"]
+        store_output_to_model_context: ["annual_support_automation_savings_usd", "annual_cloud_optimization_savings_usd", "total_annual_cost_reduction_usd"]
+      - action: "Trigger Productivity Gains Calculator."
+        agent_id: "productivity_gains_calculator"
+        requires_from_model_context: ["productivity_data_inputs", "global_settings"]
+        store_output_to_model_context: ["annual_analyst_time_savings_usd", "annual_faster_decision_value_usd", "total_annual_productivity_gains_usd"]
+      - action: "Trigger Risk Mitigation Calculator."
+        agent_id: "risk_mitigation_calculator"
+        requires_from_model_context: ["risk_mitigation_data_inputs", "global_settings"]
+        store_output_to_model_context: ["annual_compliance_cost_avoidance_usd", "annual_downtime_cost_avoidance_usd", "total_annual_risk_mitigation_usd"]
+      # Implicitly, a Confidence Scoring Agent could run after each calculative agent.
+
+  - stage_id: "financial_consolidation"
+    name: "Consolidating Financial Impact"
+    description: "Aggregates all quantified benefits and calculates core financial metrics like ROI, NPV, and Payback."
+    tasks:
+      - action: "Trigger ROI Calculator Agent."
+        agent_id: "roi_calculator_agent"
+        # Requires ALL total annual benefits and global financial settings
+        requires_from_model_context:
+          - "total_annual_revenue_uplift_usd"
+          - "total_annual_cost_reduction_usd"
+          - "total_annual_productivity_gains_usd"
+          - "total_annual_risk_mitigation_usd"
+          - "global_settings.annual_solution_cost_usd" # Specific key from globals config
+          - "global_settings.analysis_period_years"
+          - "global_settings.discount_rate"
+        store_output_to_model_context: ["total_annual_quantified_benefit", "roi_percentage", "npv_usd", "payback_period_months"]
+
+  - stage_id: "deliverable_composition"
+    name: "Generating Final Deliverables"
+    description: "Assembles the final business case narrative, report, and presentation materials."
+    tasks:
+      - action: "Trigger Narrative Generator Agent to draft the story."
+        agent_id: "narrative_generator_agent" # (Conceptual LLM-based agent)
+        requires_from_model_context:
+          - "initial_pain_points"
+          - "company_profile"
+          - "calculated_benefits"
+          - "financial_summary.total_annual_quantified_benefit"
+          - "financial_summary.roi_percentage"
+        store_output_to_model_context: ["narrative_text"]
+      - action: "Trigger Business Case Composer Agent to assemble the final document."
+        agent_id: "business_case_composer_agent" # (Conceptual aggregator agent for final report)
+        requires_from_model_context:
+          - "narrative_text"
+          - "all_calculated_benefits" # A conceptual collection of all specific benefits
+          - "all_financial_summary_metrics" # A conceptual collection of all ROI metrics
+          - "template_id" # (Output from a conceptual Template Selector Agent)
+        stores_final_deliverable: "final_business_value_report.pdf" # Indicates final output
+
+model_context_integration:
+  protocol: "MCP" # Refers to your Model Context Protocol
+  data_transfer_method: "publish_subscribe_or_direct_access" # Illustrates how orchestrator interacts with MCP
+  error_handling_strategy: "orchestrator_logging_and_retry" # Orchestrator handles errors and retries
