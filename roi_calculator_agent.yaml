@@ -1,0 +1,138 @@
+# agents/roi_calculator_agent.yaml
+
+agent_id: roi_calculator_agent
+name: "ROI Calculator Agent"
+description: "Calculates annual & multi-year ROI, NPV, and payback based on quantified value drivers and solution cost."
+purpose: "Generates core financial impact metrics (ROI, NPV, Payback Period) for the overall business value model."
+tier_mapping:
+  - tier1: "Overall Financial Impact"
+  - tier2: "Investment Justification"
+  - tier3_driver: "Return on Investment (ROI)"
+  - tier3_driver: "Net Present Value (NPV)"
+  - tier3_driver: "Payback Period"
+
+inputs:
+  # These inputs are expected to be pulled from the Model Context, pre-calculated by other agents
+  - name: "total_annual_revenue_uplift_usd"
+    type: "currency"
+    source: "model_context"
+    description: "Total annual revenue uplift from revenue-focused agents."
+    validation_rules: { min: 0 }
+  - name: "total_annual_cost_reduction_usd"
+    type: "currency"
+    source: "model_context"
+    description: "Total annual cost reduction from cost-focused agents."
+    validation_rules: { min: 0 }
+  - name: "total_annual_productivity_gains_usd"
+    type: "currency"
+    source: "model_context"
+    description: "Total annual productivity gains from productivity-focused agents."
+    validation_rules: { min: 0 }
+  - name: "total_annual_risk_mitigation_usd"
+    type: "currency"
+    source: "model_context"
+    description: "Total annual risk mitigation/cost avoidance from risk-focused agents."
+    validation_rules: { min: 0 }
+  # Global inputs pulled from Model Context (from global_config)
+  - name: "annual_solution_cost_usd"
+    type: "currency"
+    source: "model_context.global_settings"
+    description: "Annual cost of the AI solution in USD."
+    validation_rules: { min: 0 }
+  - name: "analysis_period_years"
+    type: "integer"
+    source: "model_context.global_settings"
+    description: "The number of years for the financial analysis period."
+    validation_rules: { min: 1 }
+  - name: "discount_rate"
+    type: "float"
+    source: "model_context.global_settings"
+    description: "The annual discount rate for NPV calculations."
+    validation_rules: { min: 0, max: 1 }
+
+outputs:
+  - name: "total_annual_quantified_benefit_usd"
+    type: "currency"
+    description: "Sum of all annual quantifiable benefits from all categories."
+  - name: "total_3_year_benefits_usd"
+    type: "currency"
+    description: "Total benefits over the analysis period."
+  - name: "total_3_year_costs_usd"
+    type: "currency"
+    description: "Total costs over the analysis period."
+  - name: "net_3_year_benefit_usd"
+    type: "currency"
+    description: "Net benefit over the analysis period (Total Benefits - Total Costs)."
+  - name: "roi_percentage"
+    type: "float"
+    description: "Return on Investment as a percentage."
+  - name: "payback_period_months"
+    type: "float"
+    description: "Time it takes to recover the initial investment, in months."
+  - name: "npv_usd"
+    type: "currency"
+    description: "Net Present Value of the investment."
+
+rules:
+  - rule_id: "calculate_total_annual_benefit"
+    formula: "total_annual_revenue_uplift_usd + total_annual_cost_reduction_usd + total_annual_productivity_gains_usd + total_annual_risk_mitigation_usd"
+    output_variable: "total_annual_quantified_benefit_usd"
+    dependencies: ["total_annual_revenue_uplift_usd", "total_annual_cost_reduction_usd", "total_annual_productivity_gains_usd", "total_annual_risk_mitigation_usd"]
+
+  - rule_id: "calculate_multi_year_totals"
+    formula: "total_annual_quantified_benefit_usd * analysis_period_years"
+    output_variable: "total_3_year_benefits_usd"
+    dependencies: ["total_annual_quantified_benefit_usd", "analysis_period_years"]
+  - rule_id: "calculate_multi_year_costs"
+    formula: "annual_solution_cost_usd * analysis_period_years"
+    output_variable: "total_3_year_costs_usd"
+    dependencies: ["annual_solution_cost_usd", "analysis_period_years"]
+
+  - rule_id: "calculate_net_benefit"
+    formula: "total_3_year_benefits_usd - total_3_year_costs_usd"
+    output_variable: "net_3_year_benefit_usd"
+    dependencies: ["total_3_year_benefits_usd", "total_3_year_costs_usd"]
+
+  - rule_id: "calculate_roi_percentage"
+    formula: "(net_3_year_benefit_usd / total_3_year_costs_usd) * 100"
+    output_variable: "roi_percentage"
+    dependencies: ["net_3_year_benefit_usd", "total_3_year_costs_usd"]
+
+  - rule_id: "calculate_payback_period_months"
+    # Assumes consistent annual net benefit after year 1. For more complex, use actual cash flows.
+    formula: "IF((total_annual_quantified_benefit_usd - annual_solution_cost_usd) > 0, (annual_solution_cost_usd / (total_annual_quantified_benefit_usd - annual_solution_cost_usd)) * 12, 'N/A')"
+    output_variable: "payback_period_months"
+    dependencies: ["annual_solution_cost_usd", "total_annual_quantified_benefit_usd"]
+
+  - rule_id: "calculate_npv_usd"
+    # Simplified NPV for conceptual example, typically requires individual year cash flows
+    # NPV = Sum [ Cash Flow_t / (1 + r)^t ] - Initial Investment
+    # For a conceptual example, we assume constant annual net cash flow
+    # This formula is highly simplified and assumes annual net cash flow (Benefit - Cost)
+    # A more robust NPV would calculate PV of each year's (benefit - cost)
+    formula: |
+      (total_annual_quantified_benefit_usd - annual_solution_cost_usd) / (1 + discount_rate) ^ 1 +
+      (total_annual_quantified_benefit_usd - annual_solution_cost_usd) / (1 + discount_rate) ^ 2 +
+      (total_annual_quantified_benefit_usd - annual_solution_cost_usd) / (1 + discount_rate) ^ analysis_period_years
+    output_variable: "npv_usd"
+    dependencies: ["total_annual_quantified_benefit_usd", "annual_solution_cost_usd", "discount_rate", "analysis_period_years"]
+
+
+needs_globals: ["currency_symbol", "analysis_period_years", "discount_rate"] # Explicitly listing globals used
+
+initial_prompt: |
+  You are the ROI Calculator Agent. Using only the values in the Model Context, perform the following calculations and return a strict JSON object (no extra keys):
+  1.  total_annual_quantified_benefit_usd = sum of total_annual_revenue_uplift_usd, total_annual_cost_reduction_usd, total_annual_productivity_gains_usd, total_annual_risk_mitigation_usd
+  2.  total_3_year_benefits_usd = total_annual_quantified_benefit_usd * analysis_period_years
+  3.  total_3_year_costs_usd = annual_solution_cost_usd * analysis_period_years
+  4.  net_3_year_benefit_usd = total_3_year_benefits_usd - total_3_year_costs_usd
+  5.  roi_percentage = (net_3_year_benefit_usd / total_3_year_costs_usd) * 100
+  6.  payback_period_months = (annual_solution_cost_usd / (total_annual_quantified_benefit_usd - annual_solution_cost_usd)) * 12 (Handle division by zero if net annual benefit is zero or negative by returning 'N/A')
+  7.  npv_usd: Calculate Net Present Value based on the annual_solution_cost_usd, total_annual_quantified_benefit_usd, analysis_period_years, and discount_rate, assuming cash flows occur at the end of each year.
+
+  ---
+  Constraints:
+   • Use only values from Model Context as specified in dependencies.
+   • Round all USD fields to two decimal places.
+   • Round all percentages and payback period to one decimal place.
+   • Do not include explanations—return JSON only.
