@@ -1,57 +1,29 @@
 import yaml
 import os
+import asyncio
 from typing import Dict, Any
+from src.agents.core.agent_base import LLMAgent, MCPClient, AgentResult
 
-class IntakeAssistantAgent:
+class IntakeAssistantAgent(LLMAgent):
     """
     An agent responsible for gathering initial user input and extracting key business context.
     """
 
-    def __init__(self, agent_definition_path: str):
-        """
-        Initializes the agent by loading its definition from a YAML file.
-
-        Args:
-            agent_definition_path (str): The path to the agent's YAML definition file.
-        """
+    def __init__(self, agent_definition_path: str, mcp_client: MCPClient, config: Dict[str, Any]):
         self.definition = self._load_definition(agent_definition_path)
-        self.agent_id = self.definition.get('agent_id')
+        agent_id = self.definition.get('agent_id', 'intake_assistant')
+        super().__init__(agent_id, mcp_client, config)
         print(f"Successfully initialized agent: {self.agent_id}")
 
     def _load_definition(self, path: str) -> Dict[str, Any]:
-        """
-        Loads the YAML definition file.
-        """
         if not os.path.exists(path):
             raise FileNotFoundError(f"Agent definition file not found at: {path}")
         with open(path, 'r') as f:
             return yaml.safe_load(f)
 
-    def execute(self, user_raw_input: str) -> Dict[str, Any]:
-        """
-        Executes the agent's core logic.
-
-        This function takes the raw user input, simulates a call to an LLM
-        to process it, and returns the structured output.
-
-        Args:
-            user_raw_input (str): The unstructured text provided by the user.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing the structured output,
-                            such as company profile and pain points.
-        """
+    async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
         print(f"\nExecuting agent '{self.agent_id}' with user input...")
-        
-        # --- Placeholder for LLM Interaction ---
-        # In a real implementation, this is where you would:
-        # 1. Format the initial_prompt from the YAML definition.
-        # 2. Add the user_raw_input to the prompt.
-        # 3. Call the specified LLM (e.g., GPT-4) via its API.
-        # 4. Parse the LLM's response into the structured output format.
-        
-        print("Simulating LLM call to process user input...")
-        # This is a mock response for demonstration purposes.
+        # Simulate LLM call
         mock_llm_output = {
             "company_profile": {
                 "company_name": "Global Tech Inc.",
@@ -71,8 +43,20 @@ class IntakeAssistantAgent:
         return mock_llm_output
 
 if __name__ == '__main__':
-    # This demonstrates how to run the agent.
-    # The orchestrator would typically manage this process.
+    # Demonstrates how to run the agent using asyncio
+    import sys
+    agent_yaml_path = sys.argv[1] if len(sys.argv) > 1 else "../../Agents/intake_assistant_agent.yaml"
+    user_input = "Describe your company and key business challenges."
+    mcp_client = MCPClient()  # Placeholder
+    config = {"prompt_template": "..."}
+    agent = IntakeAssistantAgent(agent_yaml_path, mcp_client, config)
+
+    async def main():
+        result = await agent.execute_with_resilience({"user_raw_input": user_input})
+        print("\nAgent Result:")
+        print(result)
+
+    asyncio.run(main())
 
     # Relative path to the agent's YAML definition
     # This assumes you run this script from the project root directory (e.g., /home/bmsul/B2BValue)
