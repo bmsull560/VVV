@@ -1,0 +1,186 @@
+# Example integrated workflow for healthcare scenario
+# Demonstrates data flow through agents with proper MCP adherence
+
+workflow_instance:
+  id: "healthcare_roi_analysis_001"
+  created_at: "2025-06-11T08:38:00Z"
+  industry: "healthcare"
+  business_size: "enterprise"
+
+# External Data Sources
+external_connections:
+  - system: "HealthcareCRM"
+    connection_type: "API"
+    schema_version: "v3.2"
+    data_sensitivity: "high"
+    auth_mechanism: "oauth2"
+  - system: "ERP"
+    connection_type: "Database" 
+    schema_version: "v2.1"
+    data_sensitivity: "high"
+    auth_mechanism: "service_account"
+
+# Stage 1: System Preparation
+system_preparation:
+  database_connector:
+    status: "connected"
+    connections:
+      - db_type: "vector"
+        status: "healthy"
+        latency_ms: 42
+      - db_type: "graph"
+        status: "healthy"
+        latency_ms: 56
+      - db_type: "document"
+        status: "healthy"
+        latency_ms: 38
+  
+  data_integration:
+    status: "completed"
+    sources_connected: 2
+    records_processed: 2841
+    validation_issues: 3
+    normalized_schema_version: "healthcare_v1.2"
+  
+  mcp_compliance:
+    status: "compliant"
+    schema_validations_passed: true
+    data_integrity_checks_passed: true
+    protocol_violations: 0
+
+# Stage 2: Data Collection
+data_collection:
+  company_profile:
+    name: "MedTech Solutions Inc."
+    industry: "Healthcare Technology"
+    annual_revenue_usd: 500000000
+    employees: 1200
+    regions: ["North America", "Europe", "Asia Pacific"]
+  
+  initial_pain_points:
+    - "High patient readmission rates"
+    - "Inefficient resource allocation"
+    - "Rising operational costs"
+    - "Regulatory compliance burden"
+  
+  revenue_data_inputs:
+    current_patient_acquisition_cost_usd: 250
+    current_readmission_rate_percentage: 18
+    target_readmission_rate_percentage: 12
+    average_revenue_per_patient_usd: 3200
+    new_patients_per_year: 25000
+  
+  cost_reduction_data_inputs:
+    current_operational_cost_usd: 120000000
+    staff_utilization_rate_percentage: 72
+    target_staff_utilization_percentage: 85
+    average_staff_hourly_rate_usd: 65
+    annual_compliance_management_hours: 28000
+
+# Stage 3: Value Driver Quantification
+value_drivers:
+  annual_revenue_uplift:
+    increased_patient_retention_usd: 9216000
+    improved_acquisition_efficiency_usd: 2500000
+    total_usd: 11716000
+    confidence_score: 87
+  
+  annual_cost_reduction:
+    operational_efficiency_usd: 6240000
+    resource_optimization_usd: 2860000
+    total_usd: 9100000
+    confidence_score: 92
+  
+  annual_productivity_gains:
+    staff_time_savings_usd: 3250000
+    improved_decision_making_usd: 1800000
+    total_usd: 5050000
+    confidence_score: 85
+  
+  annual_risk_mitigation:
+    reduced_compliance_penalties_usd: 1200000
+    decreased_liability_exposure_usd: 2800000
+    total_usd: 4000000
+    confidence_score: 83
+  
+  industry_benchmarks:
+    readmission_rate_industry_avg_percentage: 15
+    operational_cost_percentage_of_revenue_industry_avg: 26
+    percentile_ranking: 72
+
+# Stage 4: Financial Analysis
+financial_analysis:
+  roi_results:
+    total_annual_quantified_benefit_usd: 29866000
+    annual_solution_cost_usd: 2500000
+    annual_roi_percentage: 1094.64
+    three_year_roi_percentage: 3283.92
+  
+  npv:
+    discount_rate: 0.10
+    three_year_npv_usd: 68623142
+  
+  payback_period:
+    months: 1.2
+    days: 36
+  
+  sensitivity_analysis:
+    scenarios:
+      - name: "Conservative"
+        adjustment_factor: 0.7
+        roi_percentage: 766.25
+      - name: "Expected"
+        adjustment_factor: 1.0
+        roi_percentage: 1094.64
+      - name: "Optimistic"
+        adjustment_factor: 1.2
+        roi_percentage: 1313.57
+    most_sensitive_inputs:
+      - "readmission_rate_percentage"
+      - "operational_cost_usd"
+  
+  market_trends:
+    - trend: "Value-based care adoption"
+      relevance_score: 92
+      impact: "Positive - aligns with solution benefits"
+    - trend: "Healthcare staff shortages"
+      relevance_score: 88
+      impact: "Positive - increases value of efficiency gains"
+
+# Stage 5: Deliverable Generation
+deliverables:
+  business_case_narrative:
+    word_count: 485
+    key_themes: ["patient outcomes", "operational excellence", "regulatory compliance"]
+    persona_alignment_score: 95
+  
+  critique_results:
+    overall_score: 92
+    strengths: ["clear ROI articulation", "quantified benefits"]
+    improvement_areas: ["add more technical specifications"]
+  
+  selected_template:
+    template_id: "healthcare_enterprise_deck_v2"
+    customizations: ["added compliance section", "expanded ROI visuals"]
+  
+  final_business_case:
+    format: "slidedeck_and_executive_summary"
+    page_count: 18
+    completion_status: "ready_for_review"
+
+# Stage 6: System Monitoring
+system_monitoring:
+  health_metrics:
+    avg_response_time_ms: 245
+    error_rate_percentage: 0.03
+    agent_utilization_percentage: 78
+  
+  audit_records:
+    total_operations: 142
+    data_transformations: 86
+    compliance_status: "fully_compliant"
+  
+  analytics:
+    avg_workflow_completion_time_sec: 45
+    user_satisfaction_score: 4.8
+    automation_rate_percentage: 92

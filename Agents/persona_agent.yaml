@@ -1,0 +1,87 @@
+# agents/persona_agent.yaml
+
+agent_id: persona_agent
+name: "Persona Agent"
+description: "Retrieves or constructs detailed target buyer/user personas based on the company profile, industry, and mapped use cases."
+purpose: "To create rich, context-aware personas that make the final business case more relatable and impactful for specific stakeholders."
+
+# MCP Compliance (Rule 1.1-1.4)
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+  data_versioning: "enabled"
+  immutability_enforcement: "write-once"
+
+# Orchestration Compliance (Rule 2.1-2.3)
+orchestration:
+  execution_trigger: "orchestrator_only"
+  dependency_check: "required"
+  graceful_termination: "enabled"
+
+# Transparency & Auditability (Rule 3.1-3.3)
+logging:
+  level: "comprehensive"
+  include: ["agent_id", "timestamp", "context_ids", "inputs", "outputs", "errors"]
+  audit_trail: true
+
+inputs:
+  - name: "company_profile"
+    type: "json"
+    source: "model_context.company_profile"
+    description: "Structured data about the user's company."
+    validation_rules: { required: true }
+
+  - name: "mapped_use_cases"
+    type: "array"
+    source: "model_context.mapped_use_cases"
+    description: "List of use cases mapped from the previous agent."
+    validation_rules: { required: true, min_items: 1 }
+
+outputs:
+  - name: "buyer_personas"
+    type: "array"
+    destination: "model_context.buyer_personas"
+    description: "A list of generated buyer persona profiles, in structured format."
+    schema: {
+      "persona_id": "string",
+      "persona_name": "string",
+      "role": "string",
+      "key_responsibilities": "array",
+      "goals": "array",
+      "challenges_and_pain_points": "array",
+      "profile_summary_markdown": "string" # For direct UI rendering
+    }
+
+# Error Handling (Rule 4.1-4.3)
+error_handling:
+  retry_policy:
+    max_retries: 0 # As per inventory: "No retries (approval required)"
+    fallback: "Human Review Agent"
+  idempotency: true
+  resource_management:
+    timeout_seconds: 240
+
+# Security & Access Control (Rule 5.1-5.3)
+security:
+  access_level: "Admins Only" # As per inventory
+  data_sensitivity: "high"
+  encryption: "in_transit_and_at_rest"
+
+# Ethical AI & Bias Mitigation (Rule 6.1-6.3)
+ethical_ai:
+  bias_detection: "enabled"
+  harmful_output_filter: "enabled"
+  human_oversight_trigger: "approval_required"
+
+tools:
+  - tool_id: "vectorDB"
+    description: "To retrieve existing persona templates or relevant stakeholder information."
+  - tool_id: "file"
+    description: "To access internal documents about buyer roles."
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "RAG" # As per inventory
+  fallback_model: "gpt-4" # Fallback is not used due to no retries
+  initial_prompt: |
+    "You are the Persona Agent. Your primary function is to construct detailed and realistic buyer personas. Use the provided company profile and mapped use cases as context. Leverage your knowledge base via Retrieval-Augmented Generation (RAG) to find and adapt persona templates relevant to the user's industry and challenges. The final output must be a structured list of personas, each with a rich, narrative summary in Markdown."

@@ -1,0 +1,54 @@
+# agents/analytics_aggregator_agent.yaml
+
+agent_id: analytics_aggregator_agent
+name: "Analytics Aggregator Agent"
+description: "Compiles performance metrics, usage statistics, and insights from all other agents."
+purpose: "To provide a high-level overview of the system's performance, identify bottlenecks, and generate insights for improvement."
+
+# MCP Compliance
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+
+# Orchestration Compliance
+orchestration:
+  execution_trigger: "scheduled_or_on_demand"
+  dependency_check: "none"
+
+# Logging
+logging:
+  level: "comprehensive"
+  audit_trail: true
+
+inputs:
+  - name: "agent_logs"
+    source: "log_store.*" # Accesses all agent logs
+
+outputs:
+  - name: "analytics_dashboard_data"
+    destination: "model_context.analytics_dashboard"
+    schema: {
+      "kpis": "json",
+      "usage_trends": "json",
+      "performance_recommendations": "array"
+    }
+
+# Error Handling
+error_handling:
+  retry_policy:
+    max_retries: 1
+
+# Security
+security:
+  access_level: "Admins Only"
+  data_sensitivity: "medium"
+
+tools:
+  - tool_id: "file"
+  - tool_id: "database"
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "Aggregation"
+  initial_prompt: |
+    "You are the Analytics Aggregator Agent. Your function is to process the logs and performance metrics from all other agents. Use an Aggregation strategy to compile this data into key performance indicators (KPIs), identify usage trends, and generate actionable recommendations for system improvement. The output should populate an analytics dashboard."

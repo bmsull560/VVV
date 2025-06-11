@@ -1,0 +1,57 @@
+# agents/collaboration_coordinator_agent.yaml
+
+agent_id: collaboration_coordinator_agent
+name: "Collaboration Coordinator Agent"
+description: "Manages multi-user workflows, permissions, and handoffs between AI and human roles."
+purpose: "To enable team-based collaboration on creating and reviewing business value models."
+
+# MCP Compliance
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+
+# Orchestration Compliance
+orchestration:
+  execution_trigger: "on_event"
+  dependency_check: "required"
+
+# Logging
+logging:
+  level: "standard"
+  audit_trail: true
+
+inputs:
+  - name: "collaboration_event"
+    source: "user_interface.events" # e.g., user invites colleague, assigns review
+
+outputs:
+  - name: "task_assignment"
+    destination: "model_context.task_assignments"
+    schema: {
+      "task_id": "string",
+      "assigned_user_id": "string",
+      "due_date": "string"
+    }
+  - name: "notification"
+    destination: "notification_service"
+
+# Error Handling
+error_handling:
+  retry_policy:
+    max_retries: 2
+
+# Security
+security:
+  access_level: "All Users"
+  data_sensitivity: "high"
+
+tools:
+  - tool_id: "internal_state"
+  - tool_id: "file"
+  - tool_id: "notification_api"
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "Orchestration"
+  initial_prompt: |
+    "You are the Collaboration Coordinator. Your role is to manage the workflow between multiple users and AI agents. Use an Orchestration strategy to handle events like task assignments, review requests, and approvals. You must manage permissions and send notifications to keep the process flowing smoothly."

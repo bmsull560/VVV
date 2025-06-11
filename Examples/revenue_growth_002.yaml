@@ -1,0 +1,60 @@
+scenario_id: "revenue_growth_002"
+scenario_type: "Revenue Growth - Lead Generation"
+company_profile:
+  industry: "B2B Professional Services"
+  size: "Mid-market"
+  employees: 400
+  annual_revenue: 60000000
+  current_challenge: "Inconsistent lead quality and long sales cycles"
+
+pain_point:
+  description: "Sales team wasting time on unqualified leads"
+  current_metrics:
+    monthly_leads: 1200
+    lead_qualification_rate: 15
+    lead_to_opportunity_rate: 8
+    opportunity_to_close_rate: 25
+    average_deal_size: 125000
+    sales_cycle_days: 180
+
+ai_solution:
+  solution_type: "AI Lead Intelligence Platform with Predictive Scoring"
+  vendor_category: "Sales Intelligence AI"
+  implementation_scope: "Lead scoring, intent data analysis, automated qualification"
+
+baseline_calculation:
+  current_qualified_leads_monthly: 180  # 15% of 1200
+  current_opportunities_monthly: 96  # 8% of 1200
+  current_closed_deals_monthly: 24  # 25% of 96
+  current_monthly_revenue: 3000000  # 24 * $125k
+
+value_calculation:
+  lead_quality_improvement: 60  # % increase in qualification rate
+  qualification_rate_new: 24  # 15% * 1.6
+  opportunities_monthly_new: 288  # 24% of 1200
+  closed_deals_monthly_new: 72  # 25% of 288
+  monthly_revenue_increase: 6000000  # (72-24) * $125k
+  annual_revenue_increase: 72000000
+
+financial_metrics:
+  solution_cost_annual: 240000
+  implementation_cost: 80000
+  net_annual_benefit: 71760000
+  roi_3_year: 6720
+  payback_months: 1
+  npv_3_year_10pct: 178000000
+
+confidence_factors:
+  - "AI lead scoring improves qualification accuracy 50-80%"
+  - "Intent data provides early buying signals"
+  - "B2B companies report 2-3x lead quality improvement"
+
+risk_factors:
+  - "Data quality and integration challenges"
+  - "Sales team adoption of new qualification process"
+  - "Market saturation and competitive response"
+
+stakeholder_impact:
+  cfo_perspective: "$72M annual revenue increase with 1-month payback"
+  coo_perspective: "Improved sales efficiency and predictability"
+  cro_perspective: "Massive revenue growth through better lead quality"

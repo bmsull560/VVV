@@ -1,0 +1,60 @@
+scenario_id: "industry_healthcare_001"
+scenario_type: "Risk Mitigation + Cost Reduction - Clinical AI"
+company_profile:
+  industry: "Healthcare/Hospital System"
+  size: "Large"
+  employees: 8000
+  annual_revenue: 2000000000
+  current_challenge: "Medical errors and inefficient diagnosis processes"
+
+pain_point:
+  description: "Diagnostic errors and treatment delays affecting patient outcomes and costs"
+  current_metrics:
+    patient_encounters_monthly: 45000
+    diagnostic_error_rate: 5
+    average_diagnosis_time_hours: 8
+    readmission_rate: 12
+    cost_per_readmission: 15000
+    malpractice_insurance_annual: 12000000
+
+ai_solution:
+  solution_type: "AI Clinical Decision Support with Diagnostic Assistance"
+  vendor_category: "Healthcare AI Platform"
+  implementation_scope: "Diagnostic support, treatment recommendations, risk assessment"
+
+baseline_calculation:
+  monthly_diagnostic_errors: 2250  # 5% * 45k encounters
+  annual_diagnostic_errors: 27000
+  readmissions_monthly: 5400  # 12% * 45k
+  annual_readmission_cost: 97200000  # 5400 * 12 * $15k
+
+value_calculation:
+  diagnostic_accuracy_improvement: 60  # % reduction in errors
+  diagnostic_errors_prevented: 16200  # 60% * 27k
+  readmission_reduction: 25  # % reduction
+  readmission_cost_savings: 24300000  # 25% * $97.2M
+  malpractice_insurance_reduction: 2400000  # 20% reduction
+  total_annual_benefit: 26700000
+
+financial_metrics:
+  solution_cost_annual: 2400000
+  implementation_cost: 800000
+  net_annual_benefit: 24300000
+  roi_3_year: 304
+  payback_months: 4
+  npv_3_year_10pct: 59000000
+
+confidence_factors:
+  - "AI diagnostic support improves accuracy 40-70%"
+  - "Clinical AI reduces readmissions 20-30%"
+  - "Healthcare systems report significant outcome improvements"
+
+risk_factors:
+  - "Regulatory approval and compliance requirements"
+  - "Physician adoption and trust in AI recommendations"
+  - "Integration with existing electronic health records"
+
+stakeholder_impact:
+  cfo_perspective: "$24M annual benefit with 4-month payback"
+  coo_perspective: "Improved patient outcomes and operational efficiency"
+  cro_perspective: "Enhanced quality of care and patient satisfaction"

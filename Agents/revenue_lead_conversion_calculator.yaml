@@ -1,0 +1,73 @@
+# agents/revenue_lead_conversion_calculator.yaml
+
+agent_id: revenue_lead_conversion_calculator
+name: "Revenue Lead Conversion Calculator"
+description: "Calculates incremental revenue from improved lead conversion rates and sales volume uplift."
+purpose: "Quantifies Tier 3 value drivers under 'Revenue Growth' and 'Sales Productivity'."
+tier_mapping:
+  - tier1: "Revenue Growth / Top-Line Impact"
+  - tier2: "Customer Acquisition"
+  - tier2: "Sales Efficiency"
+  - tier3_driver: "Improved Lead-to-Opportunity Conversion"
+  - tier3_driver: "Sales Volume Uplift"
+
+inputs:
+  - name: "monthly_leads_baseline"
+    type: "integer"
+    source: "user_input"
+    description: "Average monthly volume of leads before AI solution."
+    validation_rules: { min: 0 }
+  - name: "baseline_lead_conversion_rate"
+    type: "float"
+    source: "user_input"
+    description: "Current lead-to-opportunity conversion rate (e.g., 0.05 for 5%)."
+    validation_rules: { min: 0, max: 1 }
+  - name: "ai_driven_conversion_uplift_percentage"
+    type: "float"
+    source: "user_input"
+    description: "Expected percentage point increase in conversion rate due to AI (e.g., 0.01 for 1% point increase)."
+    validation_rules: { min: 0 }
+  - name: "avg_deal_size_usd"
+    type: "currency"
+    source: "user_input"
+    description: "Average revenue generated per closed deal in USD."
+    validation_rules: { min: 0 }
+  - name: "avg_sales_cycle_length_months"
+    type: "float"
+    source: "user_input"
+    description: "Average length of sales cycle in months."
+    validation_rules: { min: 0.1 }
+  - name: "sales_volume_uplift_percentage"
+    type: "float"
+    source: "user_input"
+    description: "Expected percentage increase in overall sales volume due to AI (e.g., 0.05 for 5%)."
+    validation_rules: { min: 0, max: 1 }
+
+outputs:
+  - name: "annual_incremental_revenue_from_conversion_usd"
+    type: "currency"
+    description: "Annual incremental revenue generated from improved lead conversion."
+  - name: "annual_incremental_revenue_from_sales_volume_usd"
+    type: "currency"
+    description: "Annual incremental revenue generated from overall sales volume uplift."
+  - name: "total_annual_revenue_uplift_usd"
+    type: "currency"
+    description: "Sum of all annual revenue uplift impacts calculated by this agent."
+
+rules:
+  - rule_id: "calculate_incremental_revenue_from_conversion"
+    formula: "(monthly_leads_baseline * (baseline_lead_conversion_rate + ai_driven_conversion_uplift_percentage) - monthly_leads_baseline * baseline_lead_conversion_rate) * avg_deal_size_usd * 12"
+    output_variable: "annual_incremental_revenue_from_conversion_usd"
+    dependencies: ["monthly_leads_baseline", "baseline_lead_conversion_rate", "ai_driven_conversion_uplift_percentage", "avg_deal_size_usd"]
+
+  - rule_id: "calculate_incremental_revenue_from_sales_volume"
+    formula: "(monthly_leads_baseline * baseline_lead_conversion_rate * avg_deal_size_usd * 12) * sales_volume_uplift_percentage"
+    output_variable: "annual_incremental_revenue_from_sales_volume_usd"
+    dependencies: ["monthly_leads_baseline", "baseline_lead_conversion_rate", "avg_deal_size_usd", "sales_volume_uplift_percentage"]
+
+  - rule_id: "aggregate_revenue_uplift"
+    formula: "annual_incremental_revenue_from_conversion_usd + annual_incremental_revenue_from_sales_volume_usd"
+    output_variable: "total_annual_revenue_uplift_usd"
+    dependencies: ["annual_incremental_revenue_from_conversion_usd", "annual_incremental_revenue_from_sales_volume_usd"]
+
+needs_globals: ["currency_symbol"]

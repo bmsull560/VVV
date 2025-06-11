@@ -1,0 +1,54 @@
+# agents/confidence_scoring_agent.yaml
+
+agent_id: confidence_scoring_agent
+name: "Confidence Scoring Agent"
+description: "Assigns a confidence score (0-100) and a rationale to the outputs of other agents."
+purpose: "To provide transparency and help the user understand the system's level of certainty about its conclusions."
+
+# MCP Compliance
+model_context_protocol:
+  input_validation_rules: "flexible"
+  output_validation_rules: "strict"
+
+# Orchestration Compliance
+orchestration:
+  execution_trigger: "orchestrator_only"
+  dependency_check: "required"
+
+# Logging
+logging:
+  level: "light"
+
+inputs:
+  - name: "agent_output"
+    source: "model_context.*" # Wildcard to act on any agent's output
+
+outputs:
+  - name: "confidence_score"
+    destination: "model_context.confidence_scores"
+    schema: {
+      "target_output_id": "string",
+      "confidence_level": "integer",
+      "rationale": "string"
+    }
+
+# Error Handling
+error_handling:
+  retry_policy:
+    max_retries: 1
+
+# Security
+security:
+  access_level: "All Users"
+  data_sensitivity: "low"
+
+tools:
+  - tool_id: "memory"
+    config: { "scope": "past_scores" }
+  - tool_id: "internal_logic"
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "Scoring"
+  initial_prompt: |
+    "You are the Confidence Scoring Agent. Your sole purpose is to assign a confidence score from 0 to 100 to the provided AI-generated output. Base your score on factors like the clarity of the input, the complexity of the task, and historical performance. Provide a brief rationale for your score. Use a Scoring prompt strategy to focus exclusively on evaluation."

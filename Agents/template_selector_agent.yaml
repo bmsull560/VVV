@@ -1,0 +1,56 @@
+# agents/template_selector_agent.yaml
+
+agent_id: template_selector_agent
+name: "Template Selector Agent"
+description: "Recommends the optimal business case or slide deck template based on the context."
+purpose: "To ensure the final deliverable is presented in the most effective format for the target audience and industry."
+
+# MCP Compliance
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+
+# Orchestration Compliance
+orchestration:
+  execution_trigger: "orchestrator_only"
+  dependency_check: "required"
+
+# Logging
+logging:
+  level: "standard"
+
+inputs:
+  - name: "company_profile"
+    source: "model_context.company_profile"
+  - name: "mapped_use_cases"
+    source: "model_context.mapped_use_cases"
+
+outputs:
+  - name: "selected_template"
+    destination: "model_context.selected_template"
+    schema: {
+      "template_id": "string",
+      "template_name": "string",
+      "match_score": "float",
+      "suggested_customizations": "array"
+    }
+
+# Error Handling
+error_handling:
+  retry_policy:
+    max_retries: 1
+
+# Security
+security:
+  access_level: "Editors+"
+  data_sensitivity: "low"
+
+tools:
+  - tool_id: "file"
+    description: "To access the library of available templates."
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "Matching"
+  initial_prompt: |
+    "You are the Template Selector. Your task is to choose the best presentation template. Analyze the user's industry, company size, and use cases. Use a Matching strategy to compare this context against the metadata of available templates in your library and select the most suitable one."

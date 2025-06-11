@@ -1,0 +1,59 @@
+scenario_id: "productivity_002"
+scenario_type: "Productivity Gains - Development Acceleration"
+company_profile:
+  industry: "Software/Technology"
+  size: "Large"
+  employees: 1500
+  annual_revenue: 300000000
+  current_challenge: "Slow software development cycles limiting product innovation"
+
+pain_point:
+  description: "Development team spending 60% time on routine coding tasks"
+  current_metrics:
+    engineering_team_size: 120
+    avg_fully_loaded_cost: 180000
+    time_on_routine_coding: 60
+    time_on_innovation: 25
+    time_on_debugging: 15
+    feature_delivery_cycle_weeks: 8
+    code_review_hours_per_week: 480
+
+ai_solution:
+  solution_type: "AI Code Generation and Development Assistant Platform"
+  vendor_category: "AI Development Tools"
+  implementation_scope: "Code generation, automated testing, code review assistance"
+
+baseline_calculation:
+  current_routine_hours_per_dev: 24  # 60% of 40 hours
+  productivity_improvement_target: 40
+  time_savings_per_dev_hours: 9.6  # 40% of 24 hours
+  total_time_savings_weekly: 1152  # 120 devs * 9.6 hours
+
+value_calculation:
+  annual_time_savings_hours: 59904  # 1152 * 52 weeks
+  value_per_hour: 90  # $180k / 2000 hours
+  annual_productivity_value: 5391360
+  faster_delivery_value: 2000000  # Revenue from faster time-to-market
+
+financial_metrics:
+  solution_cost_annual: 360000
+  implementation_cost: 100000
+  net_annual_benefit: 7031360
+  roi_3_year: 458
+  payback_months: 2
+  npv_3_year_10pct: 17200000
+
+confidence_factors:
+  - "AI code generation proven to increase productivity 35-50%"
+  - "Automated testing reduces bug rates by 60%"
+  - "Major tech companies report similar gains"
+
+risk_factors:
+  - "Code quality and security concerns"
+  - "Developer adoption and learning curve"
+  - "Integration with existing development workflows"
+
+stakeholder_impact:
+  cfo_perspective: "$7M annual value equivalent to 39 additional developers"
+  coo_perspective: "Accelerated product development and innovation"
+  cro_perspective: "Faster feature delivery improves competitive position"

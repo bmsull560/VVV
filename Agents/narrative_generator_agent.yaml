@@ -1,0 +1,61 @@
+# agents/narrative_generator_agent.yaml
+
+agent_id: narrative_generator_agent
+name: "Narrative Generator Agent"
+description: "Generates a persuasive business case story by weaving together persona pain points, value drivers, and ROI outcomes."
+purpose: "To translate quantitative results and structured data into a compelling, human-readable narrative that resonates with business stakeholders."
+
+# MCP Compliance
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+
+# Orchestration Compliance
+orchestration:
+  execution_trigger: "orchestrator_only"
+  dependency_check: "required"
+
+# Logging
+logging:
+  level: "comprehensive"
+  audit_trail: true
+
+inputs:
+  - name: "buyer_personas"
+    source: "model_context.buyer_personas"
+  - name: "quantified_value_drivers"
+    source: "model_context.quantified_value_drivers"
+  - name: "roi_results"
+    source: "model_context.roi_results"
+
+outputs:
+  - name: "business_case_narrative"
+    destination: "model_context.business_case_narrative"
+    schema: {
+      "title": "string",
+      "executive_summary": "string",
+      "body_markdown": "string",
+      "word_count": "integer"
+    }
+
+# Error Handling
+error_handling:
+  retry_policy:
+    max_retries: 0
+    fallback: "Critique Agent" # Flows to critique
+
+# Security
+security:
+  access_level: "Editors+"
+  data_sensitivity: "medium"
+
+tools:
+  - tool_id: "vectorDB"
+  - tool_id: "file"
+  - tool_id: "web_search"
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "CoT"
+  initial_prompt: |
+    "You are the Narrative Generator. Your task is to craft a compelling story that links the identified value drivers directly to the pain points of the buyer personas. Use the calculated ROI results as proof points. Employ a Chain-of-Thought (CoT) process to build the narrative logically, from problem to solution to outcome. The final output should be a persuasive and polished business case narrative."

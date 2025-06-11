@@ -1,0 +1,57 @@
+scenario_id: "enterprise_001"
+scenario_type: "Cost Reduction + Revenue Growth - Supply Chain AI"
+company_profile:
+  industry: "Consumer Goods"
+  size: "Enterprise"
+  employees: 15000
+  annual_revenue: 5000000000
+  current_challenge: "Complex global supply chain inefficiencies"
+
+pain_point:
+  description: "Supply chain disruptions and inefficiencies costing millions"
+  current_metrics:
+    supply_chain_cost_percentage: 12
+    annual_supply_chain_cost: 600000000
+    inventory_turnover: 6
+    stockout_rate: 8
+    excess_inventory_percentage: 15
+    supplier_count: 2500
+
+ai_solution:
+  solution_type: "Enterprise AI Supply Chain Optimization Platform"
+  vendor_category: "Enterprise Supply Chain AI"
+  implementation_scope: "Demand forecasting, supplier optimization, logistics planning"
+
+baseline_calculation:
+  supply_chain_optimization_target: 15  # % cost reduction
+  inventory_optimization_target: 25  # % reduction in excess
+  stockout_reduction_target: 50  # % reduction
+
+value_calculation:
+  supply_chain_cost_savings: 90000000  # 15% * $600M
+  inventory_optimization_savings: 112500000  # 25% of 15% excess * $5B revenue
+  stockout_reduction_value: 100000000  # Revenue recovery from better availability
+  total_annual_benefit: 302500000
+
+financial_metrics:
+  solution_cost_annual: 15000000
+  implementation_cost: 8000000
+  net_annual_benefit: 287500000
+  roi_3_year: 372
+  payback_months: 3
+  npv_3_year_10pct: 712000000
+
+confidence_factors:
+  - "Enterprise AI platforms proven at scale"
+  - "Supply chain AI delivers 10-20% cost reductions"
+  - "Global companies report significant ROI"
+
+risk_factors:
+  - "Complex integration across multiple systems"
+  - "Change management across global organization"
+  - "Supplier ecosystem coordination"
+
+stakeholder_impact:
+  cfo_perspective: "$288M annual benefit with 3-month payback"
+  coo_perspective: "Massive operational efficiency and resilience gains"
+  cro_perspective: "Better product availability drives revenue growth"

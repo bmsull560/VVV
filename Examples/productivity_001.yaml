@@ -1,0 +1,59 @@
+scenario_id: "productivity_001"
+scenario_type: "Productivity Gains - Sales Acceleration"
+company_profile:
+  industry: "B2B Technology"
+  size: "Mid-market"
+  employees: 800
+  annual_revenue: 120000000
+  current_challenge: "Sales team spending too much time on non-selling activities"
+
+pain_point:
+  description: "Sales reps spending only 35% of time actually selling"
+  current_metrics:
+    sales_team_size: 40
+    avg_fully_loaded_cost: 150000
+    time_spent_selling_percentage: 35
+    time_on_admin_tasks_percentage: 40
+    time_on_research_percentage: 25
+    avg_deal_size: 85000
+    sales_cycle_days: 120
+
+ai_solution:
+  solution_type: "AI Sales Assistant with Lead Scoring and Content Generation"
+  vendor_category: "Sales AI Platform"
+  implementation_scope: "Lead qualification, proposal generation, CRM automation"
+
+baseline_calculation:
+  current_selling_time_per_rep: 14  # 35% of 40 hours/week
+  target_selling_time_percentage: 55
+  additional_selling_hours_per_rep: 8  # 20% increase
+  total_additional_selling_hours: 320  # 40 reps * 8 hours
+
+value_calculation:
+  productivity_improvement_percentage: 57  # (55-35)/35
+  estimated_revenue_increase: 6840000  # Based on increased selling time
+  cost_of_additional_capacity: 6000000  # Cost to hire equivalent capacity
+  net_productivity_value: 6000000
+
+financial_metrics:
+  solution_cost_annual: 480000
+  implementation_cost: 120000
+  net_annual_benefit: 5520000
+  roi_3_year: 275
+  payback_months: 3
+  npv_3_year_10pct: 13200000
+
+confidence_factors:
+  - "AI lead scoring improves qualification accuracy by 40%"
+  - "Automated proposal generation saves 8 hours per deal"
+  - "Similar companies achieved 50-70% productivity gains"
+
+risk_factors:
+  - "Sales team adoption and training"
+  - "Integration with existing sales processes"
+  - "Data quality and CRM hygiene"
+
+stakeholder_impact:
+  cfo_perspective: "$5.5M value equivalent to hiring 40 additional reps"
+  coo_perspective: "Massive productivity gains without headcount increase"
+  cro_perspective: "Accelerated sales cycles and improved win rates"

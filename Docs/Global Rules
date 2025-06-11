@@ -1,0 +1,32 @@
+# GlobalRules
+
+1. Data Integrity & Model Context Protocol (MCP) Adherence
+Rule 1.1 - Canonical Data Source: All agents MUST read inputs exclusively from the Model Context Protocol (MCP) unless explicitly designated as a primary data ingestion agent (e.g., initial UI input).
+Rule 1.2 - Output to MCP: All agent outputs, whether intermediate or final, MUST be written back to the MCP in their defined Output Format.
+Rule 1.3 - Data Validation: Agents MUST validate their inputs from the MCP against their defined validation_rules (e.g., type, range) and handle invalid data gracefully (e.g., flag, error, seek clarification).
+Rule 1.4 - Immutability of Records: Once data is written to the MCP by an agent, it should generally be considered immutable by other agents; new calculations should create new data points rather than modifying existing ones, unless explicitly designed for iteration or refinement.
+
+2. Orchestration & Workflow Compliance
+Rule 2.1 - Orchestrator as Authority: Agents MUST only execute when triggered by the Main Orchestrator Agent, and their execution flow MUST adhere to the workflow_definition managed by the Orchestrator.
+Rule 2.2 - Dependency Fulfillment: An agent MUST NOT attempt to execute its core logic until all its dependencies (required inputs) from the MCP are satisfied.
+Rule 2.3 - Graceful Termination: Agents MUST terminate cleanly upon completion of their task or upon receiving a termination signal from the Orchestrator, releasing resources.
+
+3. Transparency & Auditability
+Rule 3.1 - Comprehensive Logging: All agents MUST log their key actions, inputs, outputs, errors, and significant decisions. Logs MUST include agent ID, timestamp, and relevant context IDs (e.g., value model instance ID).
+Rule 3.2 - Audit Trail Maintenance: For agents with Audit Required: Yes, detailed logs sufficient for a full audit of the decision-making process and data transformations MUST be maintained.
+Rule 3.3 - Explainability (where applicable): For LLM-based agents, efforts SHOULD be made to enable explainability where feasible, providing traceability for their reasoning or data usage.
+
+4. Reliability & Error Handling
+Rule 4.1 - Robust Error Handling: Agents MUST implement robust error handling mechanisms to catch and report exceptions to the Orchestrator. They SHOULD provide meaningful error messages.
+Rule 4.2 - Retry Mechanisms: Agents SHOULD be designed to be idempotent where possible, allowing the Orchestrator to safely retry failed executions.
+Rule 4.3 - Resource Management: Agents MUST be designed to efficiently manage system resources (CPU, memory, API calls) to prevent bottlenecks and ensure overall system stability.
+
+5. Security & Access Control
+Rule 5.1 - Principle of Least Privilege: Agents MUST only have access to the data and system resources absolutely necessary for their defined purpose.
+Rule 5.2 - Data Sensitivity Awareness: Agents handling sensitive data (Data Sensitivity: High) MUST implement enhanced security measures (e.g., encryption, strict access logging) and adhere to defined Access Control policies.
+Rule 5.3 - Secure Communication: All inter-agent and agent-to-MCP communication MUST be encrypted and authenticated.
+
+6. Ethical AI & Bias Mitigation
+Rule 6.1 - Fairness & Bias Awareness: Agents MUST be designed and periodically reviewed for potential biases in their inputs, logic, or outputs, especially those involving LLMs or human-facing interactions.
+Rule 6.2 - Non-Harmful Output: Agents MUST NOT generate outputs that are discriminatory, misleading, harmful, or violate privacy.
+Rule 6.3 - Human Oversight: Agents SHOULD incorporate mechanisms for human oversight and intervention, especially for critical decisions or sensitive outputs, as facilitated by agents like the Human Review Agent.

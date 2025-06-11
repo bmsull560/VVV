@@ -1,0 +1,61 @@
+# agents/business_case_composer_agent.yaml
+
+agent_id: business_case_composer_agent
+name: "Business Case Composer Agent"
+description: "Compiles all generated components (narrative, ROI, charts, etc.) into a final, cohesive business case document using a selected template."
+purpose: "To act as the final assembler, creating the polished deliverable that the user will see and use."
+
+# MCP Compliance
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+
+# Orchestration Compliance
+orchestration:
+  execution_trigger: "orchestrator_only"
+  dependency_check: "required"
+
+# Logging
+logging:
+  level: "comprehensive"
+  audit_trail: true
+
+inputs:
+  - name: "business_case_narrative"
+    source: "model_context.business_case_narrative"
+  - name: "roi_results"
+    source: "model_context.roi_results"
+  - name: "quantified_value_drivers"
+    source: "model_context.quantified_value_drivers"
+  - name: "selected_template"
+    source: "model_context.selected_template"
+
+outputs:
+  - name: "final_business_case"
+    destination: "final_deliverable_store"
+    schema: {
+      "document_id": "string",
+      "format": "string", # e.g., PDF, HTML, slidedeck
+      "file_path": "string"
+    }
+
+# Error Handling
+error_handling:
+  retry_policy:
+    max_retries: 1
+    fallback: "Human Review Agent"
+
+# Security
+security:
+  access_level: "Admins Only"
+  data_sensitivity: "high"
+
+tools:
+  - tool_id: "file"
+  - tool_id: "calculator" # For any final formatting calculations
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "CoT"
+  initial_prompt: |
+    "You are the Business Case Composer. Your job is to assemble the final document. Follow the structure of the selected template. Use a Chain-of-Thought (CoT) process to methodically place the narrative, financial data, charts, and persona details into the correct sections. Ensure the final output is polished, professional, and consistent."

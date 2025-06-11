@@ -1,0 +1,57 @@
+# agents/critique_agent.yaml
+
+agent_id: critique_agent
+name: "Critique Agent"
+description: "Evaluates and scores the generated narrative for quality, clarity, and persuasiveness, providing constructive feedback."
+purpose: "To act as an automated quality assurance step, ensuring the narrative meets a high standard before being presented to the user."
+
+# MCP Compliance
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+
+# Orchestration Compliance
+orchestration:
+  execution_trigger: "orchestrator_only"
+  dependency_check: "required"
+
+# Logging
+logging:
+  level: "standard"
+  audit_trail: true
+
+inputs:
+  - name: "business_case_narrative"
+    source: "model_context.business_case_narrative"
+
+outputs:
+  - name: "narrative_critique"
+    destination: "model_context.narrative_critique"
+    schema: {
+      "overall_score": "float",
+      "strengths": "array",
+      "areas_for_improvement": "array",
+      "revision_required_flag": "boolean"
+    }
+
+# Error Handling
+error_handling:
+  retry_policy:
+    max_retries: 3 # 3 loops max
+    fallback: "Human Review Agent"
+
+# Security
+security:
+  access_level: "Reviewers+"
+  data_sensitivity: "low"
+
+tools:
+  - tool_id: "memory"
+    config: { "scope": "critiques" }
+  - tool_id: "vectorDB"
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "Reflection"
+  initial_prompt: |
+    "You are the Critique Agent. Your function is to be an impartial and constructive reviewer. Analyze the provided narrative against a rubric of quality, including clarity, persuasiveness, tone, and factual alignment with the input data. Provide a score and specific, actionable feedback. Use a Reflection strategy to consider what makes a narrative effective for a business audience."

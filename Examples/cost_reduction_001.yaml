@@ -1,0 +1,60 @@
+scenario_id: "cost_reduction_001"
+scenario_type: "Cost Reduction - Support Automation"
+company_profile:
+  industry: "SaaS"
+  size: "Mid-market"
+  employees: 500
+  annual_revenue: 50000000
+  current_challenge: "Escalating customer support costs due to 40% YoY growth"
+
+pain_point:
+  description: "Customer support team overwhelmed with repetitive inquiries"
+  current_metrics:
+    monthly_tickets: 8000
+    cost_per_ticket: 15.00
+    resolution_time_hours: 4.2
+    customer_satisfaction: 3.2
+    support_team_size: 12
+    annual_support_cost: 1440000
+
+ai_solution:
+  solution_type: "AI Chatbot + Knowledge Management System"
+  vendor_category: "Conversational AI Platform"
+  implementation_scope: "Tier 1 support automation with escalation workflows"
+
+baseline_calculation:
+  current_annual_cost: 1440000
+  automation_target_percentage: 35
+  tickets_automated_monthly: 2800
+  cost_per_automated_ticket: 2.50
+  
+value_calculation:
+  monthly_savings: 35000  # (2800 * (15.00 - 2.50))
+  annual_savings: 420000
+  additional_benefits:
+    faster_resolution: "2.1 hours average (50% improvement)"
+    improved_satisfaction: "4.1 rating (28% improvement)"
+    team_capacity_freed: "30% for complex issues"
+
+financial_metrics:
+  solution_cost_annual: 120000
+  implementation_cost: 80000
+  net_annual_benefit: 300000
+  roi_3_year: 156
+  payback_months: 8
+  npv_3_year_10pct: 694000
+
+confidence_factors:
+  - "Proven technology with 90%+ accuracy in similar implementations"
+  - "Industry benchmark: 40% automation typical for SaaS companies"
+  - "Vendor has 200+ successful deployments"
+  
+risk_factors:
+  - "Customer acceptance of AI interactions"
+  - "Integration complexity with existing CRM"
+  - "Training time for support team"
+
+stakeholder_impact:
+  cfo_perspective: "42% reduction in support costs with 8-month payback"
+  coo_perspective: "Improved operational efficiency and customer experience"
+  cro_perspective: "Better customer satisfaction supports retention and growth"

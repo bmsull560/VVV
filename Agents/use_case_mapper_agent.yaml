@@ -1,0 +1,85 @@
+# agents/use_case_mapper_agent.yaml
+
+agent_id: use_case_mapper_agent
+name: "Use Case Mapper Agent"
+description: "Analyzes the user's pain points and strategic goals to map them to a predefined library of business use cases and value drivers."
+purpose: "To translate unstructured user needs into a structured set of use cases that can be quantified by downstream financial agents."
+
+# MCP Compliance (Rule 1.1-1.4)
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+  data_versioning: "enabled"
+  immutability_enforcement: "write-once"
+
+# Orchestration Compliance (Rule 2.1-2.3)
+orchestration:
+  execution_trigger: "orchestrator_only"
+  dependency_check: "required"
+  graceful_termination: "enabled"
+
+# Transparency & Auditability (Rule 3.1-3.3)
+logging:
+  level: "comprehensive"
+  include: ["agent_id", "timestamp", "context_ids", "inputs", "outputs", "errors"]
+  audit_trail: true
+
+inputs:
+  - name: "company_profile"
+    type: "json"
+    source: "model_context.company_profile"
+    description: "Structured data about the user's company."
+    validation_rules: { required: true }
+
+  - name: "initial_pain_points"
+    type: "array"
+    source: "model_context.initial_pain_points"
+    description: "List of business challenges from the Intake Assistant Agent."
+    validation_rules: { required: true, min_items: 1 }
+
+outputs:
+  - name: "mapped_use_cases"
+    type: "array"
+    destination: "model_context.mapped_use_cases"
+    description: "A list of structured use case objects, each with an ID, name, and relevance score."
+    schema: {
+      "use_case_id": "string",
+      "use_case_name": "string",
+      "relevance_score": "float",
+      "mapped_pain_points": "array"
+    }
+
+# Error Handling (Rule 4.1-4.3)
+error_handling:
+  retry_policy:
+    max_retries: 2
+    fallback: "Human Review Agent" # As per inventory
+    backoff_strategy: "fixed"
+    backoff_base_seconds: 5
+  idempotency: true
+  resource_management:
+    timeout_seconds: 180
+
+# Security & Access Control (Rule 5.1-5.3)
+security:
+  access_level: "user_specific"
+  data_sensitivity: "low"
+  encryption: "in_transit_and_at_rest"
+
+# Ethical AI & Bias Mitigation (Rule 6.1-6.3)
+ethical_ai:
+  bias_detection: "enabled"
+  human_oversight_trigger: "relevance_score_below_threshold"
+
+tools:
+  - tool_id: "vectorDB"
+    description: "To search a library of predefined use cases and value drivers for matches."
+  - tool_id: "file"
+    description: "To access internal documentation on use case definitions."
+
+implementation:
+  model: "mixtral-8x7B" # As per inventory
+  prompt_strategy: "RAG" # As per inventory
+  fallback_model: "gpt-4"
+  initial_prompt: |
+    "You are the Use Case Mapper. Your function is to analyze the provided company profile and list of pain points. Using the Retrieval-Augmented Generation (RAG) strategy, search your knowledge base of business use cases. Identify and map the most relevant use cases to the user's situation. For each match, provide a relevance score and explicitly link it back to the specific pain points it addresses. Output the results in a structured list."

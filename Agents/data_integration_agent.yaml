@@ -1,0 +1,104 @@
+# agents/data_integration_agent.yaml
+
+agent_id: data_integration_agent
+name: "Data Integration Agent"
+description: "Connects to external systems (CRM, ERP, finance) and normalizes data for processing by other agents."
+purpose: "To ensure consistent, validated data flow from external systems into the Model Context Protocol."
+
+# MCP Compliance (Rule 1.1-1.4)
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+  data_versioning: "enabled"
+  immutability_enforcement: "write-once"
+
+# Orchestration Compliance (Rule 2.1-2.3)
+orchestration:
+  execution_trigger: "orchestrator_only"
+  dependency_check: "required"
+  graceful_termination: "enabled"
+
+# Transparency & Auditability (Rule 3.1-3.3)
+logging:
+  level: "comprehensive"
+  include: ["agent_id", "timestamp", "context_ids", "inputs", "outputs", "errors", "decisions"]
+  audit_trail: true
+  explainability: "detailed"
+
+inputs:
+  - name: "connection_configs"
+    type: "json"
+    source: "model_context.integration_settings"
+    description: "Configuration details for connecting to external systems."
+    validation_rules: { required: true }
+    
+  - name: "data_mappings"
+    type: "json"
+    source: "model_context.schema_registry"
+    description: "Mappings between external system fields and MCP data schema."
+    validation_rules: { required: true }
+    
+  - name: "refresh_type"
+    type: "enum"
+    allowed_values: ["full", "incremental", "scheduled", "manual"]
+    source: "model_context.user_request"
+    description: "Type of data refresh to perform."
+    validation_rules: { required: true }
+
+outputs:
+  - name: "connection_status"
+    type: "json"
+    destination: "model_context.system_status"
+    description: "Status of connection attempts to each system."
+    
+  - name: "data_extraction_results"
+    type: "json"
+    destination: "model_context.raw_data"
+    description: "Raw data extracted from external systems."
+    
+  - name: "data_transformation_results"
+    type: "json"
+    destination: "model_context.processed_data"
+    description: "Transformed data ready for agent consumption."
+    
+  - name: "data_validation_issues"
+    type: "array"
+    destination: "model_context.system_alerts"
+    description: "Any validation issues encountered during the process."
+
+# Error Handling (Rule 4.1-4.3)
+error_handling:
+  retry_policy:
+    max_retries: 3
+    backoff_strategy: "exponential"
+    backoff_base_seconds: 2
+  idempotency: true
+  resource_management:
+    max_memory_mb: 512
+    max_concurrent_connections: 5
+    timeout_seconds: 300
+
+# Security & Access Control (Rule 5.1-5.3)
+security:
+  access_level: "system_only"
+  data_sensitivity: "high"
+  encryption: "in_transit_and_at_rest"
+  access_logging: "enhanced"
+
+tools:
+  - tool_id: "api_connector"
+    description: "Connects to external APIs (REST, SOAP, GraphQL)"
+    access_level: "restricted"
+    
+  - tool_id: "database_connector"
+    description: "Connects to external databases (SQL, NoSQL)"
+    access_level: "restricted"
+    
+  - tool_id: "data_transformer"
+    description: "Transforms data between schemas"
+    access_level: "restricted"
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "integration"
+  fallback_model: "gpt-4"

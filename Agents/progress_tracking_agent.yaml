@@ -1,0 +1,52 @@
+# agents/progress_tracking_agent.yaml
+
+agent_id: progress_tracking_agent
+name: "Progress Tracking Agent"
+description: "Monitors the state of the workflow and updates the user on progress."
+purpose: "To provide a smooth and transparent user experience by showing the user where they are in the value modeling process."
+
+# MCP Compliance
+model_context_protocol:
+  input_validation_rules: "flexible"
+  output_validation_rules: "strict"
+
+# Orchestration Compliance
+orchestration:
+  execution_trigger: "on_event"
+  dependency_check: "none"
+
+# Logging
+logging:
+  level: "none"
+
+inputs:
+  - name: "workflow_event"
+    source: "orchestrator.events" # Listens to events from the orchestrator
+
+outputs:
+  - name: "ui_progress_state"
+    destination: "model_context.ui_state"
+    schema: {
+      "progress_percentage": "integer",
+      "current_step_name": "string",
+      "status_message": "string"
+    }
+
+# Error Handling
+error_handling:
+  retry_policy:
+    max_retries: 1
+
+# Security
+security:
+  access_level: "All Users"
+  data_sensitivity: "none"
+
+tools:
+  - tool_id: "internal_state"
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "Tracking"
+  initial_prompt: |
+    "You are the Progress Tracking Agent. Your job is to monitor workflow events from the orchestrator. Based on the current stage of the process, update the UI state with the progress percentage and a user-friendly status message. Use a Tracking prompt strategy to maintain and report on the system's state."

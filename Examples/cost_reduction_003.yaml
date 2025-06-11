@@ -1,0 +1,56 @@
+scenario_id: "cost_reduction_003"
+scenario_type: "Cost Reduction - Inventory Management"
+company_profile:
+  industry: "Retail/E-commerce"
+  size: "Large"
+  employees: 1200
+  annual_revenue: 200000000
+  current_challenge: "Excess inventory and frequent stockouts costing revenue"
+
+pain_point:
+  description: "Poor demand forecasting leading to $8M in excess inventory"
+  current_metrics:
+    inventory_value: 25000000
+    excess_inventory_percentage: 32
+    stockout_rate_percentage: 12
+    carrying_cost_percentage: 18
+    lost_sales_due_to_stockouts: 4800000
+
+ai_solution:
+  solution_type: "AI Demand Forecasting and Inventory Optimization"
+  vendor_category: "Supply Chain AI Platform"
+  implementation_scope: "Demand prediction, automated reordering, seasonal planning"
+
+baseline_calculation:
+  current_carrying_cost: 4500000  # 25M * 18%
+  current_excess_inventory: 8000000
+  optimization_target: 60  # % reduction in excess inventory
+
+value_calculation:
+  inventory_reduction: 4800000  # 60% of 8M excess
+  carrying_cost_savings: 864000  # 4.8M * 18%
+  stockout_reduction_value: 2400000  # 50% reduction in lost sales
+  total_annual_benefit: 3264000
+
+financial_metrics:
+  solution_cost_annual: 240000
+  implementation_cost: 150000
+  net_annual_benefit: 3024000
+  roi_3_year: 258
+  payback_months: 4
+  npv_3_year_10pct: 7320000
+
+confidence_factors:
+  - "AI forecasting 85% more accurate than current methods"
+  - "Similar retailers achieved 40-60% inventory reduction"
+  - "Real-time data integration capabilities"
+
+risk_factors:
+  - "Seasonal demand volatility"
+  - "Supplier reliability and lead times"
+  - "Integration with existing ERP systems"
+
+stakeholder_impact:
+  cfo_perspective: "$3M annual benefit with improved cash flow"
+  coo_perspective: "Streamlined operations and reduced waste"
+  cro_perspective: "Better product availability improves customer satisfaction"

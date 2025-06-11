@@ -1,0 +1,61 @@
+scenario_id: "risk_mitigation_001"
+scenario_type: "Risk Mitigation - Cybersecurity"
+company_profile:
+  industry: "Financial Services"
+  size: "Enterprise"
+  employees: 5000
+  annual_revenue: 1200000000
+  current_challenge: "Increasing cyber threats and regulatory compliance requirements"
+
+pain_point:
+  description: "Manual security monitoring unable to detect sophisticated threats"
+  current_metrics:
+    security_incidents_monthly: 450
+    false_positive_rate: 85
+    mean_time_to_detection_hours: 72
+    mean_time_to_response_hours: 24
+    security_team_size: 35
+    annual_security_budget: 12000000
+
+ai_solution:
+  solution_type: "AI-Powered Security Operations Center (SOC) with Threat Detection"
+  vendor_category: "Cybersecurity AI Platform"
+  implementation_scope: "Threat detection, incident response, compliance monitoring"
+
+baseline_calculation:
+  potential_breach_cost: 8500000  # Average cost of data breach in financial services
+  breach_probability_current: 15  # % annual probability
+  expected_annual_loss: 1275000  # 15% * $8.5M
+  false_positive_cost_annual: 2100000  # Cost of investigating false positives
+
+value_calculation:
+  breach_probability_reduction: 70  # % reduction with AI
+  new_breach_probability: 4.5  # 15% * 0.3
+  new_expected_annual_loss: 382500  # 4.5% * $8.5M
+  breach_risk_reduction_value: 892500  # $1.275M - $382.5k
+  false_positive_reduction: 60  # % reduction
+  false_positive_savings: 1260000  # 60% * $2.1M
+  total_annual_risk_reduction: 2152500
+
+financial_metrics:
+  solution_cost_annual: 600000
+  implementation_cost: 200000
+  net_annual_benefit: 1552500
+  roi_3_year: 194
+  payback_months: 6
+  npv_3_year_10pct: 3720000
+
+confidence_factors:
+  - "AI threat detection 95% accurate vs. 60% manual"
+  - "Mean time to detection reduced from 72 to 8 hours"
+  - "Financial institutions report 60-80% threat reduction"
+
+risk_factors:
+  - "Sophisticated AI-powered attacks"
+  - "Integration with existing security infrastructure"
+  - "Regulatory approval and compliance requirements"
+
+stakeholder_impact:
+  cfo_perspective: "$1.6M annual risk reduction with 6-month payback"
+  coo_perspective: "Significantly improved security posture and compliance"
+  cro_perspective: "Enhanced customer trust and regulatory compliance"

@@ -1,0 +1,126 @@
+# global_config.yaml
+
+globals:
+  # Financial Settings
+  currency_symbol: "$"
+  analysis_period_years: 3  # The duration over which financial benefits are projected
+  discount_rate: 0.10       # Annual discount rate for NPV calculations (e.g., 0.10 for 10%)
+
+  # Solution Cost (example - this could also be an input or calculated by a separate 'Cost Agent')
+  annual_solution_cost_usd: 500000 # Placeholder: Annual cost of the AI solution in USD
+
+  # Other Global Parameters (can be extended as needed)
+  company_name: "AI-Powered Solutions Inc."
+  report_date_format: "YYYY-MM-DD"
+
+# agents/main_orchestrator_agent.yaml
+
+agent_id: main_orchestrator
+name: "Main Value Model Orchestrator"
+description: "Manages the end-to-end execution flow of the business value model agents, coordinating data flow and assembling deliverables."
+purpose: "To coordinate all agents, ensure data consistency via Model Context, trigger calculations, and prepare final value deliverables."
+tier_mapping: # The Orchestrator sits above the tiers, managing their interconnections
+  - orchestrator_role: true
+
+workflow_definition:
+  # This section outlines the sequential stages and agent interactions
+
+  - stage_id: "system_preparation"
+    name: "System Initialization and Data Integration"
+    description: "Prepares the system by establishing connections and validating data schemas."
+    tasks:
+      - action: "Initialize database connections and validate schema registry."
+        agent_id: "database_connector_agent"
+        store_output_to_model_context: ["connection_status", "schema_validation_status"]
+      - action: "Connect to external systems and retrieve data."
+        agent_id: "data_integration_agent"
+        store_output_to_model_context: ["connection_status", "data_extraction_results", "data_transformation_results"]
+      - action: "Validate compliance with MCP protocols."
+        agent_id: "mcp_protocol_compliance_agent"
+        store_output_to_model_context: ["compliance_status", "protocol_violations"]
+
+  - stage_id: "initial_data_collection"
+    name: "Initial Data Gathering & Validation"
+    description: "Collects and validates baseline business data from the user or integrated systems."
+    tasks:
+      - action: "Trigger Intake Assistant Agent to gather high-level context."
+        agent_id: "intake_assistant_agent" # (Conceptual agent for initial conversation)
+        store_output_to_model_context: ["company_profile", "initial_pain_points", "strategic_alignment"]
+      - action: "Prompt user for specific baseline metrics via UI, managed by Data Input Agent."
+        agent_id: "data_input_agent" # (Conceptual agent for UI interaction / data ingestion)
+        store_output_to_model_context:
+          - "revenue_data_inputs"
+          - "cost_reduction_data_inputs"
+          - "productivity_data_inputs"
+          - "risk_mitigation_data_inputs"
+        # An implicit Data Validation Agent would typically run here before proceeding.
+
+  - stage_id: "value_driver_quantification"
+    name: "Quantifying Individual Business Value Drivers"
+    description: "Executes specialized calculative agents to determine the monetary impact of each value driver."
+    tasks:
+      - action: "Execute Revenue Lead Conversion Calculator."
+        agent_id: "revenue_lead_conversion_calculator" 
+        store_output_to_model_context: ["annual_revenue_uplift"]
+      - action: "Execute Cost Reduction Agent."
+        agent_id: "cost_reduction_agent"
+        store_output_to_model_context: ["annual_cost_reduction"]
+      - action: "Execute Productivity Gains Agent."
+        agent_id: "productivity_gains_agent"
+        store_output_to_model_context: ["annual_productivity_gains"]
+      - action: "Execute Risk Mitigation Agent."
+        agent_id: "risk_mitigation_agent"
+        store_output_to_model_context: ["annual_risk_mitigation"]
+      - action: "Retrieve benchmark data for comparison."
+        agent_id: "benchmark_agent"
+        store_output_to_model_context: ["industry_benchmarks", "peer_comparisons"]
+
+  - stage_id: "financial_impact_analysis"
+    name: "Financial Impact Analysis & ROI Calculation"
+    description: "Calculates financial metrics and performs sensitivity analysis."
+    tasks:
+      - action: "Execute ROI Calculator Agent to determine overall financial impact."
+        agent_id: "roi_calculator_agent"
+        store_output_to_model_context: ["roi_results", "npv", "payback_period"]
+      - action: "Perform sensitivity analysis on key assumptions."
+        agent_id: "sensitivity_analysis_agent"
+        store_output_to_model_context: ["scenario_results", "sensitivity_charts"]
+      - action: "Incorporate market trends data."
+        agent_id: "market_trend_agent"
+        store_output_to_model_context: ["market_trends", "trend_impacts"]
+
+  - stage_id: "deliverable_composition"
+    name: "Generating Final Deliverables"
+    description: "Assembles the final business case narrative, report, and presentation materials."
+    tasks:
+      - action: "Trigger Narrative Generator Agent to draft the story."
+        agent_id: "narrative_generator_agent"
+        store_output_to_model_context: ["business_case_narrative"]
+      - action: "Trigger Critique Agent to evaluate the narrative."
+        agent_id: "critique_agent"
+        store_output_to_model_context: ["narrative_critique", "revision_suggestions"]
+      - action: "Select optimal business case template."
+        agent_id: "template_selector_agent"
+        store_output_to_model_context: ["selected_template", "customization_options"]
+      - action: "Compose final business case with all components."
+        agent_id: "business_case_composer_agent"
+        store_output_to_model_context: ["final_business_case"]
+
+  - stage_id: "system_maintenance"
+    name: "System Monitoring and Maintenance"
+    description: "Continuous monitoring of system health and maintaining audit trails."
+    tasks:
+      - action: "Monitor system health and agent performance."
+        agent_id: "health_monitoring_agent"
+        store_output_to_model_context: ["health_metrics", "performance_alerts"]
+      - action: "Maintain comprehensive audit trails."
+        agent_id: "data_auditing_agent"
+        store_output_to_model_context: ["audit_records", "compliance_status"]
+      - action: "Compile system analytics and insights."
+        agent_id: "analytics_aggregator_agent"
+        store_output_to_model_context: ["system_analytics", "improvement_recommendations"]
+
+model_context_integration:
+  protocol: "MCP" # Refers to your Model Context Protocol
+  data_transfer_method: "publish_subscribe_or_direct_access" # Illustrates how orchestrator interacts with MCP
+  error_handling_strategy: "orchestrator_logging_and_retry" # Orchestrator handles errors and retries

@@ -1,0 +1,59 @@
+scenario_id: "revenue_growth_001"
+scenario_type: "Revenue Growth - Personalization"
+company_profile:
+  industry: "E-commerce/Retail"
+  size: "Large"
+  employees: 2000
+  annual_revenue: 400000000
+  current_challenge: "Low conversion rates and customer engagement"
+
+pain_point:
+  description: "Generic customer experience leading to poor conversion and retention"
+  current_metrics:
+    website_conversion_rate: 2.1
+    email_open_rate: 18
+    customer_lifetime_value: 450
+    monthly_active_users: 2500000
+    average_order_value: 85
+    customer_retention_rate: 65
+
+ai_solution:
+  solution_type: "AI Personalization Platform with Real-time Recommendations"
+  vendor_category: "Customer Experience AI"
+  implementation_scope: "Website personalization, email campaigns, product recommendations"
+
+baseline_calculation:
+  current_monthly_revenue: 33333333  # $400M / 12
+  conversion_improvement_target: 35  # % increase
+  retention_improvement_target: 15  # % increase
+  aov_improvement_target: 12  # % increase
+
+value_calculation:
+  conversion_revenue_increase: 11666667  # 35% of monthly revenue
+  retention_revenue_increase: 5000000  # 15% improvement in LTV
+  aov_revenue_increase: 4000000  # 12% improvement in AOV
+  total_monthly_revenue_increase: 20666667
+  annual_revenue_increase: 248000000
+
+financial_metrics:
+  solution_cost_annual: 1200000
+  implementation_cost: 400000
+  net_annual_benefit: 246800000
+  roi_3_year: 4580
+  payback_months: 1
+  npv_3_year_10pct: 612000000
+
+confidence_factors:
+  - "AI personalization typically improves conversion 25-50%"
+  - "Real-time recommendations increase AOV 10-20%"
+  - "Major retailers report similar revenue gains"
+
+risk_factors:
+  - "Data privacy and compliance requirements"
+  - "Customer acceptance of personalized experiences"
+  - "Technical integration complexity"
+
+stakeholder_impact:
+  cfo_perspective: "$247M annual revenue increase with 1-month payback"
+  coo_perspective: "Improved customer experience and operational metrics"
+  cro_perspective: "Massive revenue growth through better customer engagement"

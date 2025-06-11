@@ -1,0 +1,75 @@
+# agents/productivity_gains_agent.yaml
+
+agent_id: productivity_gains_calculator
+name: "Productivity Gains Value Calculator"
+description: "Quantifies the economic value of increased productivity, such as employee time savings and faster decision-making."
+purpose: "Quantifies Tier 3 value drivers under 'Operational Efficiency'."
+tier_mapping:
+  - tier1: "Operational Efficiency / Productivity"
+  - tier2: "Process Automation"
+  - tier2: "Decision Velocity"
+  - tier3_driver: "Analyst Time Savings"
+  - tier3_driver: "Faster Decision Making"
+
+inputs:
+  - name: "number_of_analysts_impacted"
+    type: "integer"
+    source: "user_input"
+    description: "Number of analysts whose time will be impacted by AI automation."
+    validation_rules: { min: 0 }
+  - name: "avg_hourly_fully_loaded_cost_usd"
+    type: "currency"
+    source: "user_input"
+    description: "Average fully-loaded hourly cost per analyst in USD (salary + benefits + overhead)."
+    validation_rules: { min: 0 }
+  - name: "ai_time_savings_percentage_per_analyst"
+    type: "float"
+    source: "user_input"
+    description: "Percentage of time saved per analyst per week due to AI (e.g., 0.25 for 25% of a 40h/week)."
+    validation_rules: { min: 0, max: 1 }
+  - name: "decision_cycle_baseline_weeks"
+    type: "float"
+    source: "user_input"
+    description: "Baseline average length of a key decision-making cycle in weeks."
+    validation_rules: { min: 0 }
+  - name: "ai_decision_speed_up_percentage"
+    type: "float"
+    source: "user_input"
+    description: "Expected percentage reduction in decision cycle length due to AI insights (e.g., 0.5 for 50%)."
+    validation_rules: { min: 0, max: 1 }
+  - name: "estimated_value_per_week_faster_decision_usd"
+    type: "currency"
+    source: "user_input"
+    description: "Estimated weekly value of being faster to market or avoiding lost opportunity (for qualitative benefit)."
+    validation_rules: { min: 0 }
+
+outputs:
+  - name: "annual_analyst_time_savings_usd"
+    type: "currency"
+    description: "Annual economic value of saved analyst time."
+  - name: "annual_faster_decision_value_usd"
+    type: "currency"
+    description: "Annual estimated value from accelerating decision cycles (can be partially qualitative)."
+  - name: "total_annual_productivity_gains_usd"
+    type: "currency"
+    description: "Sum of all annual productivity gains calculated by this agent."
+
+rules:
+  - rule_id: "calculate_analyst_time_savings"
+    # Assuming 40 hours/week baseline for simplicity, but could be an input
+    formula: "number_of_analysts_impacted * (40 * ai_time_savings_percentage_per_analyst) * 52 * avg_hourly_fully_loaded_cost_usd"
+    output_variable: "annual_analyst_time_savings_usd"
+    dependencies: ["number_of_analysts_impacted", "ai_time_savings_percentage_per_analyst", "avg_hourly_fully_loaded_cost_usd"]
+
+  - rule_id: "calculate_faster_decision_value"
+    # This formula quantifies a typically qualitative benefit based on an input estimate
+    formula: "decision_cycle_baseline_weeks * ai_decision_speed_up_percentage * estimated_value_per_week_faster_decision_usd"
+    output_variable: "annual_faster_decision_value_usd"
+    dependencies: ["decision_cycle_baseline_weeks", "ai_decision_speed_up_percentage", "estimated_value_per_week_faster_decision_usd"]
+
+  - rule_id: "aggregate_productivity_gains"
+    formula: "annual_analyst_time_savings_usd + annual_faster_decision_value_usd"
+    output_variable: "total_annual_productivity_gains_usd"
+    dependencies: ["annual_analyst_time_savings_usd", "annual_faster_decision_value_usd"]
+
+needs_globals: ["currency_symbol"]

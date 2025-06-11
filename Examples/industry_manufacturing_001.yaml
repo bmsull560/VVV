@@ -1,0 +1,58 @@
+scenario_id: "industry_manufacturing_001"
+scenario_type: "Cost Reduction + Risk Mitigation - Predictive Maintenance"
+company_profile:
+  industry: "Manufacturing"
+  size: "Large"
+  employees: 3500
+  annual_revenue: 800000000
+  current_challenge: "Unplanned equipment downtime causing production losses"
+
+pain_point:
+  description: "Reactive maintenance leading to costly unplanned downtime"
+  current_metrics:
+    critical_equipment_count: 150
+    unplanned_downtime_hours_monthly: 480
+    cost_per_downtime_hour: 25000
+    planned_maintenance_hours_monthly: 800
+    maintenance_team_size: 45
+    annual_maintenance_cost: 18000000
+
+ai_solution:
+  solution_type: "AI Predictive Maintenance with IoT Sensors and Analytics"
+  vendor_category: "Industrial AI Platform"
+  implementation_scope: "Equipment monitoring, failure prediction, maintenance optimization"
+
+baseline_calculation:
+  current_downtime_cost_monthly: 12000000  # 480 * $25k
+  current_annual_downtime_cost: 144000000
+  maintenance_efficiency_target: 40  # % reduction in unplanned downtime
+
+value_calculation:
+  downtime_reduction_hours: 192  # 40% * 480 hours
+  monthly_downtime_savings: 4800000  # 192 * $25k
+  annual_downtime_savings: 57600000
+  maintenance_cost_optimization: 3600000  # 20% reduction in maintenance costs
+  total_annual_benefit: 61200000
+
+financial_metrics:
+  solution_cost_annual: 1800000
+  implementation_cost: 800000
+  net_annual_benefit: 59400000
+  roi_3_year: 762
+  payback_months: 1
+  npv_3_year_10pct: 147000000
+
+confidence_factors:
+  - "AI predictive maintenance reduces unplanned downtime 30-50%"
+  - "IoT sensors provide real-time equipment health data"
+  - "Manufacturing companies report 40-60% maintenance savings"
+
+risk_factors:
+  - "Sensor installation and integration complexity"
+  - "Data quality and connectivity issues"
+  - "Maintenance team training and adoption"
+
+stakeholder_impact:
+  cfo_perspective: "$59M annual benefit with 1-month payback"
+  coo_perspective: "Dramatically improved operational efficiency and reliability"
+  cro_perspective: "Better production reliability improves customer delivery"

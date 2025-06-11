@@ -1,0 +1,58 @@
+scenario_id: "smb_001"
+scenario_type: "Cost Reduction - SMB Customer Service"
+company_profile:
+  industry: "Professional Services"
+  size: "Small Business"
+  employees: 25
+  annual_revenue: 3000000
+  current_challenge: "Limited customer service capacity constraining growth"
+
+pain_point:
+  description: "Single customer service rep overwhelmed with inquiries"
+  current_metrics:
+    customer_inquiries_monthly: 800
+    response_time_hours: 12
+    resolution_time_hours: 24
+    customer_service_team_size: 1
+    customer_service_cost_annual: 65000
+
+ai_solution:
+  solution_type: "AI Chatbot with Knowledge Base Integration"
+  vendor_category: "Small Business AI Platform"
+  implementation_scope: "Basic customer inquiries, FAQ automation, escalation workflows"
+
+baseline_calculation:
+  automation_target_percentage: 60
+  inquiries_automated_monthly: 480
+  time_saved_per_inquiry_hours: 0.5
+  total_time_saved_monthly: 240
+
+value_calculation:
+  monthly_capacity_freed: 240  # hours
+  annual_capacity_freed: 2880  # hours
+  value_per_hour: 31.25  # $65k / 2080 hours
+  annual_productivity_value: 90000
+  customer_satisfaction_improvement: 25  # % improvement
+
+financial_metrics:
+  solution_cost_annual: 12000
+  implementation_cost: 3000
+  net_annual_benefit: 78000
+  roi_3_year: 520
+  payback_months: 2
+  npv_3_year_10pct: 189000
+
+confidence_factors:
+  - "Simple AI chatbots handle 50-70% of basic inquiries"
+  - "SMB-focused platforms designed for easy implementation"
+  - "Immediate capacity relief for growing business"
+
+risk_factors:
+  - "Limited technical resources for implementation"
+  - "Customer acceptance of automated support"
+  - "Integration with existing business systems"
+
+stakeholder_impact:
+  cfo_perspective: "$78k annual value with 2-month payback"
+  coo_perspective: "Freed capacity enables business growth"
+  cro_perspective: "Better customer service supports retention and growth"

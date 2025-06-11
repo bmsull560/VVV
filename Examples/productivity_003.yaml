@@ -1,0 +1,59 @@
+scenario_id: "productivity_003"
+scenario_type: "Productivity Gains - Marketing Efficiency"
+company_profile:
+  industry: "SaaS/Marketing Technology"
+  size: "Mid-market"
+  employees: 600
+  annual_revenue: 80000000
+  current_challenge: "Marketing team overwhelmed with content creation and campaign management"
+
+pain_point:
+  description: "Marketing team spending 70% time on manual content and campaign tasks"
+  current_metrics:
+    marketing_team_size: 25
+    avg_fully_loaded_cost: 120000
+    content_creation_hours_weekly: 700
+    campaign_management_hours_weekly: 300
+    analysis_reporting_hours_weekly: 200
+    campaigns_per_month: 15
+    content_pieces_per_month: 80
+
+ai_solution:
+  solution_type: "AI Marketing Automation with Content Generation and Optimization"
+  vendor_category: "Marketing AI Platform"
+  implementation_scope: "Content creation, campaign optimization, performance analysis"
+
+baseline_calculation:
+  current_manual_hours_weekly: 1000  # 25 people * 40 hours
+  automation_target_percentage: 45
+  hours_automated_weekly: 450
+  cost_per_manual_hour: 60  # $120k / 2000 hours
+
+value_calculation:
+  weekly_savings: 27000  # 450 hours * $60
+  annual_savings: 1404000
+  campaign_performance_improvement: 25  # % increase in conversion rates
+  additional_revenue_from_optimization: 2000000
+
+financial_metrics:
+  solution_cost_annual: 180000
+  implementation_cost: 60000
+  net_annual_benefit: 3224000
+  roi_3_year: 402
+  payback_months: 2
+  npv_3_year_10pct: 7800000
+
+confidence_factors:
+  - "AI content generation 3x faster than manual creation"
+  - "Automated A/B testing improves campaign performance 20-30%"
+  - "Marketing teams report 40-60% time savings"
+
+risk_factors:
+  - "Brand voice consistency in AI-generated content"
+  - "Creative quality vs. efficiency trade-offs"
+  - "Integration with existing marketing stack"
+
+stakeholder_impact:
+  cfo_perspective: "$3.2M annual value with 2-month payback"
+  coo_perspective: "Massive marketing efficiency gains and scalability"
+  cro_perspective: "Better campaign performance drives revenue growth"

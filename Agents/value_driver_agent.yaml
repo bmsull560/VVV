@@ -1,0 +1,86 @@
+# agents/value_driver_agent.yaml
+
+agent_id: value_driver_agent
+name: "Value Driver Agent"
+description: "Suggests relevant business value drivers (e.g., cost savings, revenue growth) based on the mapped use cases and personas, and structures them into a quantifiable framework."
+purpose: "To create the economic bridge between qualitative business needs and the quantitative financial models used by the ROI and calculation agents."
+
+# MCP Compliance (Rule 1.1-1.4)
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+  data_versioning: "enabled"
+  immutability_enforcement: "write-once"
+
+# Orchestration Compliance (Rule 2.1-2.3)
+orchestration:
+  execution_trigger: "orchestrator_only"
+  dependency_check: "required"
+  graceful_termination: "enabled"
+
+# Transparency & Auditability (Rule 3.1-3.3)
+logging:
+  level: "comprehensive"
+  include: ["agent_id", "timestamp", "context_ids", "inputs", "outputs", "errors"]
+  audit_trail: true
+
+inputs:
+  - name: "mapped_use_cases"
+    type: "array"
+    source: "model_context.mapped_use_cases"
+    description: "List of use cases mapped from the Use Case Mapper Agent."
+    validation_rules: { required: true, min_items: 1 }
+
+  - name: "buyer_personas"
+    type: "array"
+    source: "model_context.buyer_personas"
+    description: "List of generated buyer personas."
+    validation_rules: { required: true, min_items: 1 }
+
+outputs:
+  - name: "quantified_value_drivers"
+    type: "array"
+    destination: "model_context.quantified_value_drivers"
+    description: "A structured list of value drivers with tiers and suggested quantification logic."
+    schema: {
+      "driver_id": "string",
+      "driver_name": "string",
+      "tier_1_pillar": "string", # e.g., 'Revenue Growth', 'Cost Savings', 'Productivity Gains', 'Risk Mitigation'
+      "tier_2_category": "string", # e.g., 'Increase Customer Lifetime Value'
+      "tier_3_metric_name": "string", # e.g., 'annual_revenue_uplift_usd'
+      "suggested_formula": "string", # A human-readable formula for the calculation
+      "required_data_inputs": "array" # List of specific data points needed
+    }
+
+# Error Handling (Rule 4.1-4.3)
+error_handling:
+  retry_policy:
+    max_retries: 0 # As per inventory
+    fallback: "Human Review Agent"
+  idempotency: true
+  resource_management:
+    timeout_seconds: 200
+
+# Security & Access Control (Rule 5.1-5.3)
+security:
+  access_level: "Editors+" # As per inventory
+  data_sensitivity: "medium"
+  encryption: "in_transit_and_at_rest"
+
+# Ethical AI & Bias Mitigation (Rule 6.1-6.3)
+ethical_ai:
+  bias_detection: "enabled"
+  human_oversight_trigger: "low_confidence_quantification"
+
+tools:
+  - tool_id: "vectorDB"
+    description: "To search a knowledge base of value drivers and financial models."
+  - tool_id: "file"
+    description: "To access internal documentation on value calculation methodologies."
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "RAG" # As per inventory
+  fallback_model: "gpt-4"
+  initial_prompt: |
+    "You are the Value Driver Agent. Your task is to bridge business strategy with financial outcomes. Based on the provided use cases and personas, use Retrieval-Augmented Generation (RAG) to search your knowledge base for the most relevant business value drivers. For each driver, structure it into a three-tier hierarchy (Pillar, Category, Metric). Crucially, you must also suggest a clear, human-readable formula for its calculation and list the specific data inputs required. This output will serve as the blueprint for the downstream financial calculation agents."

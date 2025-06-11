@@ -1,0 +1,60 @@
+scenario_id: "cost_reduction_002"
+scenario_type: "Cost Reduction - Document Processing"
+company_profile:
+  industry: "Financial Services"
+  size: "Enterprise"
+  employees: 2500
+  annual_revenue: 500000000
+  current_challenge: "Manual processing of loan applications and compliance documents"
+
+pain_point:
+  description: "Back-office teams spending 60% of time on manual document review"
+  current_metrics:
+    documents_processed_monthly: 15000
+    avg_processing_time_minutes: 45
+    error_rate_percentage: 8
+    processing_team_size: 25
+    fully_loaded_cost_per_hour: 85
+    annual_processing_cost: 1912500
+
+ai_solution:
+  solution_type: "Intelligent Document Processing (IDP) with OCR and NLP"
+  vendor_category: "AI Document Automation Platform"
+  implementation_scope: "Loan applications, KYC documents, compliance forms"
+
+baseline_calculation:
+  current_monthly_hours: 11250  # 15000 * 0.75 hours
+  automation_target_percentage: 70
+  hours_automated_monthly: 7875
+  cost_per_automated_hour: 12  # AI processing cost
+
+value_calculation:
+  monthly_savings: 574875  # 7875 * (85 - 12)
+  annual_savings: 6898500
+  additional_benefits:
+    error_reduction: "8% to 1.5% error rate"
+    processing_speed: "45 min to 8 min average"
+    compliance_improvement: "100% audit trail and consistency"
+
+financial_metrics:
+  solution_cost_annual: 480000
+  implementation_cost: 200000
+  net_annual_benefit: 6418500
+  roi_3_year: 312
+  payback_months: 3
+  npv_3_year_10pct: 15890000
+
+confidence_factors:
+  - "AI accuracy >95% for structured financial documents"
+  - "Regulatory approval for automated processing in jurisdiction"
+  - "Proven ROI in similar financial institutions"
+
+risk_factors:
+  - "Regulatory compliance requirements"
+  - "Data security and privacy concerns"
+  - "Change management for processing teams"
+
+stakeholder_impact:
+  cfo_perspective: "$6.4M annual savings with 3-month payback"
+  coo_perspective: "Massive operational efficiency gains and error reduction"
+  cro_perspective: "Faster loan processing improves customer experience"

@@ -1,0 +1,57 @@
+scenario_id: "risk_mitigation_002"
+scenario_type: "Risk Mitigation - Fraud Prevention"
+company_profile:
+  industry: "E-commerce/Payments"
+  size: "Large"
+  employees: 1800
+  annual_revenue: 350000000
+  current_challenge: "Rising fraud losses and false positive rates affecting customer experience"
+
+pain_point:
+  description: "Traditional fraud detection missing sophisticated attacks while blocking legitimate customers"
+  current_metrics:
+    transaction_volume_monthly: 2500000
+    fraud_rate_percentage: 0.8
+    fraud_losses_monthly: 233333  # 0.8% of monthly GMV
+    false_positive_rate: 12
+    customer_friction_cost: 875000  # Lost revenue from blocked legitimate transactions
+
+ai_solution:
+  solution_type: "AI Fraud Detection with Real-time Risk Scoring"
+  vendor_category: "Financial Crime AI Platform"
+  implementation_scope: "Transaction monitoring, risk scoring, automated decisioning"
+
+baseline_calculation:
+  current_annual_fraud_losses: 2800000  # $233k * 12
+  current_annual_friction_cost: 10500000  # $875k * 12
+  total_current_annual_impact: 13300000
+
+value_calculation:
+  fraud_detection_improvement: 75  # % reduction in fraud losses
+  fraud_losses_reduction: 2100000  # 75% * $2.8M
+  false_positive_reduction: 60  # % reduction
+  friction_cost_reduction: 6300000  # 60% * $10.5M
+  total_annual_benefit: 8400000
+
+financial_metrics:
+  solution_cost_annual: 420000
+  implementation_cost: 150000
+  net_annual_benefit: 7980000
+  roi_3_year: 456
+  payback_months: 2
+  npv_3_year_10pct: 19500000
+
+confidence_factors:
+  - "AI fraud detection 90%+ accuracy vs. 65% rule-based"
+  - "Real-time scoring enables instant decisions"
+  - "Payment companies report 70-85% fraud reduction"
+
+risk_factors:
+  - "Evolving fraud patterns and techniques"
+  - "Regulatory compliance requirements"
+  - "Customer privacy and data protection"
+
+stakeholder_impact:
+  cfo_perspective: "$8M annual benefit with 2-month payback"
+  coo_perspective: "Improved operational efficiency and customer experience"
+  cro_perspective: "Reduced fraud losses and better customer satisfaction"
