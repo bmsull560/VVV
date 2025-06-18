@@ -83,7 +83,9 @@ class BaseAgent(ABC):
         )
     @abstractmethod
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
-        pass
+        if not isinstance(inputs, dict):
+            raise TypeError("Input must be a dictionary")
+        return await self.execute_with_resilience(inputs)
     async def execute_with_resilience(self, inputs: Dict[str, Any]) -> AgentResult:
         start_time = time.time()
         try:
