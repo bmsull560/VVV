@@ -35,14 +35,14 @@ const DashboardView = () => (
 );
 
 const AiAnalysisView = () => {
-  const [analysisId, setAnalysisId] = useState(null);
+  const [analysisResults, setAnalysisResults] = useState(null);
 
   return (
     <div className="p-6">
-      {!analysisId ? (
-        <AnalysisForm onAnalysisStarted={setAnalysisId} />
+      {!analysisResults ? (
+        <AnalysisForm onAnalysisComplete={setAnalysisResults} />
       ) : (
-        <AnalysisResults analysisId={analysisId} />
+        <AnalysisResults results={analysisResults} />
       )}
     </div>
   );

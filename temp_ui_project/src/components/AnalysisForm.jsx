@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 
-export default function AnalysisForm({ onAnalysisStarted }) {
+export default function AnalysisForm({ onAnalysisComplete }) {
   const [content, setContent] = useState('');
-  const [contentType, setContentType] = useState('text');
-  const [creatorId, setCreatorId] = useState('demo-user');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -11,20 +9,37 @@ export default function AnalysisForm({ onAnalysisStarted }) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
     try {
-      const res = await fetch('http://localhost:5001/api/start-analysis', {
+      // Step 1: Start the analysis and get an entity ID
+      const startRes = await fetch('http://localhost:5001/api/start-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, content_type: contentType, creator_id: creatorId })
+        body: JSON.stringify({ content })
       });
-      const data = await res.json();
-      if (res.ok) {
-        onAnalysisStarted(data.id);
-      } else {
-        setError(data.detail || 'Failed to start analysis');
+
+      const startData = await startRes.json();
+      if (!startRes.ok) {
+        throw new Error(startData.error || 'Failed to start analysis');
       }
+
+      const { id: entityId } = startData;
+
+      // Step 2: Use the entity ID to discover value drivers and personas
+      const discoverRes = await fetch(`http://localhost:5001/api/discover-value/${entityId}`, {
+        method: 'POST',
+      });
+
+      const discoverData = await discoverRes.json();
+      if (!discoverRes.ok) {
+        throw new Error(discoverData.error || 'Failed to discover value');
+      }
+
+      // Pass the final, combined results to the parent component
+      onAnalysisComplete(discoverData);
+
     } catch (err) {
-      setError('Network error');
+      setError(err.message || 'An unexpected network error occurred.');
     } finally {
       setLoading(false);
     }

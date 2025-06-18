@@ -4,34 +4,48 @@ import asyncio
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-from ..agents.intake_assistant.main import IntakeAssistantAgent
-from ..agents.roi_calculator.main import ROICalculatorAgent
-from ..agents.data_correlator.main import DataCorrelatorAgent
-from ..memory.mcp_client import MCPClient
-from ..memory.semantic_memory import SemanticMemory
-from ..memory.storage.postgres_storage import PostgresStorage
-from ..memory.types import to_dict # Import the utility to serialize entities
+# Agent Imports
+from src.agents.intake_assistant.main import IntakeAssistantAgent
+from src.agents.roi_calculator.main import ROICalculatorAgent
+from src.agents.data_correlator.main import DataCorrelatorAgent
+from src.agents.value_driver.main import ValueDriverAgent
+from src.agents.persona.main import PersonaAgent
+
+# Memory and Storage Imports
+from src.memory.mcp_client import MCPClient
+from src.memory.semantic_memory import SemanticMemory
+from src.memory.storage.postgres_storage import PostgresStorage
+from src.memory.types import to_dict
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}) # Allow CORS for API routes from the React app
+# In a real app, this should be more restrictive. For dev, we allow the React dev server.
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:5174"]}})
 app.secret_key = os.urandom(24)
 
 # --- MCP and Agent Setup ---
 storage_backend = None
 DSN = os.getenv("TEST_POSTGRES_DSN")
 if DSN:
-    storage_backend = PostgresStorage(dsn=DSN)
-    # In a real application, this would be part of a startup script
     try:
+        storage_backend = PostgresStorage(dsn=DSN)
         asyncio.run(storage_backend.initialize())
+        print("PostgreSQL storage initialized successfully.")
     except Exception as e:
-        print(f"Error initializing PostgreSQL storage: {e}")
+        print(f"Error initializing PostgreSQL storage: {e}", file=sys.stderr)
         storage_backend = None
+else:
+    print("Warning: TEST_POSTGRES_DSN not set. Using in-memory storage.", file=sys.stderr)
 
 mcp_client = MCPClient(memory=SemanticMemory(storage_backend=storage_backend))
-intake_agent = IntakeAssistantAgent(agent_id="ui-intake-agent", mcp_client=mcp_client, config={})
-roi_agent = ROICalculatorAgent(agent_id="ui-roi-agent", mcp_client=mcp_client, config={})
-correlator_agent = DataCorrelatorAgent(agent_id="ui-correlator-agent", mcp_client=mcp_client, config={})
+
+# Instantiate all agents
+intake_agent = IntakeAssistantAgent(agent_id="intake_assistant", mcp_client=mcp_client, config={})
+roi_agent = ROICalculatorAgent(agent_id="roi_calculator", mcp_client=mcp_client, config={})
+correlator_agent = DataCorrelatorAgent(agent_id="data_correlator", mcp_client=mcp_client, config={})
+value_driver_agent = ValueDriverAgent(agent_id="value_driver", mcp_client=mcp_client, config={})
+persona_agent = PersonaAgent(agent_id="persona", mcp_client=mcp_client, config={})
+
+# --- API Endpoints ---
 
 @app.route('/api/start-analysis', methods=['POST'])
 async def start_analysis():
@@ -44,19 +58,55 @@ async def start_analysis():
         return jsonify({'error': 'Storage backend not initialized'}), 500
 
     try:
-        # In a real application, this agent would run in a background task queue.
-        # For this implementation, we'll run it asynchronously.
-        # We assume the agent has an async `run` method.
-        result = await intake_agent.run(data['content'])
-
-        # The result from the agent is stored as a 'project_intake' entity.
-        # The entity ID can be used to track the analysis workflow.
-        entity_id = result.id
-
-        return jsonify({'id': entity_id}), 202  # Accepted
+        # The Intake agent's 'run' method creates and stores an entity.
+        result_entity = await intake_agent.run(data['content'])
+        return jsonify({'id': result_entity.id}), 202  # Accepted
     except Exception as e:
-        print(f"Error during analysis start: {e}") # Basic logging
+        print(f"Error during analysis start: {e}", file=sys.stderr)
         return jsonify({'error': 'Failed to start analysis task.'}), 500
+
+@app.route('/api/discover-value/<entity_id>', methods=['POST'])
+async def discover_value(entity_id):
+    """
+    Takes an entity ID from the intake process and runs the Value Driver
+    and Persona agents to discover key insights.
+    """
+    if not storage_backend:
+        return jsonify({'error': 'Storage backend not initialized'}), 500
+
+    try:
+        intake_entity = await mcp_client.memory.storage.get(entity_id)
+        if not intake_entity:
+            return jsonify({'error': 'Project entity not found'}), 404
+
+        input_text = intake_entity.data.get('text')
+        if not input_text:
+            return jsonify({'error': 'No text found in the intake entity to analyze'}), 400
+
+        # Run ValueDriver and Persona agents in parallel
+        value_driver_task = value_driver_agent.execute({'text': input_text})
+        persona_task = persona_agent.execute({'text': input_text})
+        driver_result, persona_result = await asyncio.gather(value_driver_task, persona_task)
+
+        if driver_result.status.is_failed() or persona_result.status.is_failed():
+            return jsonify({
+                'error': 'One or more analysis agents failed.',
+                'details': {
+                    'value_driver': driver_result.data,
+                    'persona': persona_result.data
+                }
+            }), 500
+            
+        combined_results = {
+            'value_drivers': driver_result.data.get('drivers', []),
+            'personas': persona_result.data.get('personas', [])
+        }
+
+        return jsonify(combined_results), 200
+
+    except Exception as e:
+        print(f"Error during value discovery: {e}", file=sys.stderr)
+        return jsonify({'error': 'Failed to perform value discovery.'}), 500
 
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
@@ -65,7 +115,6 @@ def get_projects():
     if storage_backend:
         try:
             all_entities = asyncio.run(mcp_client.memory.storage.get_all())
-            # Filter for entities created by the intake agent and serialize them
             project_entities = [e for e in all_entities if e.metadata.get('source') == 'IntakeAssistantAgent']
             projects = [to_dict(p) for p in project_entities]
         except Exception as e:
@@ -73,14 +122,14 @@ def get_projects():
     return jsonify(projects)
 
 @app.route('/api/calculate_roi', methods=['POST'])
-def calculate_roi():
+async def calculate_roi():
     """Handles the ROI calculation and returns JSON."""
     data = request.get_json()
     if not data or 'investment' not in data or 'gain' not in data:
         return jsonify({'error': 'Missing investment or gain in request body'}), 400
 
     try:
-        result = asyncio.run(roi_agent.execute(data))
+        result = await roi_agent.execute(data)
         if result.status.is_completed():
             return jsonify(result.data)
         else:
@@ -89,14 +138,14 @@ def calculate_roi():
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
 @app.route('/api/correlate_data', methods=['POST'])
-def correlate_data():
+async def correlate_data():
     """Handles data correlation and returns JSON."""
     data = request.get_json()
     if not data or 'dataset1' not in data or 'dataset2' not in data:
         return jsonify({'error': 'Missing dataset1 or dataset2 in request body'}), 400
 
     try:
-        result = asyncio.run(correlator_agent.execute(data))
+        result = await correlator_agent.execute(data)
         if result.status.is_completed():
             return jsonify(result.data)
         else:
@@ -104,18 +153,3 @@ def correlate_data():
     except Exception as e:
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
-@app.route('/api/submit', methods=['POST'])
-def submit():
-    """Handles the project intake form submission from the API."""
-    data = request.get_json()
-    if not data or not all(k in data for k in ['project_name', 'description', 'goals']):
-        return jsonify({'error': 'Missing required fields: project_name, description, goals'}), 400
-
-    try:
-        result = asyncio.run(intake_agent.execute(data))
-        if result.status.is_completed():
-            return jsonify({'message': 'Project submitted successfully!', 'entity_id': result.data.get('entity_id')}), 201
-        else:
-            return jsonify({'error': result.data.get('error', 'Unknown error during project intake')}), 400
-    except Exception as e:
-        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
