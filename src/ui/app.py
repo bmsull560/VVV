@@ -33,6 +33,31 @@ intake_agent = IntakeAssistantAgent(agent_id="ui-intake-agent", mcp_client=mcp_c
 roi_agent = ROICalculatorAgent(agent_id="ui-roi-agent", mcp_client=mcp_client, config={})
 correlator_agent = DataCorrelatorAgent(agent_id="ui-correlator-agent", mcp_client=mcp_client, config={})
 
+@app.route('/api/start-analysis', methods=['POST'])
+async def start_analysis():
+    """Starts a new analysis task by running the Intake Assistant Agent."""
+    data = request.get_json()
+    if not data or 'content' not in data:
+        return jsonify({'error': 'Invalid input'}), 400
+
+    if not storage_backend:
+        return jsonify({'error': 'Storage backend not initialized'}), 500
+
+    try:
+        # In a real application, this agent would run in a background task queue.
+        # For this implementation, we'll run it asynchronously.
+        # We assume the agent has an async `run` method.
+        result = await intake_agent.run(data['content'])
+
+        # The result from the agent is stored as a 'project_intake' entity.
+        # The entity ID can be used to track the analysis workflow.
+        entity_id = result.id
+
+        return jsonify({'id': entity_id}), 202  # Accepted
+    except Exception as e:
+        print(f"Error during analysis start: {e}") # Basic logging
+        return jsonify({'error': 'Failed to start analysis task.'}), 500
+
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
     """Returns a list of all submitted projects."""
