@@ -85,7 +85,7 @@ class MemoryIntegrationTest(unittest.TestCase):
         self.memory_manager = MemoryManager()
         
         # Instantiate memory tiers
-        working_mem = WorkingMemory(storage_path=self.working_dir)
+        working_mem = WorkingMemory(persistence_path=self.working_dir)
         episodic_mem = EpisodicMemory(storage_path=self.episodic_dir)
         semantic_mem = SemanticMemory(storage_path=self.semantic_dir, embedding_dim=384) # Using default dim from other tests
         graph_mem = KnowledgeGraph(storage_path=self.graph_dir)

@@ -1,0 +1,18 @@
+2025-06-18 02:35:37,684 ERROR RETRIEVE ERROR: Failed to retrieve entity 08b98eb4-7739-4826-a742-637fb833e953 from tier WORKING: User system with role agent lacks read access to entity 08b98eb4-7739-4826-a742-637fb833e953
+2025-06-18 02:35:37,689 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity 08b98eb4-7739-4826-a742-637fb833e953
+2025-06-18 02:35:37,698 ERROR RETRIEVE ERROR: Failed to retrieve entity d153b171-8d29-45c7-9a70-8d79daff89d9 from tier WORKING: User system with role agent lacks read access to entity d153b171-8d29-45c7-9a70-8d79daff89d9
+2025-06-18 02:35:37,698 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity d153b171-8d29-45c7-9a70-8d79daff89d9
+2025-06-18 02:35:37,702 ERROR RETRIEVE ERROR: Failed to retrieve entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e from tier WORKING: User system with role agent lacks read access to entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e
+2025-06-18 02:35:37,702 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e
+2025-06-18 02:35:39,705 ERROR RETRIEVE ERROR: Failed to retrieve entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e from tier WORKING: User system with role agent lacks read access to entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e
+2025-06-18 02:35:39,705 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e
+2025-06-18 02:35:43,707 ERROR RETRIEVE ERROR: Failed to retrieve entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e from tier WORKING: User system with role agent lacks read access to entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e
+2025-06-18 02:35:43,707 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e
+2025-06-18 02:35:43,707 ERROR RETRIEVE ERROR: Failed to retrieve entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e from tier WORKING: User system with role agent lacks read access to entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e
+2025-06-18 02:35:43,707 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity 9a1c78d0-e5ba-46c4-ba03-3a99deedf24e
+2025-06-18 02:35:43,712 ERROR RETRIEVE ERROR: Failed to retrieve entity 8268ed16-4107-4ae2-8410-1a0467eb2018 from tier WORKING: User system with role agent lacks read access to entity 8268ed16-4107-4ae2-8410-1a0467eb2018
+2025-06-18 02:35:43,712 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity 8268ed16-4107-4ae2-8410-1a0467eb2018
+2025-06-18 02:35:43,718 ERROR RETRIEVE ERROR: Failed to retrieve entity c4dc4928-4dc6-4ebf-857a-b7f8a7408a32 from tier WORKING: User system with role agent lacks read access to entity c4dc4928-4dc6-4ebf-857a-b7f8a7408a32
+2025-06-18 02:35:43,718 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity c4dc4928-4dc6-4ebf-857a-b7f8a7408a32
+2025-06-18 02:35:43,733 ERROR RETRIEVE ERROR: Failed to retrieve entity fe618622-c6c8-4eb5-8295-97a9c3bda7cb from tier WORKING: User system with role agent lacks read access to entity fe618622-c6c8-4eb5-8295-97a9c3bda7cb
+2025-06-18 02:35:43,733 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity fe618622-c6c8-4eb5-8295-97a9c3bda7cb

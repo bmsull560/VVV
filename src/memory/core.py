@@ -68,6 +68,17 @@ class MemoryManager:
         self._knowledge_graph = knowledge_graph or KnowledgeGraph()
         
         logger.info("Memory Manager initialized with all tiers")
+
+    def set_default_access_control(self, control_key: str, control_object: MemoryAccessControl):
+        """
+        Sets a default access control configuration.
+
+        Args:
+            control_key: The key for this access control (e.g., role name).
+            control_object: The MemoryAccessControl object.
+        """
+        self._access_controls[control_key] = control_object
+        logger.info(f"Default access control set for '{control_key}'.")
     
     def _calculate_checksum(self, entity: MemoryEntity) -> str:
         """Calculate a cryptographic checksum for a memory entity."""
@@ -205,9 +216,24 @@ class MemoryManager:
             )
             # Setup default access control if this is a new entity
             if is_new:
+                # Start with admin full access
+                new_entity_roles = {"admin": list(MemoryAccess)}
+                
+                # Merge permissions from role-default ACLs
+                # These are ACLs where the entity_id (key in _access_controls) is like "role:agent"
+                # and their 'roles' dict contains the actual role permissions e.g. {"agent": [MemoryAccess.READ]}
+                for acl_key, role_default_acl_obj in self._access_controls.items():
+                    if acl_key.startswith("role:"):
+                        for role_name_from_default, permissions_from_default in role_default_acl_obj.roles.items():
+                            if role_name_from_default not in new_entity_roles:
+                                new_entity_roles[role_name_from_default] = []
+                            for perm in permissions_from_default:
+                                if perm not in new_entity_roles[role_name_from_default]:
+                                    new_entity_roles[role_name_from_default].append(perm)
+                                    
                 access_control = MemoryAccessControl(
                     entity_id=entity_id,
-                    roles={"admin": list(MemoryAccess)}  # Admin has all access by default
+                    roles=new_entity_roles
                 )
                 self.set_access_control(access_control)
             logger.info(f"STORE: Entity {entity_id} stored in tier {entity.tier.name} by {user_id}")
