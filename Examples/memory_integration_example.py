@@ -11,7 +11,7 @@ import asyncio
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 
 # Add project root to path
@@ -49,7 +49,7 @@ class ExampleAgent(BaseAgent):
         
         # Simulate agent processing
         result_data = {
-            f"{self.agent_id}_result": f"Processed at {datetime.utcnow().isoformat()}",
+            f"{self.agent_id}_result": f"Processed at {datetime.now(timezone.utc).isoformat()}",
             f"{self.agent_id}_confidence": 0.95,
             "processed_inputs": list(inputs.keys())
         }
@@ -122,7 +122,7 @@ async def run_example_workflow():
         relation_type="generated",
         strength=0.8,
         bidirectional=False,
-        properties={"timestamp": datetime.utcnow().isoformat()}
+        properties={"timestamp": datetime.now(timezone.utc).isoformat()}
     )
     logger.info(f"Created relationship with ID: {relationship_id}")
     

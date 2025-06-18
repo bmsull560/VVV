@@ -13,7 +13,7 @@ import unittest
 import tempfile
 import shutil
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 # Add project root to path
@@ -59,7 +59,7 @@ class TestAgent(BaseAgent):
         # Generate result data
         result_data = {
             f"{self.agent_id}_result": self.test_data.get("result", "Test result"),
-            f"{self.agent_id}_timestamp": datetime.utcnow().isoformat(),
+            f"{self.agent_id}_timestamp": datetime.now(timezone.utc).isoformat(),
             "processed_inputs": list(inputs.keys())
         }
         
@@ -394,7 +394,7 @@ class MemoryIntegrationTest(unittest.TestCase):
                 # Add some context data
                 await self.mcp_client.update_context("test_agent", {
                     "iteration": i,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 })
                 
                 # Complete workflow

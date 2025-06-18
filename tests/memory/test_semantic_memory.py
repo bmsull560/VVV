@@ -2,7 +2,7 @@ import unittest
 import asyncio
 from src.memory.semantic import SemanticMemory
 from src.memory.types import KnowledgeEntity, MemoryTier
-from datetime import datetime
+from datetime import datetime, timezone
 
 class TestSemanticMemory(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -18,8 +18,8 @@ class TestSemanticMemory(unittest.IsolatedAsyncioTestCase):
             content="Business value AI memory test.",
             content_type="text",
             creator_id="tester",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             sensitivity=None,
             tier=MemoryTier.SEMANTIC
         )
@@ -36,8 +36,8 @@ class TestSemanticMemory(unittest.IsolatedAsyncioTestCase):
             content="AI for business value.",
             content_type="text",
             creator_id="tester",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             sensitivity=None,
             tier=MemoryTier.SEMANTIC
         )
@@ -46,8 +46,8 @@ class TestSemanticMemory(unittest.IsolatedAsyncioTestCase):
             content="Enterprise memory architecture.",
             content_type="text",
             creator_id="tester",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             sensitivity=None,
             tier=MemoryTier.SEMANTIC
         )
@@ -62,8 +62,8 @@ class TestSemanticMemory(unittest.IsolatedAsyncioTestCase):
             content="Fallback embedding test.",
             content_type="text",
             creator_id="tester",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             sensitivity=None,
             tier=MemoryTier.SEMANTIC
         )

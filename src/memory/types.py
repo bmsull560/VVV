@@ -5,7 +5,7 @@ Types and enumerations for the B2BValue Memory Architecture.
 from enum import Enum, auto
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 
@@ -37,8 +37,8 @@ class MemoryTier(Enum):
 class MemoryEntity:
     """Base class for all memory entities in the system."""
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     creator_id: str = field(default="system")
     sensitivity: DataSensitivity = field(default=DataSensitivity.INTERNAL)
     tier: MemoryTier = field(default=MemoryTier.WORKING)
@@ -107,7 +107,7 @@ class WorkflowMemoryEntity(MemoryEntity):
     workflow_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     workflow_name: str = field(default="Unnamed Workflow")
     workflow_status: str = field(default="created")
-    start_time: datetime = field(default_factory=datetime.utcnow)
+    start_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     end_time: Optional[datetime] = None
     user_id: Optional[str] = None
     customer_id: Optional[str] = None
@@ -214,7 +214,7 @@ class MemoryAccessControl:
 @dataclass
 class AuditLogEntry:
     """Represents an entry in the audit log."""
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     entity_id: str = field(default="")
     action: str = field(default="") # e.g., 'create', 'update', 'delete', 'read'
     user_id: str = field(default="system")

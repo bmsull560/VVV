@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from src.memory.core import MemoryManager
 from src.memory.types import KnowledgeEntity, MemoryTier
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 import jwt
 
@@ -31,7 +31,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(hours=1))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(hours=1))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -94,8 +94,8 @@ async def start_analysis(entity: KnowledgeEntityIn, user=Depends(get_current_use
         content=entity.content,
         content_type=entity.content_type,
         creator_id=entity.creator_id,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
         sensitivity=entity.sensitivity,
         tier=MemoryTier.SEMANTIC,
     )
@@ -146,8 +146,8 @@ async def store_knowledge(entity: KnowledgeEntityIn, user=Depends(get_current_us
         content=entity.content,
         content_type=entity.content_type,
         creator_id=entity.creator_id,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
         sensitivity=entity.sensitivity,
         tier=MemoryTier.SEMANTIC,
     )

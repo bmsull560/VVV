@@ -3,7 +3,7 @@ import asyncio
 from src.agents.core.mcp_client import MCPClient
 from src.memory.core import MemoryManager
 from src.memory.types import KnowledgeEntity, MemoryTier
-from datetime import datetime
+from datetime import datetime, timezone
 
 class TestAgentMemoryIntegration(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -17,8 +17,8 @@ class TestAgentMemoryIntegration(unittest.IsolatedAsyncioTestCase):
             content="AI agent integration test.",
             content_type="text",
             creator_id="agent",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             sensitivity=None,
             tier=MemoryTier.SEMANTIC
         )
