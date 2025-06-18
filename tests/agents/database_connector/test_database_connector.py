@@ -1,13 +1,13 @@
 import unittest
 import asyncio
 from unittest.mock import patch, MagicMock
-from src.agents.database_connector.main import DatabaseConnectorAgent
-from src.agents.core.agent_base import AgentStatus
+from agents.database_connector.main import DatabaseConnectorAgent
+from agents.core.agent_base import AgentStatus
 from sqlalchemy.exc import SQLAlchemyError
 
 class TestDatabaseConnectorAgent(unittest.TestCase):
 
-    @patch('src.agents.database_connector.main.create_engine')
+    @patch('agents.database_connector.main.create_engine')
     def test_initialization_success(self, mock_create_engine):
         """Test successful initialization of the database engine."""
         mock_engine = MagicMock()
@@ -24,7 +24,7 @@ class TestDatabaseConnectorAgent(unittest.TestCase):
         agent = DatabaseConnectorAgent(agent_id="test-db-agent", mcp_client=None, config={})
         self.assertIsNone(agent.engine)
 
-    @patch('src.agents.database_connector.main.create_engine')
+    @patch('agents.database_connector.main.create_engine')
     def test_connection_success(self, mock_create_engine):
         """Test a successful database connection test."""
         async def run_test():
@@ -42,7 +42,7 @@ class TestDatabaseConnectorAgent(unittest.TestCase):
         
         asyncio.run(run_test())
 
-    @patch('src.agents.database_connector.main.create_engine')
+    @patch('agents.database_connector.main.create_engine')
     def test_connection_failure(self, mock_create_engine):
         """Test a failed database connection test."""
         async def run_test():
@@ -60,7 +60,7 @@ class TestDatabaseConnectorAgent(unittest.TestCase):
 
         asyncio.run(run_test())
 
-    @patch('src.agents.database_connector.main.create_engine')
+    @patch('agents.database_connector.main.create_engine')
     def test_run_query_success(self, mock_create_engine):
         """Test successfully running a query."""
         async def run_test():

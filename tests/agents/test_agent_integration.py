@@ -1,9 +1,9 @@
 import unittest
 import os
 import asyncio
-from src.agents.core.mcp_client import MCPClient
-from src.memory.core import MemoryManager
-from src.memory.types import KnowledgeEntity, MemoryTier
+from agents.core.mcp_client import MCPClient
+from memory.core import MemoryManager
+from memory.types import KnowledgeEntity, MemoryTier
 from datetime import datetime, timezone
 
 class TestAgentMemoryIntegration(unittest.IsolatedAsyncioTestCase):

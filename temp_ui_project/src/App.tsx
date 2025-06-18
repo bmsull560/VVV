@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LayoutDashboard, FilePlus, BrainCircuit, Calculator, Briefcase, FileText, BarChart2, Settings } from 'lucide-react';
 import AnalysisForm from './components/AnalysisForm';
 import AnalysisResults from './components/AnalysisResults';
+import SensitivityAnalysis from './components/SensitivityAnalysis';
 
 // Placeholder components for views that are not yet fully implemented
 const PlaceholderView = ({ title }: { title: string }) => (
@@ -42,7 +43,15 @@ const AiAnalysisView = () => {
       {!analysisResults ? (
         <AnalysisForm onAnalysisComplete={setAnalysisResults} />
       ) : (
-        <AnalysisResults results={analysisResults} />
+        <div>
+          <div className="mt-8">
+            {analysisResults && <AnalysisResults results={analysisResults} />}
+          </div>
+
+          <div className="mt-12 border-t pt-8">
+            <SensitivityAnalysis />
+          </div>
+        </div>
       )}
     </div>
   );
