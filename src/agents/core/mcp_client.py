@@ -315,7 +315,7 @@ class MCPClient:
                               result: Optional[Dict[str, Any]] = None) -> None:
         """
         Mark a workflow as complete and update its status.
-        
+
         Args:
             status: Final status of the workflow
             result: Optional result data
@@ -323,7 +323,7 @@ class MCPClient:
         if not self._current_workflow_id:
             logger.error("Cannot complete workflow: No workflow ID set")
             return
-            
+
         # Get current workflow from episodic memory
         query = {"workflow_id": self._current_workflow_id}
         workflows = await self._memory_manager.search(
@@ -331,16 +331,16 @@ class MCPClient:
             MemoryTier.EPISODIC,
             limit=1
         )
-        
+
         if not workflows:
             logger.error(f"Workflow {self._current_workflow_id} not found in episodic memory")
             return
-            
+
         workflow = workflows[0]
         if not isinstance(workflow, WorkflowMemoryEntity):
             logger.error(f"Invalid workflow entity type: {type(workflow)}")
             return
-            
+
         # Get all context versions
         contexts = await self._memory_manager.get_context_history(
             self._current_workflow_id,
@@ -348,166 +348,60 @@ class MCPClient:
             role="admin"
         )
         context_ids = [context.id for context in contexts]
-        
+
         # Update workflow
         workflow.end_time = datetime.utcnow()
         workflow.workflow_status = status
         workflow.result = result or {}
         workflow.context_versions = context_ids
-        
+
         # Ensure workflow is set to episodic memory tier
         workflow.tier = MemoryTier.EPISODIC
-        
-async def complete_workflow(self, status: str = "completed", 
-                          result: Optional[Dict[str, Any]] = None) -> None:
-    """
-    Mark a workflow as complete and update its status.
-    
-    Args:
-        status: Final status of the workflow
-        result: Optional result data
-    """
-    if not self._current_workflow_id:
-        logger.error("Cannot complete workflow: No workflow ID set")
-        return
-        
-    # Get current workflow from episodic memory
-    query = {"workflow_id": self._current_workflow_id}
-    workflows = await self._memory_manager.search(
-        query,
-        MemoryTier.EPISODIC,
-        limit=1
-    )
-    
-    if not workflows:
-        logger.error(f"Workflow {self._current_workflow_id} not found in episodic memory")
-        return
-        
-    workflow = workflows[0]
-    if not isinstance(workflow, WorkflowMemoryEntity):
-        logger.error(f"Invalid workflow entity type: {type(workflow)}")
-        return
-        
-    # Get all context versions
-    contexts = await self._memory_manager.get_context_history(
-        self._current_workflow_id,
-        user_id="system",
-        role="admin"
-    )
-    context_ids = [context.id for context in contexts]
-    
-    # Update workflow
-    workflow.end_time = datetime.utcnow()
-    workflow.workflow_status = status
-    workflow.result = result or {}
-    workflow.context_versions = context_ids
-    
-    # Ensure workflow is set to episodic memory tier
-    workflow.tier = MemoryTier.EPISODIC
-    
-    # Store updated workflow
-    await self._memory_manager.store(workflow, user_id="system", role="admin")
-    
-    logger.info(f"Completed workflow {self._current_workflow_id} with status {status}")
-    
-async def store_knowledge(self, title: str, content: str, content_type: str, source: str,
-                        metadata: Optional[Dict[str, Any]] = None,
-                        user_id: str = "system", role: str = "agent") -> str:
-    """
-    Store knowledge in semantic memory.
 
-    Args:
-        title: Title of the knowledge entity.
-        content: Content of the knowledge entity.
-        content_type: Type of content (e.g., 'text', 'faq', 'document').
-        source: Source of the knowledge (e.g., 'doc_id_123', 'manual_entry').
-        metadata: Optional metadata.
-        user_id: ID of user performing the operation.
-        role: Role of the user.
+        # Store updated workflow
+        await self._memory_manager.store(workflow, user_id="system", role="admin")
 
-    Returns:
-        str: ID of the stored knowledge entity.
-    """
-    knowledge_entity = KnowledgeEntity(
-        title=title,
-        content=content,
-        content_type=content_type,
-        source=source,
-        metadata=metadata or {},
-        creator_id=user_id,
-        # TODO: Determine actual data sensitivity based on content/source
-        sensitivity=DataSensitivity.MEDIUM
-    )
-    entity_id = await self._memory_manager.store(knowledge_entity, user_id=user_id, role=role)
-    logger.info(f"Stored knowledge entity: {title} with ID {entity_id}")
-    return entity_id
-        
-async def create_relationship(self, from_id: str, to_id: str, relation_type: str,
-                            strength: float = 1.0, bidirectional: bool = False,
-                            properties: Dict[str, Any] = None,
+        logger.info(f"Completed workflow {self._current_workflow_id} with status {status}")
+
+    async def store_knowledge(self, title: str, content: str, content_type: str, source: str,
+                            metadata: Optional[Dict[str, Any]] = None,
                             user_id: str = "system", role: str = "agent") -> str:
-    """
-    Create a relationship between entities in the knowledge graph.
-    
-    Args:
-        from_id: ID of the source entity
-        to_id: ID of the target entity
-        relation_type: Type of relationship
-        strength: Relationship strength (0.0 to 1.0)
-        bidirectional: Whether relationship is bidirectional
-        properties: Optional properties of the relationship
-        user_id: ID of user performing the operation
-        role: Role of the user
-        
-    Returns:
-        str: ID of the stored relationship entity
-    """
-    entity = RelationshipEntity(
-        from_id=from_id,
-        to_id=to_id,
-        relation_type=relation_type,
-        strength=strength,
-        bidirectional=bidirectional,
-        properties=properties or {},
-        creator_id=user_id
-    )
-    entity_id = await self._memory_manager.store(entity, user_id, role)
-    logger.info(f"Created relationship {relation_type} from {from_id} to {to_id}, ID: {entity_id}")
-    return entity_id
-        
-async def semantic_search(self, text: str, limit: int = 10,
-                        user_id: str = "system", role: str = "agent") -> List[KnowledgeEntity]:
-    """
-    Perform semantic search on knowledge entities.
-    
-    Args:
-        text: Text to search for semantically similar content
-        limit: Maximum number of results
-        user_id: ID of user performing the operation
-        role: Role of the user
-        
-    Returns:
-        List[KnowledgeEntity]: Semantically similar entities
-    """
-    return await self._memory_manager.semantic_search(text, limit, user_id, role)
-        
-async def get_workflow_history(self, customer_id: Optional[str] = None,
-                             limit: int = 10, offset: int = 0,
-                             user_id: str = "system", 
-                             role: str = "agent") -> List[WorkflowMemoryEntity]:
-    """
-    Get workflow execution history.
-    
-    Args:
-        customer_id: Optional filter for specific customer
-        limit: Maximum number of results
-        offset: Pagination offset
-        user_id: ID of user performing the operation
-        role: Role of the user
+        """
+        Store knowledge in semantic memory.
+
+        Args:
+            title: Title of the knowledge entity.
+            content: Content of the knowledge entity.
+            content_type: Type of content (e.g., 'text', 'faq', 'document').
+            source: Source of the knowledge (e.g., 'doc_id_123', 'manual_entry').
+            metadata: Optional metadata.
+            user_id: ID of user performing the operation.
+            role: Role of the user.
+
+        Returns:
+            str: ID of the stored knowledge entity.
+        """
+        knowledge_entity = KnowledgeEntity(
+            title=title,
+            content=content,
+            content_type=content_type,
+            source=source,
+            metadata=metadata or {},
+            creator_id=user_id,
+            # TODO: Determine actual data sensitivity based on content/source
+            sensitivity=DataSensitivity.MEDIUM
+        )
+        entity_id = await self._memory_manager.store(knowledge_entity, user_id=user_id, role=role)
+        logger.info(f"Stored knowledge entity: {title} with ID {entity_id}")
+        return entity_id
+
+    async def create_relationship(self, from_id: str, to_id: str, relation_type: str,
+                                strength: float = 1.0, bidirectional: bool = False,
+                                properties: Dict[str, Any] = None,
                                 user_id: str = "system", role: str = "agent") -> str:
         """
         Create a relationship between entities in the knowledge graph.
-        
+
         Args:
             from_id: ID of the source entity
             to_id: ID of the target entity
@@ -517,7 +411,7 @@ async def get_workflow_history(self, customer_id: Optional[str] = None,
             properties: Optional properties of the relationship
             user_id: ID of user performing the operation
             role: Role of the user
-            
+
         Returns:
             str: ID of the stored relationship entity
         """
@@ -530,41 +424,40 @@ async def get_workflow_history(self, customer_id: Optional[str] = None,
             properties=properties or {},
             creator_id=user_id
         )
-        
         entity_id = await self._memory_manager.store(entity, user_id, role)
         logger.info(f"Created relationship {relation_type} from {from_id} to {to_id}, ID: {entity_id}")
         return entity_id
-        
+
     async def semantic_search(self, text: str, limit: int = 10,
                             user_id: str = "system", role: str = "agent") -> List[KnowledgeEntity]:
         """
         Perform semantic search on knowledge entities.
-        
+
         Args:
             text: Text to search for semantically similar content
             limit: Maximum number of results
             user_id: ID of user performing the operation
             role: Role of the user
-            
+
         Returns:
             List[KnowledgeEntity]: Semantically similar entities
         """
         return await self._memory_manager.semantic_search(text, limit, user_id, role)
-        
+
     async def get_workflow_history(self, customer_id: Optional[str] = None,
                                  limit: int = 10, offset: int = 0,
-                                 user_id: str = "system", 
+                                 user_id: str = "system",
                                  role: str = "agent") -> List[WorkflowMemoryEntity]:
         """
         Get workflow execution history.
-        
+
         Args:
             customer_id: Optional filter for specific customer
             limit: Maximum number of results
             offset: Pagination offset
             user_id: ID of user performing the operation
             role: Role of the user
-            
+
         Returns:
             List[WorkflowMemoryEntity]: Workflow history
         """
