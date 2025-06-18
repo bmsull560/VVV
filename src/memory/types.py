@@ -55,7 +55,7 @@ class MemoryEntity:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "creator_id": self.creator_id,
-            "sensitivity": self.sensitivity.name,
+            "sensitivity": self.sensitivity.name if self.sensitivity else None,
             "tier": self.tier.name,
             "version": self.version,
             "metadata": self.metadata,

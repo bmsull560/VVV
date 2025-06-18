@@ -18,6 +18,8 @@ from datetime import datetime
 import asyncio
 
 # Monitoring/alerting: set up critical log handler
+import os
+os.makedirs('logs', exist_ok=True)
 critical_handler = logging.FileHandler('logs/critical.log')
 critical_handler.setLevel(logging.ERROR)
 critical_formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')

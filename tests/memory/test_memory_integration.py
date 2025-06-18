@@ -30,7 +30,11 @@ from src.memory import (
     MemoryAccess,
     DataSensitivity
 )
-from src.agents.core.mcp_client import MCPClient
+from src.memory.working import WorkingMemory
+from src.memory.episodic import EpisodicMemory
+from src.memory.semantic import SemanticMemory
+from src.memory.graph import KnowledgeGraph
+from src.mcp import MCPClient
 from src.agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 
 class TestAgent(BaseAgent):
@@ -77,14 +81,21 @@ class MemoryIntegrationTest(unittest.TestCase):
             os.makedirs(os.path.join(dir_path, "entities"), exist_ok=True)
             os.makedirs(os.path.join(dir_path, "indexes"), exist_ok=True)
         
-        # Initialize memory manager with test directories
-        self.memory_manager = MemoryManager(
-            working_memory_path=self.working_dir,
-            episodic_memory_path=self.episodic_dir,
-            semantic_memory_path=self.semantic_dir,
-            knowledge_graph_path=self.graph_dir
+        # Initialize memory manager and its tiers
+        self.memory_manager = MemoryManager()
+        
+        # Instantiate memory tiers
+        working_mem = WorkingMemory(storage_path=self.working_dir)
+        episodic_mem = EpisodicMemory(storage_path=self.episodic_dir)
+        semantic_mem = SemanticMemory(storage_path=self.semantic_dir, embedding_dim=384) # Using default dim from other tests
+        graph_mem = KnowledgeGraph(storage_path=self.graph_dir)
+        
+        self.memory_manager.initialize(
+            working_memory=working_mem,
+            episodic_memory=episodic_mem,
+            semantic_memory=semantic_mem,
+            knowledge_graph=graph_mem
         )
-        self.memory_manager.initialize()
         
         # Create MCP client
         self.mcp_client = MCPClient(self.memory_manager)
