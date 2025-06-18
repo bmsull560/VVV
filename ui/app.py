@@ -10,6 +10,7 @@ from src.agents.roi_calculator.main import ROICalculatorAgent
 from src.agents.data_correlator.main import DataCorrelatorAgent
 from src.agents.value_driver.main import ValueDriverAgent
 from src.agents.persona.main import PersonaAgent
+from src.agents.sensitivity_analysis.main import SensitivityAnalysisAgent
 
 # Memory and Storage Imports
 from src.memory.mcp_client import MCPClient
@@ -44,6 +45,7 @@ roi_agent = ROICalculatorAgent(agent_id="roi_calculator", mcp_client=mcp_client,
 correlator_agent = DataCorrelatorAgent(agent_id="data_correlator", mcp_client=mcp_client, config={})
 value_driver_agent = ValueDriverAgent(agent_id="value_driver", mcp_client=mcp_client, config={})
 persona_agent = PersonaAgent(agent_id="persona", mcp_client=mcp_client, config={})
+sensitivity_agent = SensitivityAnalysisAgent(agent_id="sensitivity_analysis", mcp_client=mcp_client, config={})
 
 # --- API Endpoints ---
 
@@ -150,6 +152,22 @@ async def correlate_data():
             return jsonify(result.data)
         else:
             return jsonify({'error': result.data.get('error', 'Unknown correlation error')}), 400
+    except Exception as e:
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+
+@app.route('/api/run-sensitivity-analysis', methods=['POST'])
+async def run_sensitivity_analysis():
+    """Runs the sensitivity analysis agent and returns the results."""
+    data = request.get_json()
+    if not data or 'base_investment' not in data or 'base_gain' not in data or 'variations' not in data:
+        return jsonify({'error': 'Invalid input. Requires base_investment, base_gain, and variations.'}), 400
+
+    try:
+        result = await sensitivity_agent.execute(data)
+        if result.status.is_completed():
+            return jsonify(result.data)
+        else:
+            return jsonify({'error': result.data.get('error', 'Unknown sensitivity analysis error')}), 400
     except Exception as e:
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
