@@ -1,4 +1,4 @@
-from ..core.agent_base import BaseAgent, AgentResult, AgentStatus
+from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 from typing import Dict, Any
 import logging
 from sqlalchemy import create_engine, text

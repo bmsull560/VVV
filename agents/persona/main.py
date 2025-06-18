@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any, List
 
-from ..core.agent_base import BaseAgent, AgentResult, AgentStatus
+from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 
 logger = logging.getLogger(__name__)
 

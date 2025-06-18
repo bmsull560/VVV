@@ -2,8 +2,8 @@ import logging
 from typing import Dict, Any
 import uuid
 
-from ..core.agent_base import BaseAgent, AgentResult, AgentStatus
-from ...memory.types import KnowledgeEntity
+from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
+from memory.types import KnowledgeEntity
 
 logger = logging.getLogger(__name__)
 
