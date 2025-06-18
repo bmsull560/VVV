@@ -2,12 +2,14 @@ import unittest
 from src.agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 from src.agents.core.mcp_client import MCPClient
 from src.memory import MemoryManager
+from typing import Dict, Any
 
 class DummyAgent(BaseAgent):
     def __init__(self, agent_id, mcp_client, config):
         super().__init__(agent_id, mcp_client, config)
-    async def execute(self, inputs):
-        # Simulate agent logic with error handling
+    async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
+        if not isinstance(inputs, dict):
+            raise TypeError("Input must be a dictionary")
         if 'fail' in inputs:
             raise ValueError("Simulated agent failure")
         return AgentResult(
