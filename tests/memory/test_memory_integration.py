@@ -265,10 +265,10 @@ class MemoryIntegrationTest(unittest.TestCase):
             
             # 2. Semantic Memory - Knowledge entity
             knowledge_id = await self.mcp_client.store_knowledge(
+                title="AI Interest",
                 content="Test customer is interested in AI solutions",
                 content_type="text",
-                source="sales_meeting",
-                confidence=0.9
+                source="sales_meeting"
             )
             
             # 3. Knowledge Graph - Create relationship
@@ -323,6 +323,7 @@ class MemoryIntegrationTest(unittest.TestCase):
             knowledge_ids = []
             for i in range(5):
                 knowledge_id = await self.mcp_client.store_knowledge(
+                    title=f"Knowledge {i}",
                     content=f"Knowledge entity {i} about {'AI' if i % 2 == 0 else 'business value'}",
                     content_type="text",
                     source="test"
