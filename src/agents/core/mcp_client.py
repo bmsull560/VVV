@@ -9,7 +9,7 @@ import logging
 import asyncio
 from typing import Dict, Any, Optional, List, Union
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.memory import (
     MemoryManager, 
@@ -240,16 +240,28 @@ class MCPClient:
             # In production, you might want to raise an exception here
             # For now, we'll log and continue
             
-        # Get current context
-        current_context = await self.get_context(user_id, role)
+        # Get current context entity
+        if not self._current_context_id:
+            # This should not happen if get_context was called, but as a safeguard:
+            await self.get_context(user_id, role)
+
+        current_context_entity = await self._memory_manager.retrieve(
+            self._current_context_id, MemoryTier.WORKING, user_id, role
+        )
+        if not isinstance(current_context_entity, ContextMemoryEntity):
+            logger.error(f"Could not retrieve a valid context with ID {self._current_context_id}")
+            return
+
+        current_context_data = current_context_entity.context_data
         
         # Create new context entity with updated data
         new_context = ContextMemoryEntity(
             workflow_id=self._current_workflow_id,
-            context_data={**current_context, **data},
+            context_data={**current_context_data, **data},
             parent_id=self._current_context_id,
+            access_policy=current_context_entity.access_policy,
             agent_id=agent_id,
-            version=(current_context.get("version", 0) + 1) if current_context else 1
+            version=current_context_entity.version + 1
         )
         
         # Store updated context
@@ -278,7 +290,7 @@ class MCPClient:
             workflow_id=workflow_id,
             workflow_name=workflow_name,
             workflow_status="started",
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             user_id=user_id,
             customer_id=customer_id,
             stages=[]
@@ -296,7 +308,7 @@ class MCPClient:
             context_data={
                 "workflow_id": workflow_id,
                 "workflow_name": workflow_name,
-                "start_time": datetime.utcnow().isoformat(),
+                "start_time": datetime.now(timezone.utc).isoformat(),
                 "user_id": user_id,
                 "customer_id": customer_id
             },
@@ -355,7 +367,7 @@ class MCPClient:
         context_ids = [context.id for context in contexts]
 
         # Update workflow
-        workflow.end_time = datetime.utcnow()
+        workflow.end_time = datetime.now(timezone.utc)
         workflow.workflow_status = status
         workflow.result = result or {}
         workflow.context_versions = context_ids

@@ -21,15 +21,22 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 
 from src.memory import (
     MemoryManager, 
-    MemoryEntity, 
-    ContextMemoryEntity, 
-    WorkflowMemoryEntity,
+    MemoryTier, 
+    WorkingMemory, 
+    EpisodicMemory, 
+    SemanticMemory, 
+    KnowledgeGraph,
+    DataSensitivity,
+    MemoryEntity,
+    ContextMemoryEntity,
     KnowledgeEntity,
     RelationshipEntity,
-    MemoryTier,
-    MemoryAccess,
-    DataSensitivity
+    WorkflowMemoryEntity
 )
+from src.memory.storage_backend import SQLiteStorageBackend, PostgreSQLStorageBackend
+import logging
+
+logger = logging.getLogger(__name__)
 from src.memory.working import WorkingMemory
 from src.memory.episodic import EpisodicMemory
 from src.memory.semantic import SemanticMemory
@@ -83,11 +90,31 @@ class MemoryIntegrationTest(unittest.TestCase):
         
         # Initialize memory manager and its tiers
         self.memory_manager = MemoryManager()
+        self.semantic_backend = None # Will be initialized based on env var
         
         # Instantiate memory tiers
         working_mem = WorkingMemory(persistence_path=self.working_dir)
         episodic_mem = EpisodicMemory(storage_path=self.episodic_dir)
-        semantic_mem = SemanticMemory(storage_path=self.semantic_dir, embedding_dim=384) # Using default dim from other tests
+        # Setup Semantic Memory Backend (PostgreSQL or SQLite)
+        postgres_dsn = os.environ.get("TEST_POSTGRES_DSN")
+        if postgres_dsn:
+            logger.info(f"Using PostgreSQL backend for Semantic Memory (DSN: {postgres_dsn[:20]}...)")
+            self.semantic_backend = PostgreSQLStorageBackend(dsn=postgres_dsn)
+            try:
+                asyncio.run(self.semantic_backend.connect()) # Ensure connection is established
+                asyncio.run(self.semantic_backend.clear_all_entities()) # Clear data for a clean test run
+            except Exception as e:
+                logger.error(f"Failed to connect to or clear PostgreSQL DB: {e}. Falling back to SQLite.")
+                self.semantic_backend = None # Reset to allow fallback
+        
+        if not self.semantic_backend:
+            logger.warning("TEST_POSTGRES_DSN not set or connection failed. Using SQLite backend for Semantic Memory.")
+            # Fallback to SQLite if DSN is not provided or connection failed
+            sqlite_db_path = os.path.join(self.semantic_dir, "semantic.db")
+            self.semantic_backend = SQLiteStorageBackend(db_path=sqlite_db_path)
+            # SQLite backend creates DB and table on init, no explicit connect/clear needed here for its current impl.
+
+        semantic_mem = SemanticMemory(backend=self.semantic_backend, model_name='all-MiniLM-L6-v2', embedding_path=os.path.join(self.semantic_dir, "embeddings"))
         graph_mem = KnowledgeGraph(storage_path=self.graph_dir)
         
         self.memory_manager.initialize(
@@ -102,6 +129,14 @@ class MemoryIntegrationTest(unittest.TestCase):
         
     def tearDown(self):
         """Clean up test environment."""
+        # Close PostgreSQL connection if it was used
+        if isinstance(self.semantic_backend, PostgreSQLStorageBackend):
+            try:
+                asyncio.run(self.semantic_backend.close())
+                logger.info("Closed PostgreSQL backend connection.")
+            except Exception as e:
+                logger.error(f"Error closing PostgreSQL backend: {e}")
+        
         # Remove temporary directories
         shutil.rmtree(self.test_dir)
         
@@ -306,7 +341,7 @@ class MemoryIntegrationTest(unittest.TestCase):
             self.assertEqual(knowledge.content, "Test customer is interested in AI solutions")
             
             # Knowledge Graph - Relationship
-            relationship = await self.memory_manager.retrieve(relationship_id, MemoryTier.KNOWLEDGE_GRAPH)
+            relationship = await self.memory_manager.retrieve(relationship_id, MemoryTier.GRAPH)
             self.assertIsNotNone(relationship)
             self.assertEqual(relationship.from_id, workflow_id)
             self.assertEqual(relationship.to_id, knowledge_id)

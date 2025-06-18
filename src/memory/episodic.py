@@ -13,7 +13,7 @@ import os
 import json
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.memory.types import WorkflowMemoryEntity, MemoryTier, DataSensitivity
 from src.memory.storage_backend import StorageBackend
@@ -111,7 +111,7 @@ class EpisodicMemory:
         if not isinstance(entity, WorkflowMemoryEntity):
             raise TypeError("Episodic Memory can only store WorkflowMemoryEntity objects")
         entity.tier = MemoryTier.EPISODIC
-        entity.updated_at = datetime.utcnow()
+        entity.updated_at = datetime.now(timezone.utc)
         workflow_path = self._get_workflow_path(entity.id)
         try:
             with open(workflow_path, 'w') as f:

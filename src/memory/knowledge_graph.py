@@ -11,7 +11,7 @@ import logging
 from typing import Dict, Any, List, Optional, Tuple, Set
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.memory.types import MemoryEntity, RelationshipEntity, MemoryTier, DataSensitivity
 from src.memory.storage_backend import StorageBackend
@@ -161,7 +161,7 @@ class KnowledgeGraph:
         if not isinstance(entity, RelationshipEntity):
             raise TypeError("Knowledge Graph can only store RelationshipEntity objects")
         entity.tier = MemoryTier.GRAPH
-        entity.updated_at = datetime.utcnow()
+        entity.updated_at = datetime.now(timezone.utc)
         rel_path = self._get_relationship_path(entity.id)
         try:
             with open(rel_path, 'w') as f:

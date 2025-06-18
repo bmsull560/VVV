@@ -14,7 +14,7 @@ import logging
 import hashlib
 import json
 from typing import Dict, Any, List, Optional, Tuple, Union, Type
-from datetime import datetime
+from datetime import datetime, timezone
 import asyncio
 
 # Monitoring/alerting: set up critical log handler
@@ -99,7 +99,7 @@ class MemoryManager:
                         new_checksum: Optional[str] = None):
         """Log an audit event for a memory operation."""
         audit_entry = AuditLogEntry(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             entity_id=entity_id,
             action=action,
             user_id=user_id,
@@ -201,7 +201,7 @@ class MemoryManager:
         
         try:
             # Calculate checksum for integrity verification
-            entity.updated_at = datetime.utcnow()
+            entity.updated_at = datetime.now(timezone.utc)
             prev_checksum = entity.checksum
             entity.checksum = self._calculate_checksum(entity)
             # Store in appropriate memory tier

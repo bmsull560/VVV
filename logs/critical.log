@@ -80,3 +80,11 @@
 2025-06-18 02:56:23,543 CRITICAL CRITICAL SEARCH ERROR: User system with role admin lacks read access to tier EPISODIC
 2025-06-18 02:57:17,624 ERROR STORE ERROR: Failed to store entity 839e30f4-12a3-4dea-a26c-6f549a2f0c1f in tier MemoryTier.EPISODIC: 'str' object has no attribute 'name'
 2025-06-18 02:57:17,624 CRITICAL CRITICAL STORE ERROR: 'str' object has no attribute 'name'
+2025-06-18 02:59:09,886 ERROR RETRIEVE ERROR: Failed to retrieve entity aaaac18c-3eff-45c0-8f6d-1d39ea9918c8 from tier WORKING: User system with role agent lacks read access to entity aaaac18c-3eff-45c0-8f6d-1d39ea9918c8
+2025-06-18 02:59:09,886 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity aaaac18c-3eff-45c0-8f6d-1d39ea9918c8
+2025-06-18 03:13:44,938 ERROR RETRIEVE ERROR: Failed to retrieve entity 796005e9-13de-4a5a-8ba6-963d8c095f38 from tier SEMANTIC: 'SemanticMemory' object has no attribute '_get_entity_path'
+2025-06-18 03:13:44,939 CRITICAL CRITICAL RETRIEVE ERROR: 'SemanticMemory' object has no attribute '_get_entity_path'
+2025-06-18 03:14:57,624 ERROR RETRIEVE ERROR: Failed to retrieve entity 9fe91538-55e8-4c0a-9591-88c11a0e3b39 from tier SEMANTIC: 'SemanticMemory' object has no attribute '_get_entity_path'
+2025-06-18 03:14:57,624 CRITICAL CRITICAL RETRIEVE ERROR: 'SemanticMemory' object has no attribute '_get_entity_path'
+2025-06-18 03:39:36,114 ERROR RETRIEVE ERROR: Failed to retrieve entity 080ec7ed-08bd-4965-8158-25499aa43869 from tier SEMANTIC: 'SemanticMemory' object has no attribute 'backend'
+2025-06-18 03:39:36,115 CRITICAL CRITICAL RETRIEVE ERROR: 'SemanticMemory' object has no attribute 'backend'

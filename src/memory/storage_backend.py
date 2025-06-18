@@ -1,5 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
+import json
+import asyncpg
+import logging
+
+from src.memory.types import from_dict, MemoryEntity, to_dict as global_to_dict
+
+logger = logging.getLogger(__name__)
 
 class StorageBackend(ABC):
     """
@@ -39,17 +46,17 @@ class SQLiteStorageBackend(StorageBackend):
         import json
         self.conn.execute(
             'REPLACE INTO entities (id, data) VALUES (?, ?)',
-            (entity.id, json.dumps(entity.to_dict()))
+            (entity.id, json.dumps(global_to_dict(entity)))
         )
         self.conn.commit()
         return entity.id
 
-    async def retrieve(self, entity_id: str) -> Optional[Any]:
+    async def retrieve(self, entity_id: str) -> Optional[MemoryEntity]:
         cursor = self.conn.execute('SELECT data FROM entities WHERE id=?', (entity_id,))
         row = cursor.fetchone()
         if row:
             import json
-            return json.loads(row[0])
+            return from_dict(json.loads(row[0]))
         return None
 
     async def delete(self, entity_id: str) -> bool:
@@ -57,8 +64,123 @@ class SQLiteStorageBackend(StorageBackend):
         self.conn.commit()
         return cur.rowcount > 0
 
-    async def search(self, query: Dict[str, Any], limit: int = 10) -> List[Any]:
+    async def search(self, query: Dict[str, Any], limit: int = 10) -> List[MemoryEntity]:
         # This is a stub: for demo, return all entities (real impl should filter by query)
         cursor = self.conn.execute('SELECT data FROM entities LIMIT ?', (limit,))
         import json
-        return [json.loads(row[0]) for row in cursor.fetchall()]
+        return [from_dict(json.loads(row[0])) for row in cursor.fetchall()]
+
+
+class PostgreSQLStorageBackend(StorageBackend):
+    """
+    PostgreSQL-based backend for persistent storage using asyncpg.
+    """
+    def __init__(self, dsn: str):
+        self._dsn = dsn
+        self._pool: Optional[asyncpg.Pool] = None
+
+    async def connect(self):
+        """Establishes the connection pool and creates table if not exists."""
+        if self._pool and not self._pool._closed:
+            logger.info("PostgreSQL connection pool already established.")
+            return
+        try:
+            self._pool = await asyncpg.create_pool(self._dsn)
+            if self._pool is None: # Should not happen if create_pool doesn't raise
+                 raise ConnectionError("Failed to create PostgreSQL connection pool: pool is None.")
+            # Ensure entities table exists
+            async with self._pool.acquire() as connection:
+                await connection.execute('''
+                    CREATE TABLE IF NOT EXISTS entities (
+                        id TEXT PRIMARY KEY,
+                        data JSONB
+                    )
+                ''')
+            logger.info("PostgreSQL connection pool established and 'entities' table verified.")
+        except Exception as e:
+            logger.error(f"Failed to connect to PostgreSQL or create table: {e}")
+            self._pool = None # Ensure pool is None if connection failed
+            raise
+
+    async def close(self):
+        """Closes the connection pool."""
+        if self._pool and not self._pool._closed:
+            await self._pool.close()
+            logger.info("PostgreSQL connection pool closed.")
+        self._pool = None
+
+    async def _get_pool(self) -> asyncpg.Pool:
+        if not self._pool or self._pool._closed:
+            logger.warning("PostgreSQL connection pool not initialized or closed. Attempting to reconnect.")
+            await self.connect()
+        if not self._pool: # Still None after connect attempt
+             raise ConnectionError("PostgreSQL connection pool is not available.")
+        return self._pool
+
+    async def store(self, entity: MemoryEntity) -> str:
+        pool = await self._get_pool()
+        entity_data_dict = global_to_dict(entity)
+
+        async with pool.acquire() as connection:
+            await connection.execute(
+                """
+                INSERT INTO entities (id, data) VALUES ($1, $2)
+                ON CONFLICT (id) DO UPDATE SET data = $2
+                """,
+                entity.id,
+                entity_data_dict
+            )
+        return entity.id
+
+    async def retrieve(self, entity_id: str) -> Optional[MemoryEntity]:
+        pool = await self._get_pool()
+        async with pool.acquire() as connection:
+            row = await connection.fetchrow(
+                'SELECT data FROM entities WHERE id = $1',
+                entity_id
+            )
+        
+        if row and row['data']:
+            # asyncpg automatically decodes JSONB to a Python dict
+            return from_dict(row['data'])
+        return None
+
+    async def delete(self, entity_id: str) -> bool:
+        pool = await self._get_pool()
+        async with pool.acquire() as connection:
+            result = await connection.execute(
+                'DELETE FROM entities WHERE id = $1',
+                entity_id
+            )
+        # result is a string like 'DELETE 1' or 'DELETE 0'
+        return result.startswith('DELETE') and result != 'DELETE 0'
+
+    async def clear_all_entities(self):
+        """Clears all entities from the storage for testing purposes."""
+        pool = await self._get_pool()
+        async with pool.acquire() as connection:
+            await connection.execute('DELETE FROM entities')
+        logger.info("Cleared all entities from PostgreSQL backend.")
+
+    async def search(self, query: Dict[str, Any], limit: int = 10, offset: int = 0) -> List[MemoryEntity]:
+        pool = await self._get_pool()
+        logger.warning(f"PostgreSQL search is a stub and currently ignores most parts of the query: {query}. It only applies limit/offset and orders by id. If 'id' is in query, it filters by that.")
+        
+        if "id" in query and isinstance(query["id"], str):
+            entity = await self.retrieve(query["id"])
+            return [entity] if entity else []
+
+        async with pool.acquire() as connection:
+            rows = await connection.fetch(
+                'SELECT data FROM entities ORDER BY id LIMIT $1 OFFSET $2',
+                limit, offset
+            )
+        
+        results = []
+        for row_data in rows:
+            if row_data['data']:
+                deserialized_entity = from_dict(row_data['data'])
+                if deserialized_entity:
+                    results.append(deserialized_entity)
+        return results
+

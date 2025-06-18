@@ -1,3 +1,7 @@
 numpy==2.3.0
 # To enable real semantic embeddings, install:
 sentence-transformers==2.2.2
+
+# For PostgreSQL backend
+sqlalchemy==2.0.31
+asyncpg==0.29.0

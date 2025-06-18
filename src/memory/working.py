@@ -11,7 +11,7 @@ import logging
 from typing import Dict, Any, List, Optional
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.memory.types import MemoryEntity, ContextMemoryEntity, MemoryTier
 
@@ -34,21 +34,24 @@ class WorkingMemory:
         """
         self._store: Dict[str, ContextMemoryEntity] = {}
         self._persistence_path = persistence_path
-        logger.info("Working Memory initialized")
-        
-        # Recovery from persistence if path provided
+        self._db_file = None
         if self._persistence_path:
+            import os
+            self._db_file = os.path.join(self._persistence_path, "working_memory.json")
+            logger.info(f"Working Memory persistence enabled at {self._db_file}")
             try:
                 self._recover_from_persistence()
             except Exception as e:
                 logger.error(f"Failed to recover working memory: {e}")
+        else:
+            logger.info("Working Memory initialized without persistence.")
         
     def _recover_from_persistence(self):
         """Recover working memory from persistence file."""
         try:
             import os
-            if os.path.exists(self._persistence_path):
-                with open(self._persistence_path, 'r') as f:
+            if self._db_file and os.path.exists(self._db_file):
+                with open(self._db_file, 'r') as f:
                     data = json.load(f)
                     for item in data:
                         entity_dict = item
@@ -71,12 +74,16 @@ class WorkingMemory:
             
     def _persist(self):
         """Persist working memory to file if configured."""
-        if not self._persistence_path:
+        if not self._db_file:
             return
             
         try:
+            import os
+            # Ensure the directory exists
+            os.makedirs(self._persistence_path, exist_ok=True)
+            
             entities_json = [entity.to_dict() for entity in self._store.values()]
-            with open(self._persistence_path, 'w') as f:
+            with open(self._db_file, 'w') as f:
                 json.dump(entities_json, f)
         except Exception as e:
             logger.error(f"Failed to persist working memory: {e}")
@@ -118,7 +125,7 @@ class WorkingMemory:
             entity.version = self._store[entity.id].version + 1
             
         # Update timestamp
-        entity.updated_at = datetime.utcnow()
+        entity.updated_at = datetime.now(timezone.utc)
         
         # Store entity
         self._store[entity.id] = entity
