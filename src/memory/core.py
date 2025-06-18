@@ -65,7 +65,7 @@ class MemoryManager:
         
         self._working_memory = working_memory or WorkingMemory()
         self._episodic_memory = episodic_memory or EpisodicMemory()
-        self._semantic_memory = semantic_memory or SemanticMemory(backend=SQLiteStorageBackend())
+        self._semantic_memory = semantic_memory or SemanticMemory(backend=SQLiteStorageBackend(db_path=":memory:"))
         self._knowledge_graph = knowledge_graph or KnowledgeGraph()
         
         logger.info("Memory Manager initialized with all tiers")

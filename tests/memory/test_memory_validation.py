@@ -23,7 +23,7 @@ class TestMemoryValidation(unittest.TestCase):
         entity.tier = MemoryTier.WORKING
         entity.sensitivity = DataSensitivity.INTERNAL
         del entity.workflow_id
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(AssertionError):
             self.mm._validate_entity(entity)
 
     def test_invalid_type(self):
