@@ -1,7 +1,8 @@
 import os
 import sys
 import asyncio
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 from ..agents.intake_assistant.main import IntakeAssistantAgent
 from ..agents.roi_calculator.main import ROICalculatorAgent
@@ -9,9 +10,11 @@ from ..agents.data_correlator.main import DataCorrelatorAgent
 from ..memory.mcp_client import MCPClient
 from ..memory.semantic_memory import SemanticMemory
 from ..memory.storage.postgres_storage import PostgresStorage
+from ..memory.types import to_dict # Import the utility to serialize entities
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Securely generate a secret key
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}) # Allow CORS for API routes from the React app
+app.secret_key = os.urandom(24)
 
 # --- MCP and Agent Setup ---
 storage_backend = None
@@ -30,93 +33,64 @@ intake_agent = IntakeAssistantAgent(agent_id="ui-intake-agent", mcp_client=mcp_c
 roi_agent = ROICalculatorAgent(agent_id="ui-roi-agent", mcp_client=mcp_client, config={})
 correlator_agent = DataCorrelatorAgent(agent_id="ui-correlator-agent", mcp_client=mcp_client, config={})
 
-@app.route('/')
-def index():
-    """Renders the main project intake form."""
-    return render_template('index.html')
-
-@app.route('/dashboard')
-def dashboard():
-    """Renders the main dashboard, showing projects and providing tools."""
+@app.route('/api/projects', methods=['GET'])
+def get_projects():
+    """Returns a list of all submitted projects."""
     projects = []
     if storage_backend:
         try:
-            # This is a simplified fetch. A real app would have more robust querying.
             all_entities = asyncio.run(mcp_client.memory.storage.get_all())
-            projects = [e for e in all_entities if e.metadata.get('source') == 'IntakeAssistant']
+            # Filter for entities created by the intake agent and serialize them
+            project_entities = [e for e in all_entities if e.metadata.get('source') == 'IntakeAssistantAgent']
+            projects = [to_dict(p) for p in project_entities]
         except Exception as e:
-            flash(f"Could not load projects: {e}", 'error')
-    return render_template('dashboard.html', projects=projects)
+            return jsonify({'error': f'Could not load projects: {e}'}), 500
+    return jsonify(projects)
 
-@app.route('/calculate_roi', methods=['POST'])
+@app.route('/api/calculate_roi', methods=['POST'])
 def calculate_roi():
-    """Handles the ROI calculation form submission."""
-    investment = request.form.get('investment')
-    gain = request.form.get('gain')
-    inputs = {'investment': investment, 'gain': gain}
+    """Handles the ROI calculation and returns JSON."""
+    data = request.get_json()
+    if not data or 'investment' not in data or 'gain' not in data:
+        return jsonify({'error': 'Missing investment or gain in request body'}), 400
 
     try:
-        result = asyncio.run(roi_agent.execute(inputs))
+        result = asyncio.run(roi_agent.execute(data))
         if result.status.is_completed():
-            flash(f"Calculated ROI: {result.data['roi_percentage']}%", 'success')
+            return jsonify(result.data)
         else:
-            flash(f"ROI Calculation Error: {result.data.get('error')}", 'error')
+            return jsonify({'error': result.data.get('error', 'Unknown ROI calculation error')}), 400
     except Exception as e:
-        flash(f"An unexpected error occurred: {str(e)}", 'error')
-    
-    return redirect(url_for('dashboard'))
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
-@app.route('/correlate_data', methods=['POST'])
+@app.route('/api/correlate_data', methods=['POST'])
 def correlate_data():
-    """Handles the data correlation form submission."""
-    try:
-        dataset1 = [float(x) for x in request.form.get('dataset1', '').split(',') if x.strip()]
-        dataset2 = [float(x) for x in request.form.get('dataset2', '').split(',') if x.strip()]
-    except ValueError:
-        flash("Datasets must contain comma-separated numbers only.", 'error')
-        return redirect(url_for('dashboard'))
+    """Handles data correlation and returns JSON."""
+    data = request.get_json()
+    if not data or 'dataset1' not in data or 'dataset2' not in data:
+        return jsonify({'error': 'Missing dataset1 or dataset2 in request body'}), 400
 
-    inputs = {'dataset1': dataset1, 'dataset2': dataset2}
     try:
-        result = asyncio.run(correlator_agent.execute(inputs))
+        result = asyncio.run(correlator_agent.execute(data))
         if result.status.is_completed():
-            flash(f"Correlation Coefficient: {result.data['correlation_coefficient']}", 'success')
+            return jsonify(result.data)
         else:
-            flash(f"Correlation Error: {result.data.get('error')}", 'error')
+            return jsonify({'error': result.data.get('error', 'Unknown correlation error')}), 400
     except Exception as e:
-        flash(f"An unexpected error occurred: {str(e)}", 'error')
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
-    return redirect(url_for('dashboard'))
-
-
-@app.route('/submit', methods=['POST'])
+@app.route('/api/submit', methods=['POST'])
 def submit():
-    """Handles the form submission and executes the IntakeAssistantAgent."""
-    project_name = request.form.get('project_name')
-    description = request.form.get('description')
-    goals = request.form.get('goals')
-
-    if not all([project_name, description, goals]):
-        flash('All fields are required!', 'error')
-        return redirect(url_for('index'))
-
-    goals_list = [goal.strip() for goal in goals.splitlines() if goal.strip()]
-
-    inputs = {
-        "project_name": project_name,
-        "description": description,
-        "goals": goals_list
-    }
+    """Handles the project intake form submission from the API."""
+    data = request.get_json()
+    if not data or not all(k in data for k in ['project_name', 'description', 'goals']):
+        return jsonify({'error': 'Missing required fields: project_name, description, goals'}), 400
 
     try:
-        result = asyncio.run(intake_agent.execute(inputs))
+        result = asyncio.run(intake_agent.execute(data))
         if result.status.is_completed():
-            flash(f"Project '{project_name}' submitted successfully!", 'success')
+            return jsonify({'message': 'Project submitted successfully!', 'entity_id': result.data.get('entity_id')}), 201
         else:
-            flash(f"Error submitting project: {result.data.get('error', 'Unknown error')}", 'error')
+            return jsonify({'error': result.data.get('error', 'Unknown error during project intake')}), 400
     except Exception as e:
-        flash(f"An unexpected error occurred: {str(e)}", 'error')
-
-    return redirect(url_for('index'))
-
-# This application is designed to be run from the root `run.py` script.
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
