@@ -1,8 +1,46 @@
 import unittest
 import asyncio
 from src.memory.semantic import SemanticMemory
-from src.memory.types import KnowledgeEntity, MemoryTier
-from datetime import datetime, timezone
+from src.memory.storage_backend import SQLiteStorageBackend
+from src.memory.types import KnowledgeEntity
+
+class TestSemanticMemory(unittest.TestCase):
+
+    def setUp(self):
+        """Set up a clean environment for each test."""
+        self.backend = SQLiteStorageBackend(db_path=":memory:")
+        self.memory = SemanticMemory(backend=self.backend)
+        asyncio.run(self.backend.connect())
+
+    def test_store_and_retrieve_entity(self):
+        """Test that an entity can be stored and then retrieved."""
+        async def run_test():
+            entity = KnowledgeEntity(id="test-123", content="This is a test.")
+            await self.memory.store(entity)
+            retrieved = await self.memory.retrieve("test-123")
+            self.assertIsNotNone(retrieved)
+            self.assertEqual(retrieved.id, "test-123")
+            self.assertEqual(retrieved.content, "This is a test.")
+        asyncio.run(run_test())
+
+    def test_semantic_search(self):
+        """Test the semantic search functionality."""
+        async def run_test():
+            # Store some entities
+            await self.memory.store(KnowledgeEntity(id="fruit-1", content="An apple is a sweet, edible fruit."))
+            await self.memory.store(KnowledgeEntity(id="car-1", content="A car is a wheeled motor vehicle used for transportation."))
+            
+            # Search for a related concept
+            results = await self.memory.semantic_search(query_text="What is a healthy snack?")
+            
+            self.assertGreater(len(results), 0)
+            # Check if the most relevant result is the apple
+            self.assertEqual(results[0].id, "fruit-1")
+
+        asyncio.run(run_test())
+
+if __name__ == '__main__':
+    unittest.main()
 
 class TestSemanticMemory(unittest.IsolatedAsyncioTestCase):
     def setUp(self):

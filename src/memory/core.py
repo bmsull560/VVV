@@ -60,11 +60,12 @@ class MemoryManager:
         from src.memory.working import WorkingMemory
         from src.memory.episodic import EpisodicMemory
         from src.memory.semantic import SemanticMemory
+        from src.memory.storage_backend import SQLiteStorageBackend
         from src.memory.knowledge_graph import KnowledgeGraph
         
         self._working_memory = working_memory or WorkingMemory()
         self._episodic_memory = episodic_memory or EpisodicMemory()
-        self._semantic_memory = semantic_memory or SemanticMemory()
+        self._semantic_memory = semantic_memory or SemanticMemory(backend=SQLiteStorageBackend())
         self._knowledge_graph = knowledge_graph or KnowledgeGraph()
         
         logger.info("Memory Manager initialized with all tiers")

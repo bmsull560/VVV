@@ -90,10 +90,12 @@ class PostgreSQLStorageBackend(StorageBackend):
                  raise ConnectionError("Failed to create PostgreSQL connection pool: pool is None.")
             # Ensure entities table exists
             async with self._pool.acquire() as connection:
+                await connection.execute('CREATE EXTENSION IF NOT EXISTS vector;')
                 await connection.execute('''
                     CREATE TABLE IF NOT EXISTS entities (
                         id TEXT PRIMARY KEY,
-                        data JSONB
+                        data JSONB,
+                        vector vector(384)
                     )
                 ''')
             logger.info("PostgreSQL connection pool established and 'entities' table verified.")
@@ -120,15 +122,21 @@ class PostgreSQLStorageBackend(StorageBackend):
     async def store(self, entity: MemoryEntity) -> str:
         pool = await self._get_pool()
         entity_data_dict = global_to_dict(entity)
+        
+        # Extract vector embedding and remove it from the main JSONB data to avoid duplication
+        vector = entity_data_dict.pop('vector_embedding', None)
 
         async with pool.acquire() as connection:
             await connection.execute(
                 """
-                INSERT INTO entities (id, data) VALUES ($1, $2)
-                ON CONFLICT (id) DO UPDATE SET data = $2
+                INSERT INTO entities (id, data, vector) VALUES ($1, $2, $3)
+                ON CONFLICT (id) DO UPDATE SET 
+                    data = EXCLUDED.data,
+                    vector = EXCLUDED.vector
                 """,
                 entity.id,
-                entity_data_dict
+                entity_data_dict,
+                vector
             )
         return entity.id
 
@@ -136,13 +144,22 @@ class PostgreSQLStorageBackend(StorageBackend):
         pool = await self._get_pool()
         async with pool.acquire() as connection:
             row = await connection.fetchrow(
-                'SELECT data FROM entities WHERE id = $1',
+                'SELECT data, vector FROM entities WHERE id = $1',
                 entity_id
             )
         
         if row and row['data']:
             # asyncpg automatically decodes JSONB to a Python dict
-            return from_dict(row['data'])
+            entity = from_dict(row['data'])
+            if entity:
+                # Manually add the vector embedding back to the entity
+                # asyncpg returns pgvector data as a string, so we parse it.
+                vector_str = row['vector']
+                if vector_str:
+                    entity.vector_embedding = json.loads(vector_str)
+                else:
+                    entity.vector_embedding = None
+            return entity
         return None
 
     async def delete(self, entity_id: str) -> bool:
@@ -163,24 +180,47 @@ class PostgreSQLStorageBackend(StorageBackend):
         logger.info("Cleared all entities from PostgreSQL backend.")
 
     async def search(self, query: Dict[str, Any], limit: int = 10, offset: int = 0) -> List[MemoryEntity]:
+        """
+        Searches for entities. If a 'vector' key is present in the query,
+        it performs a semantic search. Otherwise, it performs a metadata search.
+        """
         pool = await self._get_pool()
-        logger.warning(f"PostgreSQL search is a stub and currently ignores most parts of the query: {query}. It only applies limit/offset and orders by id. If 'id' is in query, it filters by that.")
         
-        if "id" in query and isinstance(query["id"], str):
-            entity = await self.retrieve(query["id"])
-            return [entity] if entity else []
-
-        async with pool.acquire() as connection:
-            rows = await connection.fetch(
-                'SELECT data FROM entities ORDER BY id LIMIT $1 OFFSET $2',
-                limit, offset
-            )
+        query_vector = query.get("vector")
         
+        if query_vector:
+            # Perform vector similarity search
+            async with pool.acquire() as connection:
+                # The vector is passed as a string representation of a list
+                vector_str = str(query_vector)
+                rows = await connection.fetch(
+                    """
+                    SELECT data, vector, vector <=> $1 AS distance
+                    FROM entities
+                    ORDER BY distance
+                    LIMIT $2 OFFSET $3
+                    """,
+                    vector_str, limit, offset
+                )
+        else:
+            # Fallback to simple metadata search (or the previous stub)
+            logger.warning(f"Performing non-vector search. Query: {query}")
+            async with pool.acquire() as connection:
+                rows = await connection.fetch(
+                    'SELECT data, vector FROM entities ORDER BY id LIMIT $1 OFFSET $2',
+                    limit, offset
+                )
+                
         results = []
-        for row_data in rows:
-            if row_data['data']:
-                deserialized_entity = from_dict(row_data['data'])
-                if deserialized_entity:
-                    results.append(deserialized_entity)
+        for row in rows:
+            if row['data']:
+                entity = from_dict(row['data'])
+                if entity:
+                    vector_str = row['vector']
+                    if vector_str:
+                        entity.vector_embedding = json.loads(vector_str)
+                    else:
+                        entity.vector_embedding = None
+                    results.append(entity)
         return results
 
