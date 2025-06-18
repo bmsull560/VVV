@@ -112,12 +112,22 @@ class MemoryManager:
         # In production, this would write to a secure audit log store
         logger.info(f"Audit: {action} on {entity_id} by {user_id}")
     
-    def _check_access(self, entity_id: str, user_id: str, 
+    def _check_access(self, entity_id: Optional[str], user_id: str, 
                      role: str, access_type: MemoryAccess) -> bool:
         """Check if user has required access to memory entity."""
-        if entity_id not in self._access_controls:
-            # Default to restricted if no specific ACL is defined
+        if entity_id is None:
+            # This is a tier-level check (e.g., for search).
+            # For now, we'll grant read access to admins and agents.
+            # A more robust system would have configurable tier-level ACLs.
+            if role in ["admin", "agent"] and access_type == MemoryAccess.READ:
+                return True
             return False
+
+        if entity_id not in self._access_controls:
+            # Default to restricted if no specific ACL is defined for the entity
+            logger.warning(f"No access control found for entity {entity_id}. Access denied.")
+            return False
+            
         return self._access_controls[entity_id].can_access(user_id, role, access_type)
 
     def _validate_entity(self, entity: MemoryEntity):
@@ -216,25 +226,41 @@ class MemoryManager:
             )
             # Setup default access control if this is a new entity
             if is_new:
-                # Start with admin full access
-                new_entity_roles = {"admin": list(MemoryAccess)}
-                
-                # Merge permissions from role-default ACLs
-                # These are ACLs where the entity_id (key in _access_controls) is like "role:agent"
-                # and their 'roles' dict contains the actual role permissions e.g. {"agent": [MemoryAccess.READ]}
-                for acl_key, role_default_acl_obj in self._access_controls.items():
-                    if acl_key.startswith("role:"):
-                        for role_name_from_default, permissions_from_default in role_default_acl_obj.roles.items():
-                            if role_name_from_default not in new_entity_roles:
-                                new_entity_roles[role_name_from_default] = []
-                            for perm in permissions_from_default:
-                                if perm not in new_entity_roles[role_name_from_default]:
-                                    new_entity_roles[role_name_from_default].append(perm)
-                                    
-                access_control = MemoryAccessControl(
-                    entity_id=entity_id,
-                    roles=new_entity_roles
-                )
+                if hasattr(entity, 'access_policy') and entity.access_policy:
+                    # Use the policy defined on the entity itself
+                    roles = {}
+                    user_overrides = {}
+                    for rule in entity.access_policy:
+                        access_enums = [MemoryAccess[a.upper()] for a in rule.get("access", [])]
+                        if "role" in rule:
+                            roles[rule["role"]] = access_enums
+                        elif "user_id" in rule and rule["user_id"]:
+                            user_overrides[rule["user_id"]] = access_enums
+                    
+                    # Ensure admin always has full access
+                    roles["admin"] = list(MemoryAccess)
+
+                    access_control = MemoryAccessControl(
+                        entity_id=entity_id,
+                        roles=roles,
+                        user_overrides=user_overrides
+                    )
+                else:
+                    # Fallback to the old default behavior if no policy is provided
+                    new_entity_roles = {"admin": list(MemoryAccess)}
+                    for acl_key, role_default_acl_obj in self._access_controls.items():
+                        if acl_key.startswith("role:"):
+                            for role_name_from_default, permissions_from_default in role_default_acl_obj.roles.items():
+                                if role_name_from_default not in new_entity_roles:
+                                    new_entity_roles[role_name_from_default] = []
+                                for perm in permissions_from_default:
+                                    if perm not in new_entity_roles[role_name_from_default]:
+                                        new_entity_roles[role_name_from_default].append(perm)
+                                        
+                    access_control = MemoryAccessControl(
+                        entity_id=entity_id,
+                        roles=new_entity_roles
+                    )
                 self.set_access_control(access_control)
             logger.info(f"STORE: Entity {entity_id} stored in tier {entity.tier.name} by {user_id}")
             return entity_id

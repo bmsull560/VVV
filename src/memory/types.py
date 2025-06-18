@@ -47,6 +47,7 @@ class MemoryEntity:
     tags: List[str] = field(default_factory=list)
     version: int = field(default=1)
     checksum: Optional[str] = field(default=None)  # For integrity verification
+    access_policy: Optional[List[Dict[str, Any]]] = field(default=None)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert entity to dictionary representation."""
@@ -144,6 +145,7 @@ class WorkflowMemoryEntity(MemoryEntity):
 @dataclass
 class KnowledgeEntity(MemoryEntity):
     """Represents a knowledge item in semantic memory."""
+    title: str = field(default="")
     content: str = field(default="")
     content_type: str = field(default="text")
     vector_embedding: Optional[List[float]] = None

@@ -72,3 +72,11 @@
 2025-06-18 02:51:16,761 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity 293805a8-adab-45fe-97b2-f464db59e0a5
 2025-06-18 02:51:25,226 ERROR RETRIEVE ERROR: Failed to retrieve entity 984cf279-d50f-44f0-8a4b-5190c257563d from tier WORKING: User system with role agent lacks read access to entity 984cf279-d50f-44f0-8a4b-5190c257563d
 2025-06-18 02:51:25,226 CRITICAL CRITICAL RETRIEVE ERROR: User system with role agent lacks read access to entity 984cf279-d50f-44f0-8a4b-5190c257563d
+2025-06-18 02:54:07,609 ERROR STORE ERROR: Failed to store entity 72b6bc97-6bd6-4401-a310-4408b6040dc2 in tier MemoryTier.WORKING: Working Memory can only store ContextMemoryEntity objects
+2025-06-18 02:54:07,609 CRITICAL CRITICAL STORE ERROR: Working Memory can only store ContextMemoryEntity objects
+2025-06-18 02:54:36,498 ERROR STORE ERROR: Failed to store entity 695922cf-d710-44bd-9aff-1dc046c56f2b in tier MemoryTier.WORKING: Working Memory can only store ContextMemoryEntity objects
+2025-06-18 02:54:36,498 CRITICAL CRITICAL STORE ERROR: Working Memory can only store ContextMemoryEntity objects
+2025-06-18 02:56:23,543 ERROR SEARCH ERROR: Failed to search in tier EPISODIC: User system with role admin lacks read access to tier EPISODIC
+2025-06-18 02:56:23,543 CRITICAL CRITICAL SEARCH ERROR: User system with role admin lacks read access to tier EPISODIC
+2025-06-18 02:57:17,624 ERROR STORE ERROR: Failed to store entity 839e30f4-12a3-4dea-a26c-6f549a2f0c1f in tier MemoryTier.EPISODIC: 'str' object has no attribute 'name'
+2025-06-18 02:57:17,624 CRITICAL CRITICAL STORE ERROR: 'str' object has no attribute 'name'

@@ -394,8 +394,9 @@ class MCPClient:
             metadata=metadata or {},
             creator_id=user_id,
             # TODO: Determine actual data sensitivity based on content/source
-            sensitivity=DataSensitivity.MEDIUM
+            sensitivity=DataSensitivity.INTERNAL
         )
+        knowledge_entity.tier = MemoryTier.SEMANTIC
         entity_id = await self._memory_manager.store(knowledge_entity, user_id=user_id, role=role)
         logger.info(f"Stored knowledge entity: {title} with ID {entity_id}")
         return entity_id
@@ -429,6 +430,7 @@ class MCPClient:
             properties=properties or {},
             creator_id=user_id
         )
+        entity.tier = MemoryTier.GRAPH
         entity_id = await self._memory_manager.store(entity, user_id, role)
         logger.info(f"Created relationship {relation_type} from {from_id} to {to_id}, ID: {entity_id}")
         return entity_id
