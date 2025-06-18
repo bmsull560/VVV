@@ -12,7 +12,7 @@ class TestSemanticMemory(unittest.TestCase):
         self.db_path = ":memory:"
         self.backend = SQLiteStorageBackend(db_path=self.db_path)
         self.memory = SemanticMemory(backend=self.backend)
-        asyncio.run(self.backend.connect())
+
 
     def test_store_and_retrieve_entity(self):
         """Test that an entity can be stored and then retrieved."""

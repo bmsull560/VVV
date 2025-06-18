@@ -9,7 +9,7 @@ class TestMemoryIntegration(unittest.TestCase):
 
     def setUp(self):
         """Set up the backend based on environment variables."""
-        self.postgres_dsn = os.getenv('TEST_POSTGRES_DSN')
+        self.postgres_dsn = os.getenv('TEST_POSTGRES_DSN', '').replace('+asyncpg', '')
         if self.postgres_dsn:
             self.backend = PostgreSQLStorageBackend(dsn=self.postgres_dsn)
         else:
@@ -18,7 +18,8 @@ class TestMemoryIntegration(unittest.TestCase):
         self.memory = SemanticMemory(backend=self.backend)
         
         async def init_db():
-            await self.backend.connect()
+            if hasattr(self.backend, 'connect'):
+                await self.backend.connect()
             # Clear previous test data if any
             if hasattr(self.backend, '_pool'): # Check if it's Postgres
                 async with self.backend._pool.acquire() as conn:

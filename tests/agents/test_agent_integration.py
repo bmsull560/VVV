@@ -22,7 +22,13 @@ class TestAgentMemoryIntegration(unittest.IsolatedAsyncioTestCase):
             sensitivity=None,
             tier=MemoryTier.SEMANTIC
         )
-        await self.mcp.store_knowledge(entity, user_id="agent")
+        # Create and store the knowledge entity
+        knowledge_id = await self.mcp.store_knowledge(
+            title="AI Agent Integration Test",
+            content="This is a test of the AI agent's ability to store knowledge.",
+            content_type="text/plain",
+            source="integration_test"
+        )
         results = await self.mcp.semantic_search("integration test", limit=1)
         self.assertTrue(any("integration test" in r.content or "AI agent" in r.content for r in results))
 

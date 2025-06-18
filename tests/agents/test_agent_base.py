@@ -11,7 +11,7 @@ class DummyAgent(BaseAgent):
         if 'fail' in inputs:
             raise ValueError("Simulated agent failure")
         return AgentResult(
-            status=AgentStatus.SUCCESS,
+            status=AgentStatus.COMPLETED,
             data={"echo": inputs},
             execution_time_ms=5,
             confidence_score=1.0
@@ -26,7 +26,7 @@ class TestAgentBase(unittest.IsolatedAsyncioTestCase):
 
     async def test_execute_success(self):
         result = await self.agent.execute({"foo": "bar"})
-        self.assertEqual(result.status, AgentStatus.SUCCESS)
+        self.assertEqual(result.status, AgentStatus.COMPLETED)
         self.assertIn("echo", result.data)
         self.assertEqual(result.data["echo"], {"foo": "bar"})
 
@@ -36,7 +36,7 @@ class TestAgentBase(unittest.IsolatedAsyncioTestCase):
 
     async def test_execute_empty_input(self):
         result = await self.agent.execute({})
-        self.assertEqual(result.status, AgentStatus.SUCCESS)
+        self.assertEqual(result.status, AgentStatus.COMPLETED)
         self.assertIn("echo", result.data)
         self.assertEqual(result.data["echo"], {})
 
@@ -50,7 +50,7 @@ class TestAgentBase(unittest.IsolatedAsyncioTestCase):
 
     async def test_execute_input_with_invalid_keys(self):
         result = await self.agent.execute({"invalid_key": "value"})
-        self.assertEqual(result.status, AgentStatus.SUCCESS)
+        self.assertEqual(result.status, AgentStatus.COMPLETED)
         self.assertIn("echo", result.data)
         self.assertEqual(result.data["echo"], {"invalid_key": "value"})
 
