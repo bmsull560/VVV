@@ -1,7 +1,7 @@
 import unittest
 import asyncio
-from src.agents.data_correlator.main import DataCorrelatorAgent
-from src.agents.core.agent_base import AgentStatus
+from agents.data_correlator.main import DataCorrelatorAgent
+from agents.core.agent_base import AgentStatus
 
 class TestDataCorrelatorAgent(unittest.TestCase):
 

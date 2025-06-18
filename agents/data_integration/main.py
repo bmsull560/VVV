@@ -2,7 +2,7 @@ import os
 import yaml
 from typing import Dict, Any
 import asyncio
-from src.agents.core.agent_base import BaseAgent, MCPClient, AgentResult
+from agents.core.agent_base import BaseAgent, MCPClient, AgentResult
 
 class DataIntegrationAgent(BaseAgent):
     def __init__(self, agent_definition_path: str, mcp_client: MCPClient, config: Dict[str, Any]):

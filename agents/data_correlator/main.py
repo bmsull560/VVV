@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Any
 import numpy as np
 
-from ..core.agent_base import BaseAgent, AgentResult, AgentStatus
+from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 
 logger = logging.getLogger(__name__)
 

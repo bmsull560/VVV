@@ -1,7 +1,7 @@
 import unittest
 import asyncio
-from src.agents.roi_calculator.main import ROICalculatorAgent
-from src.agents.core.agent_base import AgentStatus
+from agents.roi_calculator.main import ROICalculatorAgent
+from agents.core.agent_base import AgentStatus
 
 class TestROICalculatorAgent(unittest.TestCase):
 
