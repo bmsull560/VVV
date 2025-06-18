@@ -9,7 +9,7 @@ class TestMemoryValidation(unittest.TestCase):
 
     def test_context_entity_validation(self):
         entity = ContextMemoryEntity(
-            workflow_id="wf1", version=1, data={"foo": "bar"}
+            workflow_id="wf1", version=1, context_data={"foo": "bar"}
         )
         entity.tier = MemoryTier.WORKING
         entity.sensitivity = DataSensitivity.INTERNAL
@@ -18,7 +18,7 @@ class TestMemoryValidation(unittest.TestCase):
 
     def test_missing_required_field(self):
         entity = ContextMemoryEntity(
-            workflow_id="wf1", version=1, data={}
+            workflow_id="wf1", version=1, context_data={}
         )
         entity.tier = MemoryTier.WORKING
         entity.sensitivity = DataSensitivity.INTERNAL
