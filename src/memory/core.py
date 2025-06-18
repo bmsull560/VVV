@@ -122,7 +122,7 @@ class MemoryManager:
         if isinstance(entity, ContextMemoryEntity):
             assert hasattr(entity, 'workflow_id') and isinstance(entity.workflow_id, str), "Context must have workflow_id as str"
             assert hasattr(entity, 'version') and isinstance(entity.version, int), "Context must have version as int"
-            assert hasattr(entity, 'data') and isinstance(entity.data, dict), "Context must have data as dict"
+            assert hasattr(entity, 'context_data') and isinstance(entity.context_data, dict), "Context must have context_data as dict"
         # WorkflowMemoryEntity
         if isinstance(entity, WorkflowMemoryEntity):
             assert hasattr(entity, 'workflow_id') and isinstance(entity.workflow_id, str), "Workflow must have workflow_id as str"

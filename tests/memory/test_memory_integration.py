@@ -33,8 +33,8 @@ from src.memory import (
 from src.memory.working import WorkingMemory
 from src.memory.episodic import EpisodicMemory
 from src.memory.semantic import SemanticMemory
-from src.memory.graph import KnowledgeGraph
-from src.mcp import MCPClient
+from src.memory.knowledge_graph import KnowledgeGraph
+from src.agents.core.mcp_client import MCPClient
 from src.agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 
 class TestAgent(BaseAgent):
