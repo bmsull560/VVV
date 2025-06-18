@@ -300,7 +300,12 @@ class MCPClient:
                 "user_id": user_id,
                 "customer_id": customer_id
             },
-            version=1
+            version=1,
+            access_policy=[
+                {"role": "admin", "access": ["read", "write"]},
+                {"role": "agent", "access": ["read", "write"]},
+                {"user_id": user_id, "access": ["read", "write"]}
+            ]
         )
         
         # Ensure context entity is set to working memory tier
