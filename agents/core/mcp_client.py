@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, List, Union
 import uuid
 from datetime import datetime, timezone
 
-from src.memory import (
+from memory import (
     MemoryManager, 
     MemoryEntity, 
     ContextMemoryEntity, 

@@ -1,8 +1,8 @@
 import unittest
 import asyncio
 from unittest.mock import patch, MagicMock
-from src.agents.data_integration.crm_connector import CRMConnectorAgent
-from src.agents.core.agent_base import AgentStatus
+from agents.data_integration.crm_connector import CRMConnectorAgent
+from agents.core.agent_base import AgentStatus
 
 class TestCRMConnectorAgent(unittest.TestCase):
 
@@ -20,7 +20,7 @@ class TestCRMConnectorAgent(unittest.TestCase):
             self.assertEqual(result.data["queried_data"]["account_id"], "12345")
         asyncio.run(run_test())
 
-    @patch('src.agents.data_integration.crm_connector.Salesforce')
+    @patch('agents.data_integration.crm_connector.Salesforce')
     def test_salesforce_integration_success(self, mock_salesforce):
         """Test successful execution with a mocked Salesforce connection."""
         async def run_test():

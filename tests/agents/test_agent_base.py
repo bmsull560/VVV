@@ -1,7 +1,7 @@
 import unittest
-from src.agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
-from src.agents.core.mcp_client import MCPClient
-from src.memory import MemoryManager
+from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
+from agents.core.mcp_client import MCPClient
+from memory import MemoryManager
 from typing import Dict, Any
 
 class DummyAgent(BaseAgent):

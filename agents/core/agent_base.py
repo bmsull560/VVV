@@ -7,7 +7,7 @@ import time
 import logging
 
 # Import our real MCP client
-from src.agents.core.mcp_client import MCPClient
+from agents.core.mcp_client import MCPClient
 
 class CircuitBreakerOpen(Exception):
     pass
