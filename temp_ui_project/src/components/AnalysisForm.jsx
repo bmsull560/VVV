@@ -12,7 +12,7 @@ export default function AnalysisForm({ onAnalysisStarted }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('http://localhost:5000/api/start-analysis', {
+      const res = await fetch('http://localhost:5001/api/start-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, content_type: contentType, creator_id: creatorId })
