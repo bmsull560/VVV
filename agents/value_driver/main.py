@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, Any, List
 
+import time
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 
 logger = logging.getLogger(__name__)
@@ -91,10 +92,17 @@ class ValueDriverAgent(BaseAgent):
         Args:
             inputs: A dictionary with a 'text' key containing the user's input.
         """
-        if not isinstance(inputs, dict) or 'text' not in inputs:
-            return AgentResult(status=AgentStatus.FAILED, data={"error": "Input must be a dictionary with a 'text' key."})
+        start_time = time.monotonic()
 
-        input_text = inputs['text'].lower()
+        if not isinstance(inputs, dict) or 'user_query' not in inputs:
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(
+                status=AgentStatus.FAILED, 
+                data={"error": "Input must be a dictionary with a 'user_query' key."},
+                execution_time_ms=execution_time_ms
+            )
+
+        input_text = inputs['user_query'].lower()
         
         identified_pillars = []
         for pillar_name, pillar_data in self.VALUE_HIERARCHY.items():
@@ -115,10 +123,17 @@ class ValueDriverAgent(BaseAgent):
 
         if not identified_pillars:
             logger.info("No specific value drivers identified in the text.")
-            return AgentResult(status=AgentStatus.COMPLETED, data={"drivers": [], "message": "No specific value drivers identified."})
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(
+                status=AgentStatus.COMPLETED, 
+                data={"drivers": [], "message": "No specific value drivers identified."},
+                execution_time_ms=execution_time_ms
+            )
 
         logger.info(f"Identified value driver pillars: {[p['pillar'] for p in identified_pillars]}")
+        execution_time_ms = int((time.monotonic() - start_time) * 1000)
         return AgentResult(
             status=AgentStatus.COMPLETED,
-            data={'drivers': identified_pillars}
+            data={'drivers': identified_pillars},
+            execution_time_ms=execution_time_ms
         )

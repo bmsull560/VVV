@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, Any, List
 
+import time
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 
 logger = logging.getLogger(__name__)
@@ -49,10 +50,17 @@ class PersonaAgent(BaseAgent):
         Args:
             inputs: A dictionary with a 'text' key containing the user's input.
         """
-        if not isinstance(inputs, dict) or 'text' not in inputs:
-            return AgentResult(status=AgentStatus.FAILED, data={"error": "Input must be a dictionary with a 'text' key."})
+        start_time = time.monotonic()
 
-        input_text = inputs['text'].lower()
+        if not isinstance(inputs, dict) or 'user_query' not in inputs:
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(
+                status=AgentStatus.FAILED, 
+                data={"error": "Input must be a dictionary with a 'user_query' key."},
+                execution_time_ms=execution_time_ms
+            )
+
+        input_text = inputs['user_query'].lower()
 
         identified_personas = []
         for persona_name, profile in self.PERSONA_PROFILES.items():
@@ -62,12 +70,18 @@ class PersonaAgent(BaseAgent):
                 persona_data['evidence'] = keywords_found
                 identified_personas.append(persona_data)
 
+        execution_time_ms = int((time.monotonic() - start_time) * 1000)
         if not identified_personas:
             logger.info("No specific personas identified in the text.")
-            return AgentResult(status=AgentStatus.COMPLETED, data={"personas": [], "message": "No specific personas identified."})
+            return AgentResult(
+                status=AgentStatus.COMPLETED, 
+                data={"personas": [], "message": "No specific personas identified."},
+                execution_time_ms=execution_time_ms
+            )
 
         logger.info(f"Identified personas: {[p['title'] for p in identified_personas]}")
         return AgentResult(
             status=AgentStatus.COMPLETED,
-            data={'personas': identified_personas}
+            data={'personas': identified_personas},
+            execution_time_ms=execution_time_ms
         )

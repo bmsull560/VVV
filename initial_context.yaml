@@ -2,4 +2,4 @@
 # This file provides the starting input for the first agent.
 
 # The 'text' field contains the raw user input describing their business scenario.
-text: "Our sales team spends a lot of time on manual data entry and reporting. This process is slow, time-consuming, and prone to errors, which delays our sales cycle and impacts forecasting accuracy. We need to automate these tasks to free up our sales reps to focus on selling."
+user_query: "Our sales team spends a lot of time on manual data entry and reporting. This process is slow, time-consuming, and prone to errors, which delays our sales cycle and impacts forecasting accuracy. We need to automate these tasks to free up our sales reps to focus on selling."
