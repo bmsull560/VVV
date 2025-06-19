@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AnalysisForm from './components/AnalysisForm';
 import AnalysisResults from './components/AnalysisResults';
+import BusinessCaseWizard from './components/workflow/BusinessCaseWizard';
 
 function App() {
   const [metrics, setMetrics] = useState(null);
@@ -62,7 +63,8 @@ function App() {
         <h1 className="text-3xl font-bold">B2BValue GTM Dashboard</h1>
         <button onClick={handleLogout} className="text-blue-600 underline ml-4">Logout</button>
       </div>
-      {loading && <p>Loading business metrics...</p>}
+      {/* The existing dashboard content below is replaced by the BusinessCaseWizard */}
+      {/* loading && <p>Loading business metrics...</p>}
       {error && <p className="text-red-500">{error}</p>}
       {metrics && (
         <div className="bg-white rounded shadow p-6 w-full max-w-md mb-8">
@@ -75,7 +77,9 @@ function App() {
         </div>
       )}
       {!analysisId && <AnalysisForm onAnalysisStarted={setAnalysisId} />}
-      {analysisId && <AnalysisResults analysisId={analysisId} onBack={() => setAnalysisId(null)} />}
+      {analysisId && <AnalysisResults analysisId={analysisId} onBack={() => setAnalysisId(null)} /> */}
+
+      <BusinessCaseWizard />
     </div>
   );
 }

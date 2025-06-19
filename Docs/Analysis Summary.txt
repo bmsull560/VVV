@@ -1,0 +1,1141 @@
+Analysis Summary:
+The new workflow outlines a sophisticated, multi-step "wizard" style interface that guides the user through a structured process. Key features include:
+* Step-by-Step Data Collection: Breaking down the creation process into logical steps (Basic Info, Value Drivers, Data Input, Review).
+* AI-Assisted Inputs: Integrating various AI agents at specific points to assist the user (e.g., Template Selector Agent, Value Driver Agent).
+* Conditional UI: Dynamically showing input fields based on user selections.
+* Data Integration Options: Allowing for both manual data entry and connection to external data sources.
+The current UI implementation in temp_ui_project/ is more basic. It consists of a single AnalysisForm.jsx that collects some information and then displays results in AnalysisResults.jsx and SensitivityAnalysis.jsx.
+Gap:
+The primary gap is the lack of a multi-step "wizard" structure. The current UI is a single, monolithic form, whereas the new workflow requires a guided, step-by-step experience.
+Proposed Plan:
+I will now lead the refactoring of the UI to implement the new "New Business Case Creation Workflow". My plan is as follows:
+1. Create a Main "Wizard" Component: I will create a new parent component that will manage the current step of the workflow and handle the navigation logic (i.e., moving between "Next" and "Back").
+2. Decompose the Form: I will break down the existing AnalysisForm.jsx into smaller, more focused components, each corresponding to a step in the new workflow: 
+o Step1_BasicInfo.jsx
+o Step2_ValueDrivers.jsx
+o Step3_DataInput.jsx
+o Step4_Review.jsx
+3. Implement State Management: I will implement a state management solution within the main wizard component to hold the data collected from all steps.
+4. Integrate Existing Components: The existing AnalysisResults.jsx and SensitivityAnalysis.jsx will be used for the final "Analysis & Results Screen" (Step H in your diagram).
+To begin, let's focus on the very first step.
+Next Action:
+I will start by creating the component for Step 1: Basic Information. This component will include input fields for Project Name, Client Name, Industry, and a selector for the Key Stakeholder Persona.
+Shall I proceed with outlining the code and structure for this Step1_BasicInfo.jsx component?
+yes 
+Show thinking
+Of course. I will now outline the file structure and provide the initial code for the new UI components.
+1. New File Structure
+To keep the new workflow components organized, I will create a new subdirectory within src/components/.
+* temp_ui_project/src/components/workflow/
+This directory will house the components for each step of the business case creation process.
+2. New Component Code
+I will start by creating two new files:
+* temp_ui_project/src/components/workflow/BusinessCaseWizard.jsx: This will be the main parent component that controls the current step and manages the overall state of the business case being created.
+* temp_ui_project/src/components/workflow/Step1_BasicInfo.jsx: This is the component for the first step of our new workflow.
+Here is the initial code for each file:
+
+temp_ui_project/src/components/workflow/BusinessCaseWizard.jsx
+JavaScript
+import React, { useState } from 'react';
+import Step1_BasicInfo from './Step1_BasicInfo';
+
+const BusinessCaseWizard = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [businessCaseData, setBusinessCaseData] = useState({
+    projectName: '',
+    clientName: '',
+    industry: '',
+    stakeholderPersona: '',
+    // ... other data from subsequent steps will be added here
+  });
+
+  const handleNext = () => {
+    setCurrentStep(prev => prev + 1);
+  };
+
+  const handleBack = () => {
+    setCurrentStep(prev => prev - 1);
+  };
+
+  const updateData = (data) => {
+    setBusinessCaseData(prev => ({ ...prev, ...data }));
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-8">
+      {currentStep === 1 && (
+        <Step1_BasicInfo
+          data={businessCaseData}
+          updateData={updateData}
+          onNext={handleNext}
+        />
+      )}
+      {/* {currentStep === 2 && (
+        // Placeholder for Step 2 component
+      )} */}
+      {/* ... and so on for other steps */}
+    </div>
+  );
+};
+
+export default BusinessCaseWizard;
+
+temp_ui_project/src/components/workflow/Step1_BasicInfo.jsx
+JavaScript
+import React from 'react';
+
+const Step1_BasicInfo = ({ data, updateData, onNext }) => {
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    updateData({ [name]: value });
+  };
+
+  return (
+    <div className="bg-white shadow-md rounded-lg p-6">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Step 1: Basic Information</h2>
+      <form onSubmit={(e) => { e.preventDefault(); onNext(); }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Project Name */}
+          <div>
+            <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 mb-1">
+              Project Name
+            </label>
+            <input
+              type="text"
+              name="projectName"
+              id="projectName"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              value={data.projectName || ''}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          {/* Client Name */}
+          <div>
+            <label htmlFor="clientName" className="block text-sm font-medium text-gray-700 mb-1">
+              Client Name
+            </label>
+            <input
+              type="text"
+              name="clientName"
+              id="clientName"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              value={data.clientName || ''}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          {/* Industry */}
+          <div>
+            <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-1">
+              Industry
+            </label>
+            <input
+              type="text"
+              name="industry"
+              id="industry"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              value={data.industry || ''}
+              onChange={handleChange}
+              placeholder="e.g., Healthcare, Manufacturing"
+            />
+             <p className="text-xs text-gray-500 mt-1">AI will suggest templates based on industry.</p>
+          </div>
+
+          {/* Key Stakeholder Persona */}
+          <div>
+            <label htmlFor="stakeholderPersona" className="block text-sm font-medium text-gray-700 mb-1">
+              Key Stakeholder Persona
+            </label>
+            <select
+              name="stakeholderPersona"
+              id="stakeholderPersona"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              value={data.stakeholderPersona || ''}
+              onChange={handleChange}
+              required
+            >
+              <option value="" disabled>Select a persona...</option>
+              <option value="Financial Buyer">Financial Buyer</option>
+              <option value="Technical Buyer">Technical Buyer</option>
+              <option value="Sales Representative">Sales Representative</option>
+              <option value="Executive Leader">Executive Leader</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Next
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default Step1_BasicInfo;
+
+3. Update App.jsx
+Finally, to display this new workflow, you would replace the contents of temp_ui_project/src/App.jsx with the new BusinessCaseWizard component.
+temp_ui_project/src/App.jsx (Updated)
+JavaScript
+import React from 'react';
+import BusinessCaseWizard from './components/workflow/BusinessCaseWizard';
+
+function App() {
+  return (
+    <div className="bg-gray-50 min-h-screen">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+            <h1 className="text-3xl font-bold leading-tight text-gray-900">
+                B2BValue - Create New Business Case
+            </h1>
+        </div>
+      </header>
+      <main>
+        <BusinessCaseWizard />
+      </main>
+    </div>
+  );
+}
+
+export default App;
+This completes the setup for the first step of our new UI. We have a clear structure that we can now build upon.
+Shall we proceed to define the component for Step 2: Value Drivers Identification?
+Sources 
+Yes 
+Show thinking
+Of course. Let's proceed with creating the component for Step 2: Value Drivers Identification.
+This step is more dynamic. The user will first select high-level value drivers, and based on their selections, the UI will dynamically display the relevant input fields for the specific metrics associated with those drivers.
+1. New Component Files
+I'll create the file for our new step:
+* temp_ui_project/src/components/workflow/Step2_ValueDrivers.jsx
+And to keep the code organized, I'll also create placeholder components for the dynamic metric inputs:
+* temp_ui_project/src/components/workflow/metrics/CostReductionInputs.jsx
+* temp_ui_project/src/components/workflow/metrics/RevenueGrowthInputs.jsx
+* (and so on for other drivers)
+2. New Component Code
+Here is the code for the new files.
+
+temp_ui_project/src/components/workflow/Step2_ValueDrivers.jsx
+JavaScript
+import React, { useState } from 'react';
+import CostReductionInputs from './metrics/CostReductionInputs';
+import RevenueGrowthInputs from './metrics/RevenueGrowthInputs';
+// Import other metric input components as they are created
+
+const VALUE_DRIVERS = [
+  "Cost Reduction",
+  "Revenue Growth",
+  "Productivity Gains",
+  "Risk Mitigation",
+];
+
+const Step2_ValueDrivers = ({ data, updateData, onNext, onBack }) => {
+  // Use a Set for efficient add/delete of selected drivers
+  const [selectedDrivers, setSelectedDrivers] = useState(new Set(data.valueDrivers || []));
+
+  const handleDriverChange = (driver) => {
+    const newSelection = new Set(selectedDrivers);
+    if (newSelection.has(driver)) {
+      newSelection.delete(driver);
+    } else {
+      newSelection.add(driver);
+    }
+    setSelectedDrivers(newSelection);
+    updateData({ valueDrivers: Array.from(newSelection) });
+  };
+
+  return (
+    <div className="bg-white shadow-md rounded-lg p-6">
+      <h2 className="text-2xl font-bold mb-2 text-gray-800">Step 2: Value Drivers Identification</h2>
+      <p className="text-sm text-gray-600 mb-6">Select the primary areas where value will be quantified. AI will prompt for specific metrics for each selection.</p>
+
+      {/* Value Driver Selection Checkboxes */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {VALUE_DRIVERS.map((driver) => (
+          <label
+            key={driver}
+            className={`flex items-center justify-center p-4 border rounded-md cursor-pointer transition-all ${
+              selectedDrivers.has(driver)
+                ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={selectedDrivers.has(driver)}
+              onChange={() => handleDriverChange(driver)}
+            />
+            <span className="text-sm font-medium text-gray-700">{driver}</span>
+          </label>
+        ))}
+      </div>
+
+      {/* Dynamically Rendered Metric Inputs */}
+      <div className="space-y-8">
+        {selectedDrivers.has("Cost Reduction") && (
+          <CostReductionInputs data={data} updateData={updateData} />
+        )}
+        {selectedDrivers.has("Revenue Growth") && (
+          <RevenueGrowthInputs data={data} updateData={updateData} />
+        )}
+        {/* Add placeholders for other components */}
+        {/* {selectedDrivers.has("Productivity Gains") && <ProductivityGainsInputs />} */}
+        {/* {selectedDrivers.has("Risk Mitigation") && <RiskMitigationInputs />} */}
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between mt-8">
+        <button
+          type="button"
+          onClick={onBack}
+          className="px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md shadow-sm hover:bg-gray-300 focus:outline-none"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={onNext}
+          className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default Step2_ValueDrivers;
+
+temp_ui_project/src/components/workflow/metrics/CostReductionInputs.jsx
+(This is a placeholder example of a dynamic sub-form)
+JavaScript
+import React from 'react';
+
+const CostReductionInputs = ({ data, updateData }) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    // Store metric data in a nested object to keep it organized
+    updateData({
+      metrics: {
+        ...data.metrics,
+        costReduction: {
+          ...data.metrics?.costReduction,
+          [name]: value,
+        },
+      },
+    });
+  };
+
+  return (
+    <div className="p-4 border-l-4 border-indigo-500 bg-indigo-50 rounded-r-lg">
+      <h3 className="text-lg font-semibold text-gray-800 mb-4">Cost Reduction Metrics</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="currentLaborHours" className="block text-sm font-medium text-gray-700">
+            Current Manual Labor Hours
+          </label>
+          <input
+            type="number"
+            name="currentLaborHours"
+            id="currentLaborHours"
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
+            value={data.metrics?.costReduction?.currentLaborHours || ''}
+            onChange={handleChange}
+          />
+        </div>
+        <div>
+          <label htmlFor="laborCostPerHour" className="block text-sm font-medium text-gray-700">
+            Average Labor Cost per Hour ($)
+          </label>
+          <input
+            type="number"
+            name="laborCostPerHour"
+            id="laborCostPerHour"
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
+            value={data.metrics?.costReduction?.laborCostPerHour || ''}
+            onChange={handleChange}
+          />
+        </div>
+      </div>
+    </div>
+Analysis Summary:
+The new workflow outlines a sophisticated, multi-step "wizard" style interface that guides the user through a structured process. Key features include:
+* Step-by-Step Data Collection: Breaking down the creation process into logical steps (Basic Info, Value Drivers, Data Input, Review).
+* AI-Assisted Inputs: Integrating various AI agents at specific points to assist the user (e.g., Template Selector Agent, Value Driver Agent).
+* Conditional UI: Dynamically showing input fields based on user selections.
+* Data Integration Options: Allowing for both manual data entry and connection to external data sources.
+The current UI implementation in temp_ui_project/ is more basic. It consists of a single AnalysisForm.jsx that collects some information and then displays results in AnalysisResults.jsx and SensitivityAnalysis.jsx.
+Gap:
+The primary gap is the lack of a multi-step "wizard" structure. The current UI is a single, monolithic form, whereas the new workflow requires a guided, step-by-step experience.
+Proposed Plan:
+I will now lead the refactoring of the UI to implement the new "New Business Case Creation Workflow". My plan is as follows:
+1. Create a Main "Wizard" Component: I will create a new parent component that will manage the current step of the workflow and handle the navigation logic (i.e., moving between "Next" and "Back").
+2. Decompose the Form: I will break down the existing AnalysisForm.jsx into smaller, more focused components, each corresponding to a step in the new workflow: 
+o Step1_BasicInfo.jsx
+o Step2_ValueDrivers.jsx
+o Step3_DataInput.jsx
+o Step4_Review.jsx
+3. Implement State Management: I will implement a state management solution within the main wizard component to hold the data collected from all steps.
+4. Integrate Existing Components: The existing AnalysisResults.jsx and SensitivityAnalysis.jsx will be used for the final "Analysis & Results Screen" (Step H in your diagram).
+To begin, let's focus on the very first step.
+Next Action:
+I will start by creating the component for Step 1: Basic Information. This component will include input fields for Project Name, Client Name, Industry, and a selector for the Key Stakeholder Persona.
+Shall I proceed with outlining the code and structure for this Step1_BasicInfo.jsx component?
+yes 
+Show thinking
+Of course. I will now outline the file structure and provide the initial code for the new UI components.
+1. New File Structure
+To keep the new workflow components organized, I will create a new subdirectory within src/components/.
+* temp_ui_project/src/components/workflow/
+This directory will house the components for each step of the business case creation process.
+2. New Component Code
+I will start by creating two new files:
+* temp_ui_project/src/components/workflow/BusinessCaseWizard.jsx: This will be the main parent component that controls the current step and manages the overall state of the business case being created.
+* temp_ui_project/src/components/workflow/Step1_BasicInfo.jsx: This is the component for the first step of our new workflow.
+Here is the initial code for each file:
+
+temp_ui_project/src/components/workflow/BusinessCaseWizard.jsx
+JavaScript
+import React, { useState } from 'react';
+import Step1_BasicInfo from './Step1_BasicInfo';
+
+const BusinessCaseWizard = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [businessCaseData, setBusinessCaseData] = useState({
+    projectName: '',
+    clientName: '',
+    industry: '',
+    stakeholderPersona: '',
+    // ... other data from subsequent steps will be added here
+  });
+
+  const handleNext = () => {
+    setCurrentStep(prev => prev + 1);
+  };
+
+  const handleBack = () => {
+    setCurrentStep(prev => prev - 1);
+  };
+
+  const updateData = (data) => {
+    setBusinessCaseData(prev => ({ ...prev, ...data }));
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-8">
+      {currentStep === 1 && (
+        <Step1_BasicInfo
+          data={businessCaseData}
+          updateData={updateData}
+          onNext={handleNext}
+        />
+      )}
+      {/* {currentStep === 2 && (
+        // Placeholder for Step 2 component
+      )} */}
+      {/* ... and so on for other steps */}
+    </div>
+  );
+};
+
+export default BusinessCaseWizard;
+
+temp_ui_project/src/components/workflow/Step1_BasicInfo.jsx
+JavaScript
+import React from 'react';
+
+const Step1_BasicInfo = ({ data, updateData, onNext }) => {
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    updateData({ [name]: value });
+  };
+
+  return (
+    <div className="bg-white shadow-md rounded-lg p-6">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Step 1: Basic Information</h2>
+      <form onSubmit={(e) => { e.preventDefault(); onNext(); }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Project Name */}
+          <div>
+            <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 mb-1">
+              Project Name
+            </label>
+            <input
+              type="text"
+              name="projectName"
+              id="projectName"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              value={data.projectName || ''}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          {/* Client Name */}
+          <div>
+            <label htmlFor="clientName" className="block text-sm font-medium text-gray-700 mb-1">
+              Client Name
+            </label>
+            <input
+              type="text"
+              name="clientName"
+              id="clientName"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              value={data.clientName || ''}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          {/* Industry */}
+          <div>
+            <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-1">
+              Industry
+            </label>
+            <input
+              type="text"
+              name="industry"
+              id="industry"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              value={data.industry || ''}
+              onChange={handleChange}
+              placeholder="e.g., Healthcare, Manufacturing"
+            />
+             <p className="text-xs text-gray-500 mt-1">AI will suggest templates based on industry.</p>
+          </div>
+
+          {/* Key Stakeholder Persona */}
+          <div>
+            <label htmlFor="stakeholderPersona" className="block text-sm font-medium text-gray-700 mb-1">
+              Key Stakeholder Persona
+            </label>
+            <select
+              name="stakeholderPersona"
+              id="stakeholderPersona"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              value={data.stakeholderPersona || ''}
+              onChange={handleChange}
+              required
+            >
+              <option value="" disabled>Select a persona...</option>
+              <option value="Financial Buyer">Financial Buyer</option>
+              <option value="Technical Buyer">Technical Buyer</option>
+              <option value="Sales Representative">Sales Representative</option>
+              <option value="Executive Leader">Executive Leader</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Next
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default Step1_BasicInfo;
+
+3. Update App.jsx
+Finally, to display this new workflow, you would replace the contents of temp_ui_project/src/App.jsx with the new BusinessCaseWizard component.
+temp_ui_project/src/App.jsx (Updated)
+JavaScript
+import React from 'react';
+import BusinessCaseWizard from './components/workflow/BusinessCaseWizard';
+
+function App() {
+  return (
+    <div className="bg-gray-50 min-h-screen">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+            <h1 className="text-3xl font-bold leading-tight text-gray-900">
+                B2BValue - Create New Business Case
+            </h1>
+        </div>
+      </header>
+      <main>
+        <BusinessCaseWizard />
+      </main>
+    </div>
+  );
+}
+
+export default App;
+This completes the setup for the first step of our new UI. We have a clear structure that we can now build upon.
+Shall we proceed to define the component for Step 2: Value Drivers Identification?
+Sources 
+Yes 
+Show thinking
+Of course. Let's proceed with creating the component for Step 2: Value Drivers Identification.
+This step is more dynamic. The user will first select high-level value drivers, and based on their selections, the UI will dynamically display the relevant input fields for the specific metrics associated with those drivers.
+1. New Component Files
+I'll create the file for our new step:
+* temp_ui_project/src/components/workflow/Step2_ValueDrivers.jsx
+And to keep the code organized, I'll also create placeholder components for the dynamic metric inputs:
+* temp_ui_project/src/components/workflow/metrics/CostReductionInputs.jsx
+* temp_ui_project/src/components/workflow/metrics/RevenueGrowthInputs.jsx
+* (and so on for other drivers)
+2. New Component Code
+Here is the code for the new files.
+
+temp_ui_project/src/components/workflow/Step2_ValueDrivers.jsx
+JavaScript
+import React, { useState } from 'react';
+import CostReductionInputs from './metrics/CostReductionInputs';
+import RevenueGrowthInputs from './metrics/RevenueGrowthInputs';
+// Import other metric input components as they are created
+
+const VALUE_DRIVERS = [
+  "Cost Reduction",
+  "Revenue Growth",
+  "Productivity Gains",
+  "Risk Mitigation",
+];
+
+const Step2_ValueDrivers = ({ data, updateData, onNext, onBack }) => {
+  // Use a Set for efficient add/delete of selected drivers
+  const [selectedDrivers, setSelectedDrivers] = useState(new Set(data.valueDrivers || []));
+
+  const handleDriverChange = (driver) => {
+    const newSelection = new Set(selectedDrivers);
+    if (newSelection.has(driver)) {
+      newSelection.delete(driver);
+    } else {
+      newSelection.add(driver);
+    }
+    setSelectedDrivers(newSelection);
+    updateData({ valueDrivers: Array.from(newSelection) });
+  };
+
+  return (
+    <div className="bg-white shadow-md rounded-lg p-6">
+      <h2 className="text-2xl font-bold mb-2 text-gray-800">Step 2: Value Drivers Identification</h2>
+      <p className="text-sm text-gray-600 mb-6">Select the primary areas where value will be quantified. AI will prompt for specific metrics for each selection.</p>
+
+      {/* Value Driver Selection Checkboxes */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {VALUE_DRIVERS.map((driver) => (
+          <label
+            key={driver}
+            className={`flex items-center justify-center p-4 border rounded-md cursor-pointer transition-all ${
+              selectedDrivers.has(driver)
+                ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={selectedDrivers.has(driver)}
+              onChange={() => handleDriverChange(driver)}
+            />
+            <span className="text-sm font-medium text-gray-700">{driver}</span>
+          </label>
+        ))}
+      </div>
+
+      {/* Dynamically Rendered Metric Inputs */}
+      <div className="space-y-8">
+        {selectedDrivers.has("Cost Reduction") && (
+          <CostReductionInputs data={data} updateData={updateData} />
+        )}
+        {selectedDrivers.has("Revenue Growth") && (
+          <RevenueGrowthInputs data={data} updateData={updateData} />
+        )}
+        {/* Add placeholders for other components */}
+        {/* {selectedDrivers.has("Productivity Gains") && <ProductivityGainsInputs />} */}
+        {/* {selectedDrivers.has("Risk Mitigation") && <RiskMitigationInputs />} */}
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between mt-8">
+        <button
+          type="button"
+          onClick={onBack}
+          className="px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md shadow-sm hover:bg-gray-300 focus:outline-none"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={onNext}
+          className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default Step2_ValueDrivers;
+
+temp_ui_project/src/components/workflow/metrics/CostReductionInputs.jsx
+(This is a placeholder example of a dynamic sub-form)
+JavaScript
+import React from 'react';
+
+const CostReductionInputs = ({ data, updateData }) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    // Store metric data in a nested object to keep it organized
+    updateData({
+      metrics: {
+        ...data.metrics,
+        costReduction: {
+          ...data.metrics?.costReduction,
+          [name]: value,
+        },
+      },
+    });
+  };
+
+  return (
+    <div className="p-4 border-l-4 border-indigo-500 bg-indigo-50 rounded-r-lg">
+      <h3 className="text-lg font-semibold text-gray-800 mb-4">Cost Reduction Metrics</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="currentLaborHours" className="block text-sm font-medium text-gray-700">
+            Current Manual Labor Hours
+          </label>
+          <input
+            type="number"
+            name="currentLaborHours"
+            id="currentLaborHours"
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
+            value={data.metrics?.costReduction?.currentLaborHours || ''}
+            onChange={handleChange}
+          />
+        </div>
+        <div>
+          <label htmlFor="laborCostPerHour" className="block text-sm font-medium text-gray-700">
+            Average Labor Cost per Hour ($)
+          </label>
+          <input
+            type="number"
+            name="laborCostPerHour"
+            id="laborCostPerHour"
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
+            value={data.metrics?.costReduction?.laborCostPerHour || ''}
+            onChange={handleChange}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CostReductionInputs;
+(You would create similar files for RevenueGrowthInputs.jsx, etc.)
+
+3. Update BusinessCaseWizard.jsx
+Finally, we update the main wizard to include Step 2.
+temp_ui_project/src/components/workflow/BusinessCaseWizard.jsx (Updated)
+JavaScript
+import React, { useState } from 'react';
+import Step1_BasicInfo from './Step1_BasicInfo';
+import Step2_ValueDrivers from './Step2_ValueDrivers'; // Import the new component
+
+const BusinessCaseWizard = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [businessCaseData, setBusinessCaseData] = useState({
+    projectName: '',
+    clientName: '',
+    industry: '',
+    stakeholderPersona: '',
+    valueDrivers: [], // Add new state property
+    metrics: {},      // Add new state property for metric data
+  });
+
+  const handleNext = () => {
+    // Add validation logic here if needed before proceeding
+    setCurrentStep(prev => prev + 1);
+  };
+
+  const handleBack = () => {
+    setCurrentStep(prev => prev - 1);
+  };
+
+  const updateData = (data) => {
+    setBusinessCaseData(prev => ({ ...prev, ...data }));
+  };
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return <Step1_BasicInfo data={businessCaseData} updateData={updateData} onNext={handleNext} />;
+      case 2:
+        return <Step2_ValueDrivers data={businessCaseData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      // case 3:
+      //   return <Step3_DataInput ... />;
+      default:
+        return <Step1_BasicInfo data={businessCaseData} updateData={updateData} onNext={handleNext} />;
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-8">
+      {renderStep()}
+    </div>
+  );
+};
+
+export default BusinessCaseWizard;
+We now have a functional second step that dynamically adapts to user input. This structure is scalable, allowing us to easily add the remaining value drivers and steps.
+Shall we proceed to Step 3: Data Input/Integration?
+yes 
+Show thinking
+Of course. Let's design and code Step 3: Data Input/Integration.
+According to the workflow, this step allows the user to choose between manually inputting data or connecting to an external data source. This choice will dynamically change the UI presented to them.
+1. New Component File
+First, I will create the new file for this step in our workflow directory:
+* temp_ui_project/src/components/workflow/Step3_DataInput.jsx
+2. Component Code
+Here is the code for the new component. It will manage an internal state to toggle between the "Manual" and "Integration" views.
+
+temp_ui_project/src/components/workflow/Step3_DataInput.jsx
+JavaScript
+import React, { useState } from 'react';
+
+const Step3_DataInput = ({ data, updateData, onNext, onBack }) => {
+  const [inputMethod, setInputMethod] = useState(data.inputMethod || 'manual');
+
+  const handleMethodChange = (method) => {
+    setInputMethod(method);
+    updateData({ inputMethod: method });
+  };
+
+  return (
+    <div className="bg-white shadow-md rounded-lg p-6">
+      <h2 className="text-2xl font-bold mb-2 text-gray-800">Step 3: Data Input / Integration</h2>
+      <p className="text-sm text-gray-600 mb-6">Provide the necessary data for the metrics you selected in the previous step.</p>
+
+      {/* Data Input Method Toggle */}
+      <div className="flex justify-center mb-6">
+        <div className="inline-flex rounded-md shadow-sm">
+          <button
+            onClick={() => handleMethodChange('manual')}
+            className={`px-4 py-2 text-sm font-medium rounded-l-md transition-colors ${
+              inputMethod === 'manual'
+                ? 'bg-indigo-600 text-white border border-indigo-600'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Manually Enter Data
+          </button>
+          <button
+            onClick={() => handleMethodChange('integration')}
+            className={`px-4 py-2 text-sm font-medium rounded-r-md transition-colors ${
+              inputMethod === 'integration'
+                ? 'bg-indigo-600 text-white border border-indigo-600'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Connect to Data Source
+          </button>
+        </div>
+      </div>
+
+      {/* Conditional UI based on Input Method */}
+      <div>
+        {inputMethod === 'manual' && (
+          <ManualInputForm data={data} updateData={updateData} />
+        )}
+        {inputMethod === 'integration' && (
+          <IntegrationInputForm data={data} updateData={updateData} />
+        )}
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between mt-8">
+        <button
+          type="button"
+          onClick={onBack}
+          className="px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md shadow-sm hover:bg-gray-300 focus:outline-none"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={onNext}
+          className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Placeholder for Manual Data Entry Form
+const ManualInputForm = ({ data, updateData }) => {
+  // In a real implementation, this form would dynamically generate fields
+  // based on the `valueDrivers` selected in Step 2.
+  return (
+    <div className="p-4 bg-gray-50 rounded-lg">
+      <h3 className="font-semibold text-gray-700 mb-4">Manual Data Entry</h3>
+      <p className="text-sm text-gray-600 mb-4">
+        Please fill in the data for the selected value drivers: <span className="font-medium text-indigo-600">{data.valueDrivers.join(', ')}</span>.
+      </p>
+       <div className="text-sm p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700">
+        <strong>Note:</strong> This is a placeholder. A full implementation would show specific input fields for each metric identified in the previous step.
+       </div>
+    </div>
+  );
+};
+
+// Placeholder for Data Integration Form
+const IntegrationInputForm = ({ data, updateData }) => {
+    // This section would house the logic for the Data Integration Agent
+  return (
+    <div className="p-4 bg-gray-50 rounded-lg text-center">
+        <h3 className="font-semibold text-gray-700 mb-2">Connect to Existing Data Source</h3>
+        <p className="text-sm text-gray-600 mb-4">The Data Integration Agent will manage the connection.</p>
+        <button className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700">
+            Connect to Salesforce (Example)
+        </button>
+        <div className="mt-4 text-sm text-gray-500">
+            Status: Not Connected
+        </div>
+    </div>
+  );
+};
+
+export default Step3_DataInput;
+
+
+3. Update BusinessCaseWizard.jsx
+Now, I'll integrate this third step into our main wizard component.
+temp_ui_project/src/components/workflow/BusinessCaseWizard.jsx (Updated)
+JavaScript
+import React, { useState } from 'react';
+import Step1_BasicInfo from './Step1_BasicInfo';
+import Step2_ValueDrivers from './Step2_ValueDrivers';
+import Step3_DataInput from './Step3_DataInput'; // Import the new component
+
+const BusinessCaseWizard = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [businessCaseData, setBusinessCaseData] = useState({
+    projectName: '',
+    clientName: '',
+    industry: '',
+    stakeholderPersona: '',
+    valueDrivers: [],
+    metrics: {},
+    inputMethod: 'manual', // Add new state property
+  });
+
+  const handleNext = () => {
+    setCurrentStep(prev => prev + 1);
+  };
+
+  const handleBack = () => {
+    setCurrentStep(prev => prev - 1);
+  };
+
+  const updateData = (data) => {
+    setBusinessCaseData(prev => ({ ...prev, ...data }));
+  };
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return <Step1_BasicInfo data={businessCaseData} updateData={updateData} onNext={handleNext} />;
+      case 2:
+        return <Step2_ValueDrivers data={businessCaseData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      case 3:
+        return <Step3_DataInput data={businessCaseData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      // case 4:
+      //   return <Step4_Review ... />;
+      default:
+        return <Step1_BasicInfo data={businessCaseData} updateData={updateData} onNext={handleNext} />;
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-8">
+      {renderStep()}
+    </div>
+  );
+};
+
+export default BusinessCaseWizard;
+
+We have now successfully created the third step of the workflow. The structure allows for significant future enhancement, such as building out the dynamic manual forms and integrating the Data Integration Agent.
+Shall we now create the final component before generation, Step 4: Review & Generate?
+yes 
+Show thinking
+Of course. We have arrived at the final step before the user sees the results. Let's create Step 4: Review & Generate.
+This component will provide a comprehensive summary of all the information the user has entered, giving them a chance to review everything before committing. It will also feature the final "Generate Business Case" button, which will trigger the AI agent orchestration.
+1. New Component File
+I will create the last file for our workflow steps:
+* temp_ui_project/src/components/workflow/Step4_Review.jsx
+2. Component Code
+Here is the code for the review component. It will read from the data prop to display the summary.
+
+temp_ui_project/src/components/workflow/Step4_Review.jsx
+JavaScript
+import React from 'react';
+
+const Step4_Review = ({ data, onNext, onBack }) => {
+
+  const handleGenerate = () => {
+    // In a real application, this is where you would trigger the API call
+    // to the backend, sending the entire 'data' object.
+    // The backend would then invoke the Business Case Composer Agent
+    // and Narrative Generator Agent.
+    console.log("Generating Business Case with data:", data);
+    onNext(); // Proceed to the results view
+  };
+
+  return (
+    <div className="bg-white shadow-md rounded-lg p-6">
+      <h2 className="text-2xl font-bold mb-2 text-gray-800">Step 4: Review & Generate</h2>
+      <p className="text-sm text-gray-600 mb-6">Please review all the information below before generating the business case.</p>
+
+      <div className="space-y-6">
+        {/* Basic Information Review */}
+        <div className="border border-gray-200 rounded-lg p-4">
+          <h3 className="text-lg font-semibold text-indigo-700 mb-3">Basic Information</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <p><span className="font-medium text-gray-500">Project Name:</span> {data.projectName}</p>
+            <p><span className="font-medium text-gray-500">Client Name:</span> {data.clientName}</p>
+            <p><span className="font-medium text-gray-500">Industry:</span> {data.industry}</p>
+            <p><span className="font-medium text-gray-500">Stakeholder Persona:</span> {data.stakeholderPersona}</p>
+          </div>
+        </div>
+
+        {/* Value Drivers Review */}
+        <div className="border border-gray-200 rounded-lg p-4">
+          <h3 className="text-lg font-semibold text-indigo-700 mb-3">Value Drivers & Metrics</h3>
+          <p className="text-sm font-medium text-gray-500">Selected Drivers:</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {data.valueDrivers.map(driver => (
+              <span key={driver} className="px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-medium rounded-full">{driver}</span>
+            ))}
+          </div>
+           <div className="mt-4 text-xs p-3 bg-gray-50 rounded">
+            <strong>NOTE:</strong> A full implementation would display a summary of the specific metric data entered in Step 2.
+           </div>
+        </div>
+
+        {/* Data Input Method Review */}
+        <div className="border border-gray-200 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-indigo-700 mb-3">Data Input Method</h3>
+            <p className="text-sm"><span className="font-medium text-gray-500">Method:</span> <span className="capitalize">{data.inputMethod}</span></p>
+        </div>
+      </div>
+
+
+      {/* Navigation & Generation Buttons */}
+      <div className="flex justify-between mt-8">
+        <button
+          type="button"
+          onClick={onBack}
+          className="px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md shadow-sm hover:bg-gray-300 focus:outline-none"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={handleGenerate}
+          className="px-8 py-3 bg-green-600 text-white font-bold rounded-md shadow-lg hover:bg-green-700 focus:outline-none text-base"
+        >
+          Generate Business Case
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default Step4_Review;
+
+3. Update BusinessCaseWizard.jsx to Handle Final Step
+Finally, let's update the wizard to show the review step and then transition to the existing AnalysisResults component upon generation.
+temp_ui_project/src/components/workflow/BusinessCaseWizard.jsx (Updated)
+JavaScript
+import React, { useState } from 'react';
+import Step1_BasicInfo from './Step1_BasicInfo';
+import Step2_ValueDrivers from './Step2_ValueDrivers';
+import Step3_DataInput from './Step3_DataInput';
+import Step4_Review from './Step4_Review'; // Import the new component
+import AnalysisResults from '../AnalysisResults'; // Import the existing results component
+
+const BusinessCaseWizard = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  // This state will hold the final, generated results from the API
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [businessCaseData, setBusinessCaseData] = useState({
+    projectName: 'Project Alpha', // Pre-filled with example data
+    clientName: 'Globex Corp',
+    industry: 'Technology',
+    stakeholderPersona: 'Financial Buyer',
+    valueDrivers: ['Cost Reduction', 'Revenue Growth'],
+    metrics: { costReduction: { currentLaborHours: 500, laborCostPerHour: 75 } },
+    inputMethod: 'manual',
+  });
+
+  const handleNext = () => {
+    if (currentStep === 4) {
+      // This is the "Generate" step.
+      // TODO: Here you would make the actual API call with businessCaseData
+      // For now, we will simulate a result and move to the results view.
+      const simulatedResult = {
+          summary: "This is a simulated analysis result.",
+          roi: 125,
+          //... other data that the backend would return
+      };
+      setAnalysisResult(simulatedResult);
+    }
+    setCurrentStep(prev => prev + 1);
+  };
+
+  const handleBack = () => {
+    setCurrentStep(prev => prev - 1);
+  };
+
+  const updateData = (newData) => {
+    setBusinessCaseData(prev => ({ ...prev, ...newData }));
+  };
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return <Step1_BasicInfo data={businessCaseData} updateData={updateData} onNext={handleNext} />;
+      case 2:
+        return <Step2_ValueDrivers data={businessCaseData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      case 3:
+        return <Step3_DataInput data={businessCaseData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      case 4:
+        return <Step4_Review data={businessCaseData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      case 5:
+        return <AnalysisResults result={analysisResult} />;
+      default:
+        return <Step1_BasicInfo data={businessCaseData} updateData={updateData} onNext={handleNext} />;
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-8">
+      {renderStep()}
+    </div>
+  );
+};
+
+export default BusinessCaseWizard;
+This completes the implementation of the multi-step UI workflow. We have successfully created a guided, step-by-step process for creating a new business case, culminating in a review and a clear trigger for generation that now flows into the results display.
+

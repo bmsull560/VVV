@@ -82,8 +82,8 @@ class MCPClient:
         
         # Apply these access controls to the memory manager
         # This will be used as default access controls for new entities
-        self._memory_manager.set_default_access_control("admin", admin_access)
-        self._memory_manager.set_default_access_control("agent", agent_access)
+        self._memory_manager.set_default_access_control("role:admin", admin_access)
+        self._memory_manager.set_default_access_control("role:agent", agent_access)
         
         logger.info("Set up default access controls for agents and admins")
     

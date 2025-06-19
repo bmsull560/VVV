@@ -6,7 +6,7 @@ from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 
 logger = logging.getLogger(__name__)
 
-class RoiCalculatorAgent(BaseAgent):
+class ROICalculatorAgent(BaseAgent):
     """Calculates ROI and other financial metrics based on structured value driver inputs."""
 
     def __init__(self, agent_id, mcp_client, config):
