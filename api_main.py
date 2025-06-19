@@ -58,6 +58,49 @@ class DiscoverValueResponse(BaseModel):
     discovery: DiscoveryData
     execution_details: Optional[ExecutionDetails] = None
 
+# --- End Pydantic Models for /api/discover-value ---
+
+
+# --- Pydantic Models for /api/quantify-roi ---
+
+class RoiSummary(BaseModel):
+    total_annual_value: float
+    roi_percentage: float
+    payback_period_months: float
+    # Add other relevant fields from RoiCalculatorAgent output as needed
+    # e.g., detailed_breakdown: Optional[List[Dict[str, Any]]] = None
+
+class SensitivityVariationInput(BaseModel):
+    metric_name: str  # Full path to the metric if deeply nested, or unique name
+    pillar_name: str # To identify which pillar the metric belongs to
+    tier2_driver_name: str # To identify which T2 driver the metric belongs to
+    percentage_change: float # e.g., -10.0 for -10%, 15.0 for +15%
+
+class SensitivityScenarioOutput(BaseModel):
+    scenario_name: str # e.g., "Hours Saved per Week -10%"
+    varied_metric: str
+    percentage_change: float
+    resulting_roi_percentage: float
+    resulting_total_annual_value: float
+    # Add other relevant fields from SensitivityAnalysisAgent output
+
+class QuantifyRoiRequest(BaseModel):
+    value_drivers: List[ValueDriverPillar] # Tier3Metric.value should be populated by user
+    investment_amount: float
+    sensitivity_variations: Optional[List[SensitivityVariationInput]] = None
+
+class QuantificationData(BaseModel):
+    roi_summary: RoiSummary
+    sensitivity_analysis_results: Optional[List[SensitivityScenarioOutput]] = None
+
+class QuantificationExecutionDetails(BaseModel):
+    roi_calculator_agent_time_ms: Optional[int] = None
+    sensitivity_analysis_agent_time_ms: Optional[int] = None
+
+class QuantifyRoiResponse(BaseModel):
+    quantification: QuantificationData
+    execution_details: Optional[QuantificationExecutionDetails] = None
+
 # --- End Pydantic Models ---
 
 
