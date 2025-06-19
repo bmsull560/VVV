@@ -3,8 +3,10 @@ from fastapi import FastAPI, HTTPException
 
 from memory.core import MemoryManager
 from agents.core.mcp_client import MCPClient
-from agents.value_driver.main import ValueDriverAgent # Assuming path
-from agents.persona.main import PersonaAgent       # Assuming path
+from agents.value_driver.main import ValueDriverAgent
+from agents.persona.main import PersonaAgent
+from agents.roi_calculator.main import RoiCalculatorAgent
+from agents.sensitivity_analysis.main import SensitivityAnalysisAgent
 # We might need load_config from orchestrator or a similar utility
 # from orchestrator import load_agent_config # Placeholder
 import asyncio
@@ -169,6 +171,24 @@ async def lifespan(app: FastAPI):
         config=persona_config
     )
     logger.info("PersonaAgent initialized.")
+
+    # Instantiate RoiCalculatorAgent
+    roi_config = agent_configs_from_yaml.get('roi_calculator', {})
+    app.state.roi_calculator_agent = RoiCalculatorAgent(
+        agent_id='roi_calculator_api',
+        mcp_client=app.state.mcp_client,
+        config=roi_config
+    )
+    logger.info("RoiCalculatorAgent initialized.")
+
+    # Instantiate SensitivityAnalysisAgent
+    sa_config = agent_configs_from_yaml.get('sensitivity_analysis', {})
+    app.state.sensitivity_analysis_agent = SensitivityAnalysisAgent(
+        agent_id='sensitivity_analysis_api',
+        mcp_client=app.state.mcp_client,
+        config=sa_config
+    )
+    logger.info("SensitivityAnalysisAgent initialized.")
     logger.info("All agents initialized.")
 
 
