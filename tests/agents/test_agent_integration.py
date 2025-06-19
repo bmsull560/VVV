@@ -1,8 +1,9 @@
 import unittest
+import os
 import asyncio
-from src.agents.core.mcp_client import MCPClient
-from src.memory.core import MemoryManager
-from src.memory.types import KnowledgeEntity, MemoryTier
+from agents.core.mcp_client import MCPClient
+from memory.core import MemoryManager
+from memory.types import KnowledgeEntity, MemoryTier
 from datetime import datetime, timezone
 
 class TestAgentMemoryIntegration(unittest.IsolatedAsyncioTestCase):
@@ -11,6 +12,7 @@ class TestAgentMemoryIntegration(unittest.IsolatedAsyncioTestCase):
         self.mm.initialize()
         self.mcp = MCPClient(self.mm)
 
+    @unittest.skipIf(not os.getenv('TEST_POSTGRES_DSN'), "PostgreSQL DSN not set, skipping integration test.")
     async def test_agent_store_and_search_knowledge(self):
         entity = KnowledgeEntity(
             id="agent-know-1",

@@ -1,6 +1,14 @@
 numpy==2.3.0
+fastapi==0.110.0
+uvicorn==0.29.0
+PyYAML
 # To enable real semantic embeddings, install:
+langchain
+openai
 sentence-transformers==2.2.2
+psycopg2-binary==2.9.9
+Flask==3.0.3
+Flask-Cors==4.0.1
 
 # For PostgreSQL backend
 sqlalchemy==2.0.31
