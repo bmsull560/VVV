@@ -9,6 +9,7 @@ from agents.roi_calculator.main import RoiCalculatorAgent
 from agents.sensitivity_analysis.main import SensitivityAnalysisAgent
 from agents.narrative_generator.main import NarrativeGeneratorAgent
 from agents.critique.main import CritiqueAgent
+from agents.business_case_composer.main import BusinessCaseComposerAgent
 # We might need load_config from orchestrator or a similar utility
 # from orchestrator import load_agent_config # Placeholder
 import asyncio
@@ -135,6 +136,40 @@ class GenerateNarrativeResponse(BaseModel):
     critique_output: CritiqueOutput
     execution_details: Optional[NarrativeExecutionDetails] = None
 
+# --- End Pydantic Models for /api/generate-narrative ---
+
+
+# --- Pydantic Models for /api/compose-business-case ---
+
+class ComposedBusinessCase(BaseModel):
+    title: str
+    executive_summary: str
+    table_of_contents: List[str]
+    introduction: str
+    understanding_your_needs: Dict[str, Any]
+    proposed_solution_value_drivers: Dict[str, Any]
+    financial_projections_roi: RoiSummary # Re-use from quantify-roi
+    sensitivity_analysis: Dict[str, Any]
+    ai_critique_and_confidence: Dict[str, Any]
+    key_talking_points: List[str]
+    conclusion: str
+
+class ComposeBusinessCaseRequest(BaseModel):
+    user_query: str
+    value_drivers: List[ValueDriverPillar]
+    personas: List[Persona]
+    roi_summary: RoiSummary
+    sensitivity_analysis_results: Optional[List[SensitivityScenarioOutput]] = None
+    narrative_output: NarrativeOutput # From generate-narrative
+    critique_output: CritiqueOutput # From generate-narrative
+
+class BusinessCaseComposerExecutionDetails(BaseModel):
+    composer_agent_time_ms: Optional[int] = None
+
+class ComposeBusinessCaseResponse(BaseModel):
+    composed_business_case: ComposedBusinessCase
+    execution_details: Optional[BusinessCaseComposerExecutionDetails] = None
+
 # --- End Pydantic Models ---
 
 
@@ -239,6 +274,15 @@ async def lifespan(app: FastAPI):
         config=critique_config
     )
     logger.info("CritiqueAgent initialized.")
+
+    # Instantiate BusinessCaseComposerAgent
+    composer_config = agent_configs_from_yaml.get('business_case_composer', {})
+    app.state.business_case_composer_agent = BusinessCaseComposerAgent(
+        agent_id='business_case_composer_api',
+        mcp_client=app.state.mcp_client,
+        config=composer_config
+    )
+    logger.info("BusinessCaseComposerAgent initialized.")
     logger.info("All agents initialized for API.")
 
 
@@ -486,5 +530,54 @@ async def generate_narrative(fastapi_request: GenerateNarrativeRequest, request_
         raise
     except Exception as e:
         logger.error(f"Error in generate_narrative endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+
+@app.post("/api/compose-business-case", response_model=ComposeBusinessCaseResponse, tags=["BusinessCase"])
+async def compose_business_case(fastapi_request: ComposeBusinessCaseRequest, request_object: Request):
+    """
+    Assembles a full business case document using all previously generated data.
+    """
+    try:
+        composer_agent: BusinessCaseComposerAgent = request_object.app.state.business_case_composer_agent
+
+        # Prepare inputs for the agent, converting Pydantic models to dicts
+        agent_inputs = {
+            "user_query": fastapi_request.user_query,
+            "value_drivers": [p.model_dump() for p in fastapi_request.value_drivers],
+            "personas": [p.model_dump() for p in fastapi_request.personas],
+            "roi_summary": fastapi_request.roi_summary.model_dump(),
+            "sensitivity_analysis_results": 
+                [s.model_dump() for s in fastapi_request.sensitivity_analysis_results] 
+                if fastapi_request.sensitivity_analysis_results else None,
+            "narrative_output": fastapi_request.narrative_output.model_dump(),
+            "critique_output": fastapi_request.critique_output.model_dump()
+        }
+
+        agent_result = await composer_agent.execute(agent_inputs)
+
+        if agent_result.status == AgentStatus.FAILED:
+            logger.error(f"BusinessCaseComposerAgent failed: {agent_result.data}")
+            raise HTTPException(status_code=500, detail=f"Business case composition failed: {agent_result.data.get('error')}")
+
+        try:
+            composed_case_data = ComposedBusinessCase(**agent_result.data.get("composed_business_case", {}))
+        except Exception as e_pydantic_compose:
+            logger.error(f"Error parsing BusinessCaseComposerAgent output: {e_pydantic_compose}. Data: {agent_result.data}")
+            raise HTTPException(status_code=500, detail="Internal server error processing composed business case data.")
+
+        execution_details = BusinessCaseComposerExecutionDetails(
+            composer_agent_time_ms=agent_result.execution_time_ms
+        )
+
+        return ComposeBusinessCaseResponse(
+            composed_business_case=composed_case_data,
+            execution_details=execution_details
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in compose_business_case endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
