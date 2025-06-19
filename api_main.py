@@ -7,6 +7,7 @@ from agents.value_driver.main import ValueDriverAgent
 from agents.persona.main import PersonaAgent
 from agents.roi_calculator.main import RoiCalculatorAgent
 from agents.sensitivity_analysis.main import SensitivityAnalysisAgent
+from agents.narrative_generator.main import NarrativeGeneratorAgent
 # We might need load_config from orchestrator or a similar utility
 # from orchestrator import load_agent_config # Placeholder
 import asyncio
@@ -103,6 +104,29 @@ class QuantifyRoiResponse(BaseModel):
     quantification: QuantificationData
     execution_details: Optional[QuantificationExecutionDetails] = None
 
+# --- End Pydantic Models for /api/quantify-roi ---
+
+
+# --- Pydantic Models for /api/generate-narrative ---
+
+class NarrativeOutput(BaseModel):
+    narrative_text: str
+    key_points: List[str]
+
+class GenerateNarrativeRequest(BaseModel):
+    user_query: str
+    value_drivers: List[ValueDriverPillar] # From discovery, with user inputs for T3 metrics
+    personas: List[Persona] # From discovery
+    roi_summary: RoiSummary # From quantification
+    sensitivity_analysis_results: Optional[List[SensitivityScenarioOutput]] = None # From quantification
+
+class NarrativeExecutionDetails(BaseModel):
+    narrative_generator_agent_time_ms: Optional[int] = None
+
+class GenerateNarrativeResponse(BaseModel):
+    narrative_output: NarrativeOutput
+    execution_details: Optional[NarrativeExecutionDetails] = None
+
 # --- End Pydantic Models ---
 
 
@@ -189,7 +213,16 @@ async def lifespan(app: FastAPI):
         config=sa_config
     )
     logger.info("SensitivityAnalysisAgent initialized.")
-    logger.info("All agents initialized.")
+
+    # Instantiate NarrativeGeneratorAgent
+    narrative_config = agent_configs_from_yaml.get('narrative_generator', {})
+    app.state.narrative_generator_agent = NarrativeGeneratorAgent(
+        agent_id='narrative_generator_api',
+        mcp_client=app.state.mcp_client,
+        config=narrative_config
+    )
+    logger.info("NarrativeGeneratorAgent initialized.")
+    logger.info("All agents initialized for API.")
 
 
     yield
@@ -372,6 +405,58 @@ async def quantify_roi(fastapi_request: QuantifyRoiRequest, request_object: Requ
     except Exception as e:
         logger.error(f"Error in quantify_roi endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+
+@app.post("/api/generate-narrative", response_model=GenerateNarrativeResponse, tags=["Narrative"])
+async def generate_narrative(fastapi_request: GenerateNarrativeRequest, request_object: Request):
+    """
+    Generates a business case narrative based on discovered value, personas, and quantified ROI.
+    """
+    try:
+        narrative_agent: NarrativeGeneratorAgent = request_object.app.state.narrative_generator_agent
+
+        # Prepare inputs for the agent, converting Pydantic models to dicts
+        agent_inputs = {
+            "user_query": fastapi_request.user_query,
+            "value_drivers": [pillar.model_dump() for pillar in fastapi_request.value_drivers],
+            "personas": [persona.model_dump() for persona in fastapi_request.personas],
+            "roi_summary": fastapi_request.roi_summary.model_dump(),
+            "sensitivity_analysis_results": 
+                [s_result.model_dump() for s_result in fastapi_request.sensitivity_analysis_results] 
+                if fastapi_request.sensitivity_analysis_results else None
+        }
+
+        agent_result = await narrative_agent.execute(agent_inputs)
+
+        if isinstance(agent_result, Exception):
+            logger.error(f"NarrativeGeneratorAgent execution failed: {agent_result}")
+            raise HTTPException(status_code=500, detail=f"NarrativeGeneratorAgent error: {str(agent_result)}")
+        if agent_result.status == AgentStatus.FAILED:
+            logger.error(f"NarrativeGeneratorAgent failed: {agent_result.data}")
+            raise HTTPException(status_code=500, detail=f"NarrativeGeneratorAgent failed: {agent_result.data.get('error', 'Unknown error')}")
+
+        try:
+            # Assuming agent_result.data directly matches NarrativeOutput fields
+            narrative_output_data = NarrativeOutput(**agent_result.data)
+        except Exception as e_pydantic_narrative:
+            logger.error(f"Error parsing NarrativeGeneratorAgent output: {e_pydantic_narrative}. Data: {agent_result.data}")
+            raise HTTPException(status_code=500, detail="Internal server error processing narrative data.")
+
+        execution_details = NarrativeExecutionDetails(
+            narrative_generator_agent_time_ms=getattr(agent_result, 'execution_time_ms', None)
+        )
+
+        return GenerateNarrativeResponse(
+            narrative_output=narrative_output_data,
+            execution_details=execution_details
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in generate_narrative endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
 
 
     # Simulated PersonaAgent output
