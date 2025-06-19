@@ -6,7 +6,7 @@ PyYAML
 langchain
 openai
 sentence-transformers==2.2.2
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.10
 Flask==3.0.3
 Flask-Cors==4.0.1
 
@@ -15,5 +15,5 @@ sqlalchemy==2.0.31
 asyncpg==0.29.0
 passlib[bcrypt]==1.7.4
 pytest==8.2.2
-pytest-asyncio
+pytest-asyncio==1.0.0
 sentence-transformers==3.0.1
