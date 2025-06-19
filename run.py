@@ -5,7 +5,7 @@ import sys
 # This allows us to use absolute imports starting from 'src'
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from src.ui.app import app
+from ui.app import app
 
 if __name__ == '__main__':
     DSN = os.getenv("TEST_POSTGRES_DSN")

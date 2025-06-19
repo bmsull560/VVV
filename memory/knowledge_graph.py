@@ -13,8 +13,8 @@ import json
 import os
 from datetime import datetime, timezone
 
-from src.memory.types import MemoryEntity, RelationshipEntity, MemoryTier, DataSensitivity
-from src.memory.storage_backend import StorageBackend
+from memory.types import MemoryEntity, RelationshipEntity, MemoryTier, DataSensitivity
+from memory.storage_backend import StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -29,20 +29,33 @@ class KnowledgeGraph:
     
     def __init__(self, storage_path="./data/graph", backend: StorageBackend = None):
         """
-        Initialize knowledge graph store.
-        
+        Constructs the KnowledgeGraph instance.
+        Call initialize() before using the instance.
+
         Args:
             storage_path: Path to store relationship entities
             backend: Optional StorageBackend instance (e.g., SQLiteStorageBackend)
         """
         self._backend = backend
         self._storage_path = storage_path
+        self._index: Dict[str, Dict[str, Any]] = {}
+        self._adjacency: Dict[str, Dict[str, Set[str]]] = {}
+        self.initialized = False
+
+    def initialize(self):
+        """
+        Initializes the knowledge graph, creating storage and loading indexes.
+        This method should be called before any operations are performed.
+        """
+        if self.initialized:
+            return
+
         if not self._backend:
             self._ensure_storage_exists()
-            self._index: Dict[str, Dict[str, Any]] = {}  # Relationship metadata
-            self._adjacency: Dict[str, Dict[str, Set[str]]] = {}  # Node adjacency list
             self._load_indexes()
-        logger.info(f"Knowledge Graph initialized (backend={'sqlite' if backend else 'file'})")
+        
+        logger.info(f"Knowledge Graph initialized (backend={'sqlite' if self._backend else 'file'})")
+        self.initialized = True
         
     def _ensure_storage_exists(self):
         """Ensure storage directory exists."""

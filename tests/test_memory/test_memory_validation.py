@@ -1,5 +1,5 @@
 import unittest
-from src.memory import MemoryManager, ContextMemoryEntity, WorkflowMemoryEntity, KnowledgeEntity, RelationshipEntity, MemoryTier, DataSensitivity
+from memory import MemoryManager, ContextMemoryEntity, WorkflowMemoryEntity, KnowledgeEntity, RelationshipEntity, MemoryTier, DataSensitivity
 from datetime import datetime
 
 class TestMemoryValidation(unittest.TestCase):

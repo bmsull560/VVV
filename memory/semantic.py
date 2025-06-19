@@ -19,8 +19,8 @@ except ImportError:
     SentenceTransformer = None
 
 
-from src.memory.types import MemoryEntity, KnowledgeEntity, MemoryTier, DataSensitivity
-from src.memory.storage_backend import StorageBackend
+from memory.types import MemoryEntity, KnowledgeEntity, MemoryTier, DataSensitivity
+from memory.storage_backend import StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -34,30 +34,47 @@ class SemanticMemory:
     
     def __init__(self, backend: StorageBackend, model_name='all-MiniLM-L6-v2'):
         """
-        Initialize semantic memory store.
+        Constructs the SemanticMemory instance.
+        Call initialize() before using the instance.
 
         Args:
             backend: The storage backend for persisting entities.
             model_name: Name of the sentence-transformer model to use.
         """
         self._backend = backend
+        self._model_name = model_name
         self._st_model = None
-        self._embedding_dim = 384  # Default for 'all-MiniLM-L6-v2'
+        self._embedding_dim = None
+        self.initialized = False
 
-        if SentenceTransformer:
-            try:
-                self._st_model = SentenceTransformer(model_name)
-                embedding_dim = self._st_model.get_sentence_embedding_dimension()
-                if embedding_dim:
-                    self._embedding_dim = embedding_dim
-                logger.info(f"SentenceTransformer model '{model_name}' loaded. Embedding dimension: {self._embedding_dim}")
-            except Exception as e:
-                logger.warning(f"Failed to load SentenceTransformer model '{model_name}': {e}. Semantic search will be degraded.")
-        else:
-            logger.warning("sentence-transformers is not installed. Semantic search will be degraded. Run `pip install sentence-transformers`")
-
-        logger.info("Semantic Memory initialized")
+    def initialize(self):
+        """
+        Initializes the semantic memory.
+        This method should be called before any operations are performed.
+        """
+        if self.initialized:
+            return
         
+        logger.info("Semantic Memory initialized, model will be loaded on first use.")
+        self.initialized = True
+
+    def _get_model(self):
+        """Lazy-loads the SentenceTransformer model."""
+        if self._st_model is None:
+            if SentenceTransformer:
+                try:
+                    self._st_model = SentenceTransformer(self._model_name)
+                    self._embedding_dim = self._st_model.get_sentence_embedding_dimension()
+                    logger.info(f"SentenceTransformer model '{self._model_name}' loaded. Embedding dimension: {self._embedding_dim}")
+                except Exception as e:
+                    logger.error(f"Failed to load SentenceTransformer model '{self._model_name}': {e}")
+                    # Set to a dummy value to prevent repeated load attempts
+                    self._st_model = 'failed'
+            else:
+                logger.warning("sentence-transformers is not installed. Semantic search is disabled.")
+                self._st_model = 'failed'
+        return self._st_model if self._st_model != 'failed' else None
+
     def _generate_embedding(self, text: str) -> Optional[List[float]]:
         """
         Generate vector embedding for text using the configured sentence-transformer model.
@@ -67,7 +84,8 @@ class SemanticMemory:
         Returns:
             Optional[List[float]]: Vector embedding, or None if model is not available or fails.
         """
-        if not self._st_model:
+        model = self._get_model()
+        if not model:
             logger.warning("SentenceTransformer model not available, cannot generate embedding.")
             return None
 

@@ -13,7 +13,7 @@ import json
 import time
 from datetime import datetime, timezone
 
-from src.memory.types import MemoryEntity, ContextMemoryEntity, MemoryTier
+from memory.types import MemoryEntity, ContextMemoryEntity, MemoryTier
 
 logger = logging.getLogger(__name__)
 
@@ -25,26 +25,39 @@ class WorkingMemory:
     This is primarily an in-memory store with optional persistence for recovery.
     """
     
-    def __init__(self, persistence_path=None):
+    def __init__(self, persistence_path: Optional[str] = None):
         """
         Initialize working memory store.
-        
+
         Args:
-            persistence_path: Optional path to persist memory for recovery
+            persistence_path: Optional path to persist memory for recovery.
         """
         self._store: Dict[str, ContextMemoryEntity] = {}
         self._persistence_path = persistence_path
-        self._db_file = None
+        self._db_file: Optional[str] = None
+        self._initialized = False
+        logger.info("WorkingMemory instance created. Call initialize() to load data.")
+
+    def initialize(self):
+        """Initializes persistence and recovers data. Must be called before use."""
+        if self._initialized:
+            return
+
         if self._persistence_path:
             import os
-            self._db_file = os.path.join(self._persistence_path, "working_memory.json")
-            logger.info(f"Working Memory persistence enabled at {self._db_file}")
             try:
+                os.makedirs(self._persistence_path, exist_ok=True)
+                self._db_file = os.path.join(self._persistence_path, "working_memory.json")
+                logger.info(f"Working Memory persistence enabled at {self._db_file}")
                 self._recover_from_persistence()
-            except Exception as e:
-                logger.error(f"Failed to recover working memory: {e}")
+            except OSError as e:
+                logger.error(f"Error creating persistence directory for Working Memory: {e}")
+                # Decide if this is a fatal error or if we can continue without persistence
+                self._db_file = None # Disable persistence
         else:
             logger.info("Working Memory initialized without persistence.")
+        
+        self._initialized = True
         
     def _recover_from_persistence(self):
         """Recover working memory from persistence file."""
