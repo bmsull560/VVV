@@ -15,4 +15,5 @@ sqlalchemy==2.0.31
 asyncpg==0.29.0
 passlib[bcrypt]==1.7.4
 pytest==8.2.2
+pytest-asyncio
 sentence-transformers==3.0.1
