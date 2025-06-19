@@ -1,6 +1,7 @@
 import logging
 import copy
 from typing import Dict, Any, List
+import time
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 
@@ -73,6 +74,7 @@ class SensitivityAnalysisAgent(BaseAgent):
         }
 
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
+        start_time = time.monotonic()
         """
         Runs what-if scenarios by varying individual Tier 3 metrics.
 
@@ -82,12 +84,41 @@ class SensitivityAnalysisAgent(BaseAgent):
                 'investment': The base investment cost.
                 'variations': A list of variations to test.
         """
-        if not all(k in inputs for k in ['drivers', 'investment', 'variations']):
-            return AgentResult(status=AgentStatus.FAILED, data={"error": "Inputs must include 'drivers', 'investment', and 'variations'."})
+        base_drivers = inputs.get('drivers')
+        investment_input = inputs.get('investment')
+        variations = inputs.get('variations') # This can be None if not provided
 
-        base_drivers = inputs['drivers']
-        base_investment = float(inputs['investment'])
-        variations = inputs['variations']
+        if base_drivers is None:
+            error_message = "Required input 'drivers' is missing or null."
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
+
+        if investment_input is None:
+            error_message = "Required input 'investment' is missing or null."
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
+        
+        try:
+            base_investment = float(investment_input)
+        except (ValueError, TypeError):
+            error_message = f"Invalid investment value: '{investment_input}'. Must be a number."
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
+
+        if base_investment <= 0:
+            error_message = "Investment must be positive for sensitivity analysis."
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
+
+        # If variations is None (not provided), default to an empty list to run 0 scenarios.
+        if variations is None:
+            logger.info("Input 'variations' not provided or is null. Running 0 sensitivity scenarios.")
+            variations = []
+        
+        if not isinstance(variations, list):
+            error_message = f"Input 'variations' must be a list, got {type(variations)}."
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
         scenario_results = []
 
         for variation in variations:
@@ -115,4 +146,5 @@ class SensitivityAnalysisAgent(BaseAgent):
                     'result': result
                 })
 
-        return AgentResult(status=AgentStatus.COMPLETED, data={"scenarios": scenario_results})
+        execution_time_ms = int((time.monotonic() - start_time) * 1000)
+        return AgentResult(status=AgentStatus.COMPLETED, data={"scenarios": scenario_results}, execution_time_ms=execution_time_ms)
