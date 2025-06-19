@@ -1,11 +1,12 @@
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
+import time
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 
 logger = logging.getLogger(__name__)
 
-class ROICalculatorAgent(BaseAgent):
+class RoiCalculatorAgent(BaseAgent):
     """Calculates ROI and other financial metrics based on structured value driver inputs."""
 
     def __init__(self, agent_id, mcp_client, config):
@@ -58,6 +59,7 @@ class ROICalculatorAgent(BaseAgent):
         return additional_leads * (conversion_increase / 100) * deal_size * 12
 
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
+        start_time = time.monotonic()
         """
         Calculates financial metrics from a list of value drivers and an investment amount.
 
@@ -93,7 +95,9 @@ class ROICalculatorAgent(BaseAgent):
             total_annual_gain += pillar_gain
 
         if total_investment <= 0:
-            return AgentResult(status=AgentStatus.FAILED, data={"error": "Investment must be positive."})
+            error_message = "Investment must be positive."
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
 
         net_gain = total_annual_gain - total_investment
         roi_percentage = (net_gain / total_investment) * 100 if total_investment else 0
@@ -110,4 +114,9 @@ class ROICalculatorAgent(BaseAgent):
         }
 
         logger.info(f"ROI calculation complete. ROI: {result_data['roi_percentage']}%" )
-        return AgentResult(status=AgentStatus.COMPLETED, data=result_data)
+        execution_time_ms = int((time.monotonic() - start_time) * 1000)
+        return AgentResult(
+            status=AgentStatus.COMPLETED,
+            data=result_data,
+            execution_time_ms=execution_time_ms
+        )

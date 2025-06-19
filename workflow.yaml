@@ -11,14 +11,14 @@ stages:
       - name: value_driver
         description: Extracts potential value drivers from unstructured text.
         inputs:
-          text: user_query
+          user_query: user_query
         outputs:
-          identified_drivers: discovery.value_drivers
+          drivers: discovery.value_drivers
 
       - name: persona
         description: Identifies buyer personas from unstructured text.
         inputs:
-          text: user_query
+          user_query: user_query
         outputs:
           identified_personas: discovery.personas
 
