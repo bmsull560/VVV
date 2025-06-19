@@ -15,8 +15,8 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 
-from src.memory.types import WorkflowMemoryEntity, MemoryTier, DataSensitivity
-from src.memory.storage_backend import StorageBackend
+from memory.types import WorkflowMemoryEntity, MemoryTier, DataSensitivity
+from memory.storage_backend import StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -29,21 +29,40 @@ class EpisodicMemory:
     operations are delegated to it (e.g., SQLite). Otherwise, file-based storage is used.
     """
     
-    def __init__(self, storage_path="./data/episodic", backend: StorageBackend = None):
+    def __init__(self, storage_path: str = "./data/episodic", backend: Optional[StorageBackend] = None):
         """
         Initialize episodic memory store.
-        
+
         Args:
-            storage_path: Path to store workflow histories
-            backend: Optional StorageBackend instance (e.g., SQLiteStorageBackend)
+            storage_path: Path to store workflow histories.
+            backend: Optional StorageBackend instance (e.g., SQLiteStorageBackend).
         """
         self._backend = backend
         self._storage_path = storage_path
-        if not self._backend:
-            self._ensure_storage_exists()
-            self._index: Dict[str, Dict[str, Any]] = {}
-            self._load_index()
-        logger.info(f"Episodic Memory initialized (backend={'sqlite' if backend else 'file'})")
+        self._index: Dict[str, Dict[str, Any]] = {}
+        self._initialized = False
+        logger.info(f"EpisodicMemory instance created (backend={'sqlite' if backend else 'file'}). Call initialize() to load data.")
+
+    def initialize(self):
+        """Initializes the storage backend or file-based storage. Must be called before use."""
+        if self._initialized:
+            return
+
+        if self._backend:
+            # Backends are assumed to be initialized separately if needed
+            logger.info("Episodic Memory is using an external backend.")
+        else:
+            logger.info("Initializing file-based storage for Episodic Memory.")
+            try:
+                self._ensure_storage_exists()
+                self._load_index()
+            except OSError as e:
+                logger.error(f"Could not initialize file-based storage for Episodic Memory: {e}")
+                # If we can't create the directory, we cannot proceed with file storage.
+                # This is a critical failure for the file-based implementation.
+                raise
+        
+        self._initialized = True
         
     def _ensure_storage_exists(self):
         """Ensure storage directory exists."""

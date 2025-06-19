@@ -38,17 +38,16 @@ class MCPClient:
     - Rule 1.3: Data Validation - Inputs validated against defined rules
     """
     
-    def __init__(self, memory_manager: Optional[MemoryManager] = None):
+    def __init__(self, memory_manager: MemoryManager):
         """
         Initialize the MCP client.
-        
+
         Args:
-            memory_manager: Optional memory manager instance
+            memory_manager: An initialized memory manager instance.
         """
-        self._memory_manager = memory_manager or MemoryManager()
-        if not hasattr(self._memory_manager, '_working_memory'):
-            # Initialize memory manager if not already initialized
-            self._memory_manager.initialize()
+        if not memory_manager:
+            raise ValueError("A MemoryManager instance is required.")
+        self._memory_manager = memory_manager
             
         self._current_workflow_id: Optional[str] = None
         self._current_context_id: Optional[str] = None

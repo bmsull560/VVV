@@ -83,9 +83,20 @@ class BaseAgent(ABC):
         )
     @abstractmethod
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
-        if not isinstance(inputs, dict):
-            raise TypeError("Input must be a dictionary")
-        return await self.execute_with_resilience(inputs)
+        """The core logic of the agent.
+
+        Args:
+            inputs: A dictionary of inputs for the agent.
+
+        Returns:
+            An AgentResult object with the status and output data.
+        """
+        pass
+
+    async def validate_inputs(self, inputs: Dict[str, Any]) -> ValidationResult:
+        """Optional input validation. Override in subclasses if needed."""
+        return ValidationResult(is_valid=True)
+
     async def execute_with_resilience(self, inputs: Dict[str, Any]) -> AgentResult:
         start_time = time.time()
         try:
@@ -97,6 +108,7 @@ class BaseAgent(ABC):
                     execution_time_ms=int((time.time() - start_time) * 1000),
                     error_details=f"Input validation failed: {validation_result.errors}"
                 )
+            
             async with self.circuit_breaker:
                 result = await self.retry_policy.execute(
                     self._execute_with_context,

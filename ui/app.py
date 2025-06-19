@@ -5,18 +5,18 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 # Agent Imports
-from src.agents.intake_assistant.main import IntakeAssistantAgent
-from src.agents.roi_calculator.main import ROICalculatorAgent
-from src.agents.data_correlator.main import DataCorrelatorAgent
-from src.agents.value_driver.main import ValueDriverAgent
-from src.agents.persona.main import PersonaAgent
-from src.agents.sensitivity_analysis.main import SensitivityAnalysisAgent
+from agents.intake_assistant.main import IntakeAssistantAgent
+from agents.roi_calculator.main import ROICalculatorAgent
+from agents.data_correlator.main import DataCorrelatorAgent
+from agents.value_driver.main import ValueDriverAgent
+from agents.persona.main import PersonaAgent
+from agents.sensitivity_analysis.main import SensitivityAnalysisAgent
 
 # Memory and Storage Imports
-from src.memory.mcp_client import MCPClient
-from src.memory.semantic_memory import SemanticMemory
-from src.memory.storage.postgres_storage import PostgresStorage
-from src.memory.types import to_dict
+from memory.mcp_client import MCPClient
+from memory.semantic_memory import SemanticMemory
+from memory.storage.postgres_storage import PostgresStorage
+from memory.types import to_dict
 
 app = Flask(__name__)
 # In a real app, this should be more restrictive. For dev, we allow the React dev server.

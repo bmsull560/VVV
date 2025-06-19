@@ -1,5 +1,12 @@
 numpy==2.3.0
+fastapi
+uvicorn
+PyYAML
+sentence-transformers
 # To enable real semantic embeddings, install:
+langchain
+openai
+sentence-transformers
 sentence-transformers==2.2.2
 psycopg2-binary==2.9.9
 Flask==3.0.3

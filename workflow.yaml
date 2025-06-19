@@ -1,0 +1,48 @@
+name: B2BValue Interactive Calculator Workflow
+description: >
+  This workflow orchestrates the agents needed to power the interactive value
+  calculator, from initial discovery to final sensitivity analysis.
+
+stages:
+  - name: Discovery
+    description: Identifies relevant value drivers and personas from initial user input.
+    execution_mode: parallel
+    agents:
+      - name: value_driver
+        description: Extracts potential value drivers from unstructured text.
+        inputs:
+          text: user_query
+        outputs:
+          identified_drivers: discovery.value_drivers
+
+      - name: persona
+        description: Identifies buyer personas from unstructured text.
+        inputs:
+          text: user_query
+        outputs:
+          identified_personas: discovery.personas
+
+  - name: Quantification
+    description: Calculates ROI based on the identified value drivers.
+    execution_mode: sequential
+    agents:
+      - name: roi_calculator
+        description: Quantifies the financial impact of the value drivers.
+        inputs:
+          drivers: discovery.value_drivers
+          investment: session.investment_amount # This would be provided by the user in the UI
+        outputs:
+          roi_results: quantification.roi_summary
+
+  - name: Analysis
+    description: Performs sensitivity analysis on the ROI results.
+    execution_mode: sequential
+    agents:
+      - name: sensitivity_analysis
+        description: Runs what-if scenarios on the key financial metrics.
+        inputs:
+          drivers: discovery.value_drivers
+          investment: session.investment_amount
+          variations: session.sensitivity_variations # Provided by the user
+        outputs:
+          sensitivity_scenarios: analysis.scenarios

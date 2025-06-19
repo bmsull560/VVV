@@ -1,9 +1,9 @@
 import unittest
 import asyncio
 import os
-from src.memory.semantic import SemanticMemory
-from src.memory.storage_backend import SQLiteStorageBackend
-from src.memory.types import KnowledgeEntity
+from memory.semantic import SemanticMemory
+from memory.storage_backend import SQLiteStorageBackend
+from memory.types import KnowledgeEntity
 
 class TestSemanticMemory(unittest.TestCase):
 

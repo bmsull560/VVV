@@ -12,12 +12,12 @@ This module provides a comprehensive memory system with:
 All components adhere to the Model Context Protocol (MCP) and enterprise governance requirements.
 """
 
-from src.memory.core import MemoryManager
-from src.memory.working import WorkingMemory
-from src.memory.episodic import EpisodicMemory
-from src.memory.semantic import SemanticMemory
-from src.memory.knowledge_graph import KnowledgeGraph
-from src.memory.types import (
+from memory.core import MemoryManager
+from memory.working import WorkingMemory
+from memory.episodic import EpisodicMemory
+from memory.semantic import SemanticMemory
+from memory.knowledge_graph import KnowledgeGraph
+from memory.types import (
     MemoryEntity, 
     ContextMemoryEntity,
     WorkflowMemoryEntity,

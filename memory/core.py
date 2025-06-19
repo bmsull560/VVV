@@ -17,17 +17,9 @@ from typing import Dict, Any, List, Optional, Tuple, Union, Type
 from datetime import datetime, timezone
 import asyncio
 
-# Monitoring/alerting: set up critical log handler
-import os
-os.makedirs('logs', exist_ok=True)
-critical_handler = logging.FileHandler('logs/critical.log')
-critical_handler.setLevel(logging.ERROR)
-critical_formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-critical_handler.setFormatter(critical_formatter)
-logger = logging.getLogger(__name__)
-logger.addHandler(critical_handler)
 
-from src.memory.types import (
+
+from memory.types import (
     MemoryEntity, ContextMemoryEntity, WorkflowMemoryEntity, 
     KnowledgeEntity, RelationshipEntity, MemoryTier,
     DataSensitivity, MemoryAccess, MemoryAccessControl, AuditLogEntry
@@ -57,16 +49,27 @@ class MemoryManager:
     def initialize(self, working_memory=None, episodic_memory=None, 
                   semantic_memory=None, knowledge_graph=None):
         """Initialize memory tier handlers."""
-        from src.memory.working import WorkingMemory
-        from src.memory.episodic import EpisodicMemory
-        from src.memory.semantic import SemanticMemory
-        from src.memory.storage_backend import SQLiteStorageBackend
-        from src.memory.knowledge_graph import KnowledgeGraph
+        from memory.working import WorkingMemory
+        from memory.episodic import EpisodicMemory
+        from memory.semantic import SemanticMemory
+        from memory.storage_backend import SQLiteStorageBackend
+        from memory.knowledge_graph import KnowledgeGraph
         
+        # Instantiate memory tiers
         self._working_memory = working_memory or WorkingMemory()
         self._episodic_memory = episodic_memory or EpisodicMemory()
         self._semantic_memory = semantic_memory or SemanticMemory(backend=SQLiteStorageBackend(db_path=":memory:"))
         self._knowledge_graph = knowledge_graph or KnowledgeGraph()
+        
+        # Explicitly initialize tiers that require it (e.g., for I/O)
+        if self._working_memory:
+            self._working_memory.initialize()
+        if self._episodic_memory:
+            self._episodic_memory.initialize()
+        if self._semantic_memory:
+            self._semantic_memory.initialize()
+        if self._knowledge_graph:
+            self._knowledge_graph.initialize()
         
         logger.info("Memory Manager initialized with all tiers")
 

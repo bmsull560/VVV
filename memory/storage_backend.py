@@ -4,7 +4,7 @@ import json
 import asyncpg
 import logging
 
-from src.memory.types import from_dict, MemoryEntity, to_dict as global_to_dict
+from memory.types import from_dict, MemoryEntity, to_dict as global_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +35,21 @@ class SQLiteStorageBackend(StorageBackend):
     This is a minimal scaffold for demonstration and extension.
     """
     def __init__(self, db_path: str):
+        self.db_path = db_path
+        self.conn = None
+
+    async def connect(self):
+        if self.conn:
+            return
         import sqlite3
-        self.conn = sqlite3.connect(db_path)
+        self.conn = sqlite3.connect(self.db_path)
         self.conn.execute('''CREATE TABLE IF NOT EXISTS entities (
             id TEXT PRIMARY KEY,
             data TEXT
         )''')
 
     async def store(self, entity: Any) -> str:
+        await self.connect()
         import json
         self.conn.execute(
             'REPLACE INTO entities (id, data) VALUES (?, ?)',
@@ -52,6 +59,7 @@ class SQLiteStorageBackend(StorageBackend):
         return entity.id
 
     async def retrieve(self, entity_id: str) -> Optional[MemoryEntity]:
+        await self.connect()
         cursor = self.conn.execute('SELECT data FROM entities WHERE id=?', (entity_id,))
         row = cursor.fetchone()
         if row:
@@ -60,15 +68,19 @@ class SQLiteStorageBackend(StorageBackend):
         return None
 
     async def delete(self, entity_id: str) -> bool:
+        await self.connect()
         cur = self.conn.execute('DELETE FROM entities WHERE id=?', (entity_id,))
         self.conn.commit()
         return cur.rowcount > 0
 
     async def search(self, query: Dict[str, Any], limit: int = 10) -> List[MemoryEntity]:
+        await self.connect()
         # This is a stub: for demo, return all entities (real impl should filter by query)
         cursor = self.conn.execute('SELECT data FROM entities LIMIT ?', (limit,))
         import json
         return [from_dict(json.loads(row[0])) for row in cursor.fetchall()]
+
+
 
 
 class PostgreSQLStorageBackend(StorageBackend):
