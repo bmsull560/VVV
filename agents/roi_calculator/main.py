@@ -69,11 +69,24 @@ class RoiCalculatorAgent(BaseAgent):
                 'investment': The total investment cost.
                 'user_overrides': (Optional) A dictionary to override tier_3_metrics.
         """
-        if not all(k in inputs for k in ['drivers', 'investment']):
-            return AgentResult(status=AgentStatus.FAILED, data={"error": "Inputs must include 'drivers' and 'investment'."})
+        drivers_data = inputs.get('drivers')
+        investment_input = inputs.get('investment')
 
-        total_investment = float(inputs['investment'])
-        drivers_data = inputs['drivers']
+        if drivers_data is None:
+            error_message = "Required input 'drivers' is missing or null."
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
+
+        if investment_input is None:
+            # Default to 0.0, which will be caught by the 'investment must be positive' check later
+            total_investment = 0.0
+        else:
+            try:
+                total_investment = float(investment_input)
+            except (ValueError, TypeError):
+                error_message = f"Invalid investment value: '{investment_input}'. Must be a number."
+                execution_time_ms = int((time.monotonic() - start_time) * 1000)
+                return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
         total_annual_gain = 0
         gain_breakdown = []
 
