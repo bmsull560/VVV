@@ -210,7 +210,7 @@ async def read_root():
 # Future endpoints will be added here
 
 @app.post("/api/discover-value", response_model=DiscoverValueResponse, tags=["Discovery"])
-async def discover_value(fastapi_request: DiscoverValueRequest, request_object: Request): # Renamed 'request' to 'fastapi_request' to avoid conflict with 'request_object' for app.state
+async def discover_value(fastapi_request: DiscoverValueRequest, request_object: Request):  # Renamed 'request' to 'fastapi_request' to avoid conflict with 'request_object' for app.state
     """
     Processes a user query to discover potential value drivers and target personas.
     """
@@ -284,6 +284,95 @@ async def discover_value(fastapi_request: DiscoverValueRequest, request_object: 
     except Exception as e:
         logger.error(f"Error in discover_value endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+
+@app.post("/api/quantify-roi", response_model=QuantifyRoiResponse, tags=["Quantification"])
+async def quantify_roi(fastapi_request: QuantifyRoiRequest, request_object: Request):
+    """
+    Calculates ROI based on selected value drivers and performs sensitivity analysis.
+    """
+    try:
+        roi_calculator_agent: RoiCalculatorAgent = request_object.app.state.roi_calculator_agent
+        sensitivity_analysis_agent: SensitivityAnalysisAgent = request_object.app.state.sensitivity_analysis_agent
+
+        # --- Execute RoiCalculatorAgent ---
+        # The ValueDriverPillar model in the request needs to be converted to the dict format expected by the agent.
+        # Agents typically expect a list of dictionaries for 'drivers'.
+        drivers_for_agent = [pillar.model_dump() for pillar in fastapi_request.value_drivers]
+
+        roi_agent_input = {
+            "drivers": drivers_for_agent,
+            "investment": fastapi_request.investment_amount
+        }
+
+        roi_agent_result = await roi_calculator_agent.execute(roi_agent_input)
+
+        if isinstance(roi_agent_result, Exception):
+            logger.error(f"RoiCalculatorAgent execution failed: {roi_agent_result}")
+            raise HTTPException(status_code=500, detail=f"RoiCalculatorAgent error: {str(roi_agent_result)}")
+        if roi_agent_result.status == AgentStatus.FAILED:
+            logger.error(f"RoiCalculatorAgent failed: {roi_agent_result.data}")
+            raise HTTPException(status_code=500, detail=f"RoiCalculatorAgent failed: {roi_agent_result.data.get('error', 'Unknown error')}")
+
+        try:
+            # Assuming roi_agent_result.data directly matches RoiSummary fields or is a dict that can be unpacked
+            roi_summary = RoiSummary(**roi_agent_result.data)
+        except Exception as e_pydantic_roi:
+            logger.error(f"Error parsing RoiCalculatorAgent output: {e_pydantic_roi}. Data: {roi_agent_result.data}")
+            raise HTTPException(status_code=500, detail="Internal server error processing ROI data.")
+
+        # --- Execute SensitivityAnalysisAgent (if variations provided) ---
+        sensitivity_results_list = None
+        sa_execution_time_ms = None
+
+        if fastapi_request.sensitivity_variations:
+            # Convert SensitivityVariationInput to the dict format expected by the agent if necessary
+            variations_for_agent = [var.model_dump() for var in fastapi_request.sensitivity_variations]
+            
+            sa_agent_input = {
+                "drivers": drivers_for_agent, # Or potentially drivers from ROI agent output if they are modified
+                "investment": fastapi_request.investment_amount,
+                "variations": variations_for_agent,
+                # "base_roi_results": roi_agent_result.data # If SA agent needs full context from ROI agent
+            }
+            sa_agent_result = await sensitivity_analysis_agent.execute(sa_agent_input)
+
+            if isinstance(sa_agent_result, Exception):
+                logger.error(f"SensitivityAnalysisAgent execution failed: {sa_agent_result}")
+                raise HTTPException(status_code=500, detail=f"SensitivityAnalysisAgent error: {str(sa_agent_result)}")
+            if sa_agent_result.status == AgentStatus.FAILED:
+                logger.error(f"SensitivityAnalysisAgent failed: {sa_agent_result.data}")
+                raise HTTPException(status_code=500, detail=f"SensitivityAnalysisAgent failed: {sa_agent_result.data.get('error', 'Unknown error')}")
+
+            sa_execution_time_ms = getattr(sa_agent_result, 'execution_time_ms', None)
+            # Assuming sa_agent_result.data is a list of dicts matching SensitivityScenarioOutput fields
+            try:
+                sensitivity_results_list = [SensitivityScenarioOutput(**item) for item in sa_agent_result.data] if sa_agent_result.data else []
+            except Exception as e_pydantic_sa:
+                logger.error(f"Error parsing SensitivityAnalysisAgent output: {e_pydantic_sa}. Data: {sa_agent_result.data}")
+                raise HTTPException(status_code=500, detail="Internal server error processing sensitivity analysis data.")
+
+        quantification_data = QuantificationData(
+            roi_summary=roi_summary,
+            sensitivity_analysis_results=sensitivity_results_list
+        )
+
+        execution_details = QuantificationExecutionDetails(
+            roi_calculator_agent_time_ms=getattr(roi_agent_result, 'execution_time_ms', None),
+            sensitivity_analysis_agent_time_ms=sa_execution_time_ms
+        )
+
+        return QuantifyRoiResponse(
+            quantification=quantification_data,
+            execution_details=execution_details
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in quantify_roi endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
 
     # Simulated PersonaAgent output
     sim_personas = [
