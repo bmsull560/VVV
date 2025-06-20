@@ -11,19 +11,20 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
+# Add tests directory to path
+tests_dir = project_root / "tests"
+sys.path.insert(0, str(tests_dir))
+
 def validate_imports():
     """Validate that all required modules can be imported."""
     print("🔍 Validating imports...")
     
     try:
-        # Test integration directory imports
-        integration_dir = project_root / "tests" / "integration"
-        os.chdir(integration_dir)
-        
-        from test_config import IntegrationTestConfig, TestConfigurationManager
+        # Try importing from tests.integration package
+        from tests.integration.test_config import IntegrationTestConfig, TestConfigurationManager
         print("✅ test_config imports successful")
         
-        from test_runner import TestRunner
+        from tests.integration.test_runner import TestRunner
         print("✅ test_runner imports successful")
         
         return True
@@ -40,7 +41,7 @@ def validate_config():
     print("\n🔍 Validating configuration...")
     
     try:
-        from test_config import TestConfigurationManager
+        from tests.integration.test_config import TestConfigurationManager
         config = TestConfigurationManager.load_config()
         print(f"✅ Configuration loaded successfully")
         print(f"   - Test environment: {config.test_environment}")
@@ -57,7 +58,7 @@ def validate_test_data():
     print("\n🔍 Validating test data...")
     
     try:
-        from test_config import TestDataManager
+        from tests.integration.test_config import TestDataManager
         data_manager = TestDataManager()
         datasets = data_manager.get_test_datasets()
         print(f"✅ Test data loaded successfully")
