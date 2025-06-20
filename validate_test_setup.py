@@ -24,7 +24,8 @@ def validate_imports():
         from tests.integration.test_config import IntegrationTestConfig, TestConfigurationManager
         print("✅ test_config imports successful")
         
-        from tests.integration.test_runner import TestRunner
+        # Import test_runner from the module directly to avoid circular imports
+        import tests.integration.test_runner
         print("✅ test_runner imports successful")
         
         return True
@@ -45,8 +46,8 @@ def validate_config():
         config = TestConfigurationManager.load_config()
         print(f"✅ Configuration loaded successfully")
         print(f"   - Test environment: {config.test_environment}")
-        print(f"   - Agent configurations: {len(config.agent_configs)}")
-        print(f"   - Workflow tests: {len(config.workflow_tests)}")
+        print(f"   - Agent configurations: {len(config.agents) if config.agents else 0}")
+        print(f"   - Workflow tests: {len(config.workflows) if config.workflows else 0}")
         return True
         
     except Exception as e:
@@ -58,8 +59,9 @@ def validate_test_data():
     print("\n🔍 Validating test data...")
     
     try:
-        from tests.integration.test_config import TestDataManager
-        data_manager = TestDataManager()
+        from tests.integration.test_config import TestDataManager, TestConfigurationManager
+        config = TestConfigurationManager.load_config()
+        data_manager = TestDataManager(config)
         datasets = data_manager.get_test_datasets()
         print(f"✅ Test data loaded successfully")
         print(f"   - Available datasets: {len(datasets)}")
