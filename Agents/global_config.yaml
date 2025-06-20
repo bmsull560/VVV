@@ -9,6 +9,21 @@ globals:
   # Solution Cost (example - this could also be an input or calculated by a separate 'Cost Agent')
   annual_solution_cost_usd: 500000 # Placeholder: Annual cost of the AI solution in USD
 
+  # Database Configuration
+  database:
+    type: "postgresql"
+    host: "${DB_HOST:localhost}"
+    port: "${DB_PORT:5432}"
+    name: "${DB_NAME:b2bvalue_db}"
+    user: "${DB_USER:b2bvalue_user}"
+    password: "${DB_PASSWORD}"
+    pool_size: 10
+    pool_overflow: 20
+    pool_timeout: 30
+    pool_recycle: 3600
+    ssl_mode: "${DB_SSL_MODE:prefer}"
+    connection_timeout: 30
+
   # Other Global Parameters (can be extended as needed)
   company_name: "AI-Powered Solutions Inc."
   report_date_format: "YYYY-MM-DD"

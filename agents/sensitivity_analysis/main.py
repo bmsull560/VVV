@@ -12,6 +12,16 @@ from enum import Enum
 import statistics
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
+from agents.utils.calculations import (
+    calculate_roi_metrics,
+    calculate_confidence_score,
+    calculate_volatility,
+    calculate_risk_score,
+    classify_risk_level,
+    RiskLevel,
+    detect_outliers_iqr,
+    safe_divide
+)
 from memory.types import KnowledgeEntity
 
 logger = logging.getLogger(__name__)
@@ -22,13 +32,6 @@ class SensitivityType(Enum):
     MULTI_VARIABLE = "multi_variable"
     SCENARIO_ANALYSIS = "scenario_analysis"
     MONTE_CARLO = "monte_carlo"
-
-class RiskLevel(Enum):
-    """Risk assessment levels."""
-    LOW = "low"
-    MODERATE = "moderate"
-    HIGH = "high"
-    CRITICAL = "critical"
 
 class SensitivityAnalysisAgent(BaseAgent):
     """Production-ready agent for comprehensive sensitivity analysis and risk assessment."""
@@ -166,14 +169,14 @@ class SensitivityAnalysisAgent(BaseAgent):
                 'scenarios': scenarios,
                 'roi_range': roi_range,
                 'roi_volatility': roi_std,
-                'sensitivity_score': roi_range / abs(base_metrics['roi_percentage']) if base_metrics['roi_percentage'] != 0 else 0
+                'sensitivity_score': safe_divide(roi_range, abs(base_metrics['roi_percentage']))
             }
         
         return results
 
     def _assess_risk_level(self, analysis_results: Dict[str, Any]) -> Dict[str, Any]:
         """Assess overall risk level based on sensitivity analysis."""
-        # Calculate aggregate risk metrics
+        # Extract sensitivity scores and volatilities
         sensitivities = []
         volatilities = []
         
@@ -182,25 +185,41 @@ class SensitivityAnalysisAgent(BaseAgent):
                 sensitivities.append(results['sensitivity_score'])
                 volatilities.append(results.get('roi_volatility', 0))
         
-        avg_sensitivity = statistics.mean(sensitivities) if sensitivities else 0
-        max_sensitivity = max(sensitivities) if sensitivities else 0
-        avg_volatility = statistics.mean(volatilities) if volatilities else 0
+        if not sensitivities:
+            return {
+                'overall_risk_level': RiskLevel.LOW.value,
+                'average_sensitivity': 0,
+                'maximum_sensitivity': 0,
+                'average_volatility': 0,
+                'risk_factors': []
+            }
         
-        # Risk level determination
-        if max_sensitivity > 2.0 or avg_volatility > 50:
-            risk_level = RiskLevel.CRITICAL
-        elif max_sensitivity > 1.0 or avg_volatility > 25:
-            risk_level = RiskLevel.HIGH
-        elif max_sensitivity > 0.5 or avg_volatility > 10:
-            risk_level = RiskLevel.MODERATE
-        else:
-            risk_level = RiskLevel.LOW
+        # Use shared utility functions for calculations
+        avg_sensitivity = statistics.mean(sensitivities)
+        max_sensitivity = max(sensitivities)
+        avg_volatility = calculate_volatility(volatilities) if len(volatilities) > 1 else statistics.mean(volatilities)
+        
+        # Calculate composite risk score (weighted combination)
+        risk_score = calculate_risk_score(
+            probability=min(1.0, max_sensitivity / 2.0),  # Normalize to 0-1
+            impact=min(100.0, avg_volatility)  # Impact on scale of 0-100
+        )
+        
+        # Use shared risk classification with custom thresholds
+        custom_thresholds = {
+            'critical': 40.0,  # max_sensitivity > 2.0 or avg_volatility > 50
+            'high': 25.0,      # max_sensitivity > 1.0 or avg_volatility > 25  
+            'medium': 10.0,    # max_sensitivity > 0.5 or avg_volatility > 10
+            'low': 5.0
+        }
+        risk_level = classify_risk_level(risk_score, custom_thresholds)
         
         return {
             'overall_risk_level': risk_level.value,
             'average_sensitivity': avg_sensitivity,
             'maximum_sensitivity': max_sensitivity,
             'average_volatility': avg_volatility,
+            'composite_risk_score': risk_score,
             'risk_factors': [
                 var for var, res in analysis_results.items() 
                 if isinstance(res, dict) and res.get('sensitivity_score', 0) > 1.0
@@ -209,30 +228,30 @@ class SensitivityAnalysisAgent(BaseAgent):
 
     def _calculate_confidence_level(self, inputs: Dict[str, Any], 
                                   analysis_results: Dict[str, Any]) -> float:
-        """Calculate confidence level for the analysis."""
-        confidence_factors = []
-        
-        # Data quality factor
+        """Calculate confidence level for the analysis using shared utilities."""
+        # Extract data quality metrics
         variables = inputs.get('sensitivity_variables', [])
         complete_vars = sum(1 for var in variables 
-                          if all(field in var for field in ['name', 'base_value', 'range_min', 'range_max']))
-        data_quality = complete_vars / len(variables) if variables else 0
-        confidence_factors.append(data_quality * 0.3)
+                          if isinstance(var, dict) and 
+                          all(key in var for key in ['name', 'min_value', 'max_value']))
         
-        # Analysis depth factor
-        scenario_count = len(analysis_results)
-        depth_factor = min(scenario_count / 5, 1.0) * 0.3
-        confidence_factors.append(depth_factor)
+        # Calculate data completeness ratio
+        data_quality = safe_divide(complete_vars, len(variables), 0.0) if variables else 0.0
         
-        # Risk assessment factor
-        risk_data = self._assess_risk_level(analysis_results)
-        risk_level = risk_data['overall_risk_level']
-        risk_factor = {
-            'low': 0.9, 'moderate': 0.7, 'high': 0.5, 'critical': 0.3
-        }.get(risk_level, 0.5) * 0.4
-        confidence_factors.append(risk_factor)
+        # Calculate variance from sensitivity scores
+        sensitivities = [
+            res.get('sensitivity_score', 0) 
+            for res in analysis_results.values() 
+            if isinstance(res, dict)
+        ]
+        variance = calculate_volatility(sensitivities) if len(sensitivities) > 1 else 0.1
         
-        return sum(confidence_factors)
+        # Use shared confidence calculation
+        return calculate_confidence_score(
+            data_quality=data_quality,
+            sample_size=len(variables),
+            variance=min(1.0, variance)  # Cap variance at 1.0
+        )
 
     def _generate_recommendations(self, analysis_results: Dict[str, Any], 
                                 risk_assessment: Dict[str, Any]) -> List[str]:
