@@ -7,18 +7,35 @@ with specific metrics for quantitative analysis.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Tuple
 import time
 import re
+from enum import Enum
+from datetime import datetime
+import statistics
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
+from memory.types import KnowledgeEntity
 
 logger = logging.getLogger(__name__)
 
+class AnalysisType(Enum):
+    """Types of value driver analysis."""
+    COMPREHENSIVE = "comprehensive"
+    FOCUSED = "focused"
+    QUICK_SCAN = "quick_scan"
+    INDUSTRY_SPECIFIC = "industry_specific"
+
+class ConfidenceLevel(Enum):
+    """Confidence level thresholds."""
+    HIGH = 0.8
+    MEDIUM = 0.6
+    LOW = 0.4
+
 class ValueDriverAgent(BaseAgent):
     """
-    Identifies key business value drivers from unstructured text using a hierarchical model.
-    Maps business needs to quantifiable value categories for ROI analysis.
+    Production-ready agent for identifying and quantifying business value drivers
+    from unstructured text using hierarchical analysis and industry benchmarks.
     """
 
     # Tier 1 -> Tier 2 -> Tier 3 hierarchical value driver model
@@ -221,37 +238,72 @@ class ValueDriverAgent(BaseAgent):
     }
 
     def __init__(self, agent_id: str, mcp_client, config: Dict[str, Any]):
-        # Set up validation rules
+        # Enhanced validation rules
         if 'input_validation' not in config:
             config['input_validation'] = {
-                'required_fields': ['user_query'],
+                'required_fields': [
+                    'user_query'
+                ],
                 'field_types': {
                     'user_query': 'string',
+                    'analysis_type': 'string',
                     'focus_areas': 'array',
-                    'minimum_confidence': 'number'
+                    'minimum_confidence': 'number',
+                    'industry_context': 'string',
+                    'company_size': 'string',
+                    'include_quantification': 'boolean'
                 },
                 'field_constraints': {
                     'user_query': {'min_length': 10, 'max_length': 5000},
-                    'minimum_confidence': {'min': 0.0, 'max': 1.0}
+                    'analysis_type': {'enum': [t.value for t in AnalysisType]},
+                    'minimum_confidence': {'min': 0.0, 'max': 1.0},
+                    'company_size': {'enum': ['startup', 'small', 'medium', 'large', 'enterprise']},
+                    'industry_context': {'enum': ['healthcare', 'financial_services', 'manufacturing', 
+                                                'technology', 'retail', 'education', 'government']}
                 }
             }
         
         super().__init__(agent_id, mcp_client, config)
+        
+        # Industry-specific value multipliers
+        self.industry_multipliers = {
+            'healthcare': {'cost_savings': 1.2, 'productivity_gains': 1.1, 'revenue_growth': 0.9},
+            'financial_services': {'cost_savings': 1.3, 'productivity_gains': 1.4, 'revenue_growth': 1.2},
+            'manufacturing': {'cost_savings': 1.1, 'productivity_gains': 1.3, 'revenue_growth': 1.0},
+            'technology': {'cost_savings': 1.0, 'productivity_gains': 1.5, 'revenue_growth': 1.4},
+            'retail': {'cost_savings': 1.1, 'productivity_gains': 1.2, 'revenue_growth': 1.3}
+        }
+        
+        # Company size factors
+        self.size_factors = {
+            'startup': {'complexity': 0.7, 'implementation_speed': 1.3, 'resource_availability': 0.6},
+            'small': {'complexity': 0.8, 'implementation_speed': 1.2, 'resource_availability': 0.7},
+            'medium': {'complexity': 1.0, 'implementation_speed': 1.0, 'resource_availability': 1.0},
+            'large': {'complexity': 1.2, 'implementation_speed': 0.9, 'resource_availability': 1.3},
+            'enterprise': {'complexity': 1.4, 'implementation_speed': 0.7, 'resource_availability': 1.5}
+        }
 
     async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
-        """Perform value driver-specific validations."""
+        """Enhanced validation for value driver analysis inputs."""
         errors = []
         
-        user_query = inputs.get('user_query', '')
-        if isinstance(user_query, str) and len(user_query.strip()) < 10:
-            errors.append("User query must be at least 10 characters long")
+        # Validate user query content
+        user_query = inputs.get('user_query', '').strip()
+        if len(user_query.split()) < 3:
+            errors.append("User query must contain at least 3 words for meaningful analysis")
         
+        # Validate focus areas if provided
         focus_areas = inputs.get('focus_areas', [])
         if focus_areas:
             valid_focus_areas = list(self.VALUE_HIERARCHY.keys())
-            for area in focus_areas:
-                if area not in valid_focus_areas:
-                    errors.append(f"Invalid focus area '{area}'. Must be one of: {', '.join(valid_focus_areas)}")
+            invalid_areas = [area for area in focus_areas if area not in valid_focus_areas]
+            if invalid_areas:
+                errors.append(f"Invalid focus areas: {invalid_areas}. Valid options: {valid_focus_areas}")
+        
+        # Validate minimum confidence
+        min_confidence = inputs.get('minimum_confidence', 0.5)
+        if not isinstance(min_confidence, (int, float)) or not 0.0 <= min_confidence <= 1.0:
+            errors.append("Minimum confidence must be a number between 0.0 and 1.0")
         
         return errors
 
@@ -276,6 +328,57 @@ class ValueDriverAgent(BaseAgent):
                 })
         
         return found_keywords
+
+    def _find_keywords_in_text(self, text: str, keywords: List[str]) -> List[Dict[str, Any]]:
+        """
+        Find keywords in text and extract context information.
+        
+        Args:
+            text: The text to search in (should be lowercase)
+            keywords: List of keywords to search for
+            
+        Returns:
+            List of dictionaries containing keyword matches with context
+        """
+        matches = []
+        text_words = text.split()
+        
+        for keyword in keywords:
+            keyword_lower = keyword.lower()
+            
+            # Check for exact keyword matches
+            if keyword_lower in text:
+                # Find the position and extract context
+                keyword_pos = text.find(keyword_lower)
+                context_start = max(0, keyword_pos - 50)
+                context_end = min(len(text), keyword_pos + len(keyword_lower) + 50)
+                context = text[context_start:context_end].strip()
+                
+                matches.append({
+                    'keyword': keyword,
+                    'context': context,
+                    'position': keyword_pos,
+                    'match_type': 'exact'
+                })
+            
+            # Check for partial matches or word variations
+            elif any(keyword_lower in word for word in text_words):
+                matching_words = [word for word in text_words if keyword_lower in word]
+                for word in matching_words[:2]:  # Limit to first 2 matches
+                    word_pos = text.find(word)
+                    context_start = max(0, word_pos - 50)
+                    context_end = min(len(text), word_pos + len(word) + 50)
+                    context = text[context_start:context_end].strip()
+                    
+                    matches.append({
+                        'keyword': keyword,
+                        'context': context,
+                        'position': word_pos,
+                        'match_type': 'partial',
+                        'matched_word': word
+                    })
+        
+        return matches
 
     def _calculate_confidence_score(self, keywords_found: List[Dict[str, Any]], total_keywords: int) -> float:
         """Calculate confidence score based on keyword matches and context."""
@@ -309,44 +412,255 @@ class ValueDriverAgent(BaseAgent):
         
         return filtered_pillars
 
+    def _quantify_business_impact(self, identified_pillars: List[Dict[str, Any]], 
+                                industry_context: Optional[str] = None,
+                                company_size: Optional[str] = None) -> Dict[str, Any]:
+        """Quantify the business impact of identified value drivers."""
+        if not identified_pillars:
+            return {}
+        
+        # Get industry and size multipliers
+        industry_mult = self.industry_multipliers.get(industry_context, 
+                                                    {'cost_savings': 1.0, 'productivity_gains': 1.0, 'revenue_growth': 1.0})
+        size_factors = self.size_factors.get(company_size, 
+                                           {'complexity': 1.0, 'implementation_speed': 1.0, 'resource_availability': 1.0})
+        
+        total_impact = {
+            'annual_cost_savings': 0,
+            'annual_productivity_gains': 0,
+            'annual_revenue_impact': 0,
+            'implementation_complexity': 0,
+            'roi_projection': {}
+        }
+        
+        pillar_impacts = []
+        
+        for pillar in identified_pillars:
+            pillar_name = pillar['pillar']
+            confidence = pillar['confidence_score']
+            
+            # Calculate pillar-specific impact
+            pillar_impact = {
+                'pillar': pillar_name,
+                'confidence': confidence,
+                'cost_savings': 0,
+                'productivity_value': 0,
+                'revenue_impact': 0,
+                'implementation_effort': 0
+            }
+            
+            # Process tier 2 drivers
+            for driver in pillar['tier_2_drivers']:
+                driver_value = self._calculate_driver_value(driver, industry_mult, size_factors, confidence)
+                pillar_impact['cost_savings'] += driver_value.get('cost_savings', 0)
+                pillar_impact['productivity_value'] += driver_value.get('productivity_value', 0)
+                pillar_impact['revenue_impact'] += driver_value.get('revenue_impact', 0)
+                pillar_impact['implementation_effort'] += driver_value.get('implementation_effort', 0)
+            
+            pillar_impacts.append(pillar_impact)
+            
+            # Add to totals
+            total_impact['annual_cost_savings'] += pillar_impact['cost_savings']
+            total_impact['annual_productivity_gains'] += pillar_impact['productivity_value']
+            total_impact['annual_revenue_impact'] += pillar_impact['revenue_impact']
+            total_impact['implementation_complexity'] += pillar_impact['implementation_effort']
+        
+        # Calculate ROI projections
+        total_annual_benefit = (total_impact['annual_cost_savings'] + 
+                              total_impact['annual_productivity_gains'] + 
+                              total_impact['annual_revenue_impact'])
+        
+        # Estimate implementation cost based on complexity
+        estimated_implementation_cost = total_impact['implementation_complexity'] * 10000  # Base cost per complexity point
+        
+        if estimated_implementation_cost > 0:
+            roi_percentage = ((total_annual_benefit - estimated_implementation_cost) / estimated_implementation_cost) * 100
+            payback_months = (estimated_implementation_cost / total_annual_benefit) * 12 if total_annual_benefit > 0 else 999
+        else:
+            roi_percentage = 0
+            payback_months = 0
+        
+        total_impact['roi_projection'] = {
+            'annual_benefit': total_annual_benefit,
+            'implementation_cost': estimated_implementation_cost,
+            'roi_percentage': round(roi_percentage, 1),
+            'payback_months': round(payback_months, 1),
+            'npv_3_year': self._calculate_npv(total_annual_benefit, estimated_implementation_cost, 3)
+        }
+        
+        total_impact['pillar_breakdown'] = pillar_impacts
+        
+        return total_impact
+
+    def _calculate_driver_value(self, driver: Dict[str, Any], industry_mult: Dict[str, float], 
+                              size_factors: Dict[str, float], confidence: float) -> Dict[str, Any]:
+        """Calculate the monetary value of a specific driver."""
+        driver_value = {
+            'cost_savings': 0,
+            'productivity_value': 0,
+            'revenue_impact': 0,
+            'implementation_effort': 1  # Base complexity
+        }
+        
+        # Extract metrics from tier 3
+        metrics = driver.get('tier_3_metrics', {})
+        
+        # Cost Savings calculations
+        if 'Hours saved per week' in metrics and 'Average hourly rate' in metrics:
+            hours_saved = metrics['Hours saved per week'].get('suggested_value', 0)
+            hourly_rate = metrics['Average hourly rate'].get('suggested_value', 0)
+            num_employees = metrics.get('Number of employees affected', {}).get('suggested_value', 1)
+            
+            annual_savings = hours_saved * hourly_rate * 52 * num_employees * confidence
+            driver_value['cost_savings'] = annual_savings * industry_mult.get('cost_savings', 1.0)
+        
+        # Direct cost savings
+        if 'Monthly overhead reduction' in metrics:
+            monthly_savings = metrics['Monthly overhead reduction'].get('suggested_value', 0)
+            driver_value['cost_savings'] += monthly_savings * 12 * confidence * industry_mult.get('cost_savings', 1.0)
+        
+        if 'Annual license savings' in metrics:
+            license_savings = metrics['Annual license savings'].get('suggested_value', 0)
+            driver_value['cost_savings'] += license_savings * confidence * industry_mult.get('cost_savings', 1.0)
+        
+        # Productivity value calculations
+        if 'Time saved per task (minutes)' in metrics and 'Tasks per week' in metrics:
+            time_saved = metrics['Time saved per task (minutes)'].get('suggested_value', 0)
+            tasks_per_week = metrics['Tasks per week'].get('suggested_value', 0)
+            
+            # Convert to annual productivity value
+            annual_time_saved = (time_saved * tasks_per_week * 52) / 60  # Hours
+            productivity_value = annual_time_saved * 75 * confidence  # $75/hour productivity value
+            driver_value['productivity_value'] = productivity_value * industry_mult.get('productivity_gains', 1.0)
+        
+        # Revenue impact calculations
+        if 'Revenue increase (%)' in metrics and 'Current annual revenue' in metrics:
+            revenue_increase = metrics['Revenue increase (%)'].get('suggested_value', 0) / 100
+            current_revenue = metrics['Current annual revenue'].get('suggested_value', 1000000)
+            
+            revenue_impact = current_revenue * revenue_increase * confidence
+            driver_value['revenue_impact'] = revenue_impact * industry_mult.get('revenue_growth', 1.0)
+        
+        # Adjust for company size factors
+        driver_value['implementation_effort'] *= size_factors.get('complexity', 1.0)
+        
+        return driver_value
+
+    def _calculate_npv(self, annual_benefit: float, initial_cost: float, years: int, discount_rate: float = 0.1) -> float:
+        """Calculate Net Present Value over specified years."""
+        npv = -initial_cost  # Initial investment
+        
+        for year in range(1, years + 1):
+            npv += annual_benefit / ((1 + discount_rate) ** year)
+        
+        return round(npv, 2)
+
+    def _generate_business_recommendations(self, quantified_impact: Dict[str, Any], 
+                                         identified_pillars: List[Dict[str, Any]]) -> List[str]:
+        """Generate actionable business recommendations based on value driver analysis."""
+        recommendations = []
+        
+        if not quantified_impact or not identified_pillars:
+            return ["Insufficient data for meaningful recommendations"]
+        
+        roi_projection = quantified_impact.get('roi_projection', {})
+        roi_percentage = roi_projection.get('roi_percentage', 0)
+        payback_months = roi_projection.get('payback_months', 999)
+        
+        # ROI-based recommendations
+        if roi_percentage > 50:
+            recommendations.append("Excellent ROI opportunity - prioritize for immediate implementation")
+        elif roi_percentage > 25:
+            recommendations.append("Strong business case - recommend proceeding with detailed planning")
+        elif roi_percentage > 10:
+            recommendations.append("Moderate returns - consider phased implementation approach")
+        else:
+            recommendations.append("Low ROI - reassess scope or seek additional value drivers")
+        
+        # Payback period recommendations
+        if payback_months <= 12:
+            recommendations.append("Quick payback period - ideal for budget approval")
+        elif payback_months <= 24:
+            recommendations.append("Reasonable payback timeline - align with annual planning cycle")
+        else:
+            recommendations.append("Extended payback period - ensure strong stakeholder commitment")
+        
+        # Pillar-specific recommendations
+        pillar_breakdown = quantified_impact.get('pillar_breakdown', [])
+        if pillar_breakdown:
+            # Find highest value pillar
+            highest_value_pillar = max(pillar_breakdown, 
+                                     key=lambda x: x['cost_savings'] + x['productivity_value'] + x['revenue_impact'])
+            recommendations.append(f"Focus initial efforts on '{highest_value_pillar['pillar']}' for maximum impact")
+            
+            # Risk assessment based on confidence
+            low_confidence_pillars = [p for p in pillar_breakdown if p['confidence'] < 0.6]
+            if low_confidence_pillars:
+                recommendations.append("Conduct additional analysis for lower-confidence value drivers")
+        
+        # Implementation recommendations
+        total_complexity = quantified_impact.get('implementation_complexity', 0)
+        if total_complexity > 10:
+            recommendations.append("High implementation complexity - consider phased rollout approach")
+        
+        recommendations.append("Establish baseline metrics before implementation to measure actual impact")
+        recommendations.append("Plan for change management to ensure successful adoption")
+        
+        return recommendations
+
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
         """
         Analyzes input text to find and categorize value drivers based on a hierarchical model.
-
-        Args:
-            inputs: Dictionary containing:
-                - user_query: Text describing business needs and challenges
-                - focus_areas: (Optional) List of specific value driver categories to focus on
-                - minimum_confidence: (Optional) Minimum confidence threshold for matches
-
-        Returns:
-            AgentResult with structured value drivers and metrics
+        Enhanced with business intelligence, quantification, and industry-specific analysis.
         """
         start_time = time.monotonic()
-
-        # Use centralized validation
-        validation_result = await self.validate_inputs(inputs)
-        if not validation_result.is_valid:
-            return AgentResult(
-                status=AgentStatus.FAILED,
-                data={"error": validation_result.errors[0] if validation_result.errors else "Input validation failed"},
-                execution_time_ms=int((time.monotonic() - start_time) * 1000)
-            )
-
+        
         try:
-            user_query = inputs['user_query']
-            focus_areas = inputs.get('focus_areas', [])
-            minimum_confidence = inputs.get('minimum_confidence', 0.3)
+            logger.info(f"Starting value driver analysis for agent {self.agent_id}")
             
+            # Validate inputs
+            validation_result = await self.validate_inputs(inputs)
+            if not validation_result.is_valid:
+                return AgentResult(
+                    status=AgentStatus.FAILED,
+                    data={"error": f"Validation failed: {validation_result.errors[0]}"},
+                    execution_time_ms=int((time.monotonic() - start_time) * 1000)
+                )
+            
+            # Extract inputs with enhanced parameters
+            user_query = inputs['user_query'].strip()
+            analysis_type = inputs.get('analysis_type', AnalysisType.COMPREHENSIVE.value)
+            focus_areas = inputs.get('focus_areas', [])
+            minimum_confidence = inputs.get('minimum_confidence', 0.5)
+            industry_context = inputs.get('industry_context')
+            company_size = inputs.get('company_size', 'medium')
+            include_quantification = inputs.get('include_quantification', True)
+            
+            logger.info(f"Analyzing query: '{user_query[:100]}...' with {analysis_type} analysis")
+            
+            # Analyze value drivers using hierarchical model
             identified_pillars = []
             
-            # Analyze each value pillar
-            for pillar_name, pillar_data in self.VALUE_HIERARCHY.items():
+            # Determine which pillars to analyze based on analysis type
+            pillars_to_analyze = self.VALUE_HIERARCHY.keys()
+            if analysis_type == AnalysisType.FOCUSED.value and focus_areas:
+                pillars_to_analyze = focus_areas
+            elif analysis_type == AnalysisType.QUICK_SCAN.value:
+                # Quick scan - analyze top 2 most likely pillars
+                pillars_to_analyze = list(self.VALUE_HIERARCHY.keys())[:2]
+            
+            # Process each pillar
+            for pillar_name in pillars_to_analyze:
+                if pillar_name not in self.VALUE_HIERARCHY:
+                    continue
+                    
+                pillar_data = self.VALUE_HIERARCHY[pillar_name]
                 matched_tier_2_drivers = []
                 
+                # Analyze tier 2 drivers within this pillar
                 for tier_2_driver in pillar_data['tier_2_drivers']:
-                    keywords_found = self._extract_keywords_with_context(
-                        user_query, 
+                    keywords_found = self._find_keywords_in_text(
+                        user_query.lower(), 
                         tier_2_driver['keywords']
                     )
                     
@@ -356,98 +670,283 @@ class ValueDriverAgent(BaseAgent):
                             len(tier_2_driver['keywords'])
                         )
                         
+                        # Apply industry-specific confidence adjustments
+                        if industry_context and industry_context in self.industry_multipliers:
+                            pillar_category = pillar_name.lower().replace(' ', '_')
+                            if pillar_category in ['cost_savings', 'productivity_gains', 'revenue_growth']:
+                                industry_boost = self.industry_multipliers[industry_context].get(pillar_category, 1.0)
+                                confidence = min(1.0, confidence * industry_boost)
+                        
                         if confidence >= minimum_confidence:
-                            # Create driver copy with enhanced metadata
+                            # Create enhanced driver copy
                             driver_copy = tier_2_driver.copy()
                             driver_copy['keywords_found'] = [kw['keyword'] for kw in keywords_found]
                             driver_copy['confidence_score'] = round(confidence, 3)
-                            driver_copy['match_contexts'] = [kw['context'] for kw in keywords_found[:3]]  # Top 3 contexts
+                            driver_copy['match_contexts'] = [kw['context'] for kw in keywords_found[:3]]
                             
-                            # Enhance tier_3_metrics with calculated defaults
+                            # Enhanced tier_3_metrics with industry and size adjustments
                             enhanced_metrics = {}
                             for metric in tier_2_driver['tier_3_metrics']:
                                 metric_copy = metric.copy()
-                                # Add confidence-based adjustment to default values
+                                
+                                # Apply confidence-based and industry-specific adjustments
+                                base_value = metric['default_value']
+                                confidence_factor = 0.5 + confidence * 0.5
+                                
+                                if industry_context and company_size:
+                                    size_factor = self.size_factors.get(company_size, {}).get('resource_availability', 1.0)
+                                    adjusted_value = base_value * confidence_factor * size_factor
+                                else:
+                                    adjusted_value = base_value * confidence_factor
+                                
                                 if metric['type'] in ['number', 'currency']:
-                                    adjusted_value = metric['default_value'] * (0.5 + confidence * 0.5)
                                     metric_copy['suggested_value'] = round(adjusted_value, 2)
                                 else:
                                     metric_copy['suggested_value'] = metric['default_value']
+                                
                                 enhanced_metrics[metric['name']] = metric_copy
                             
                             driver_copy['tier_3_metrics'] = enhanced_metrics
                             matched_tier_2_drivers.append(driver_copy)
                 
+                # Add pillar if we found drivers
                 if matched_tier_2_drivers:
-                    # Calculate overall pillar confidence
                     pillar_confidence = sum(d['confidence_score'] for d in matched_tier_2_drivers) / len(matched_tier_2_drivers)
                     
                     identified_pillars.append({
                         "pillar": pillar_name,
                         "pillar_description": pillar_data['description'],
                         "confidence_score": round(pillar_confidence, 3),
-                        "tier_2_drivers": matched_tier_2_drivers
+                        "tier_2_drivers": matched_tier_2_drivers,
+                        "industry_context": industry_context,
+                        "company_size": company_size
                     })
-
+            
             # Filter by focus areas if specified
-            if focus_areas:
+            if focus_areas and analysis_type != AnalysisType.FOCUSED.value:
                 identified_pillars = self._filter_by_focus_areas(identified_pillars, focus_areas)
-
+            
             # Sort by confidence score
             identified_pillars.sort(key=lambda x: x['confidence_score'], reverse=True)
-
+            
+            # Handle no results case
             if not identified_pillars:
-                logger.info("No specific value drivers identified in the text.")
+                logger.info("No value drivers identified with sufficient confidence")
                 return AgentResult(
-                    status=AgentStatus.COMPLETED,
+                    status=AgentStatus.SUCCESS,
                     data={
                         "drivers": [], 
                         "message": "No specific value drivers identified with sufficient confidence.",
-                        "suggestions": list(self.VALUE_HIERARCHY.keys())[:3]  # Suggest top 3 categories
+                        "suggestions": list(self.VALUE_HIERARCHY.keys())[:3],
+                        "analysis_metadata": {
+                            "query_length": len(user_query),
+                            "analysis_type": analysis_type,
+                            "minimum_confidence": minimum_confidence,
+                            "industry_context": industry_context
+                        }
                     },
                     execution_time_ms=int((time.monotonic() - start_time) * 1000)
                 )
-
-            # Store identified drivers in MCP for workflow coordination
-            await self.mcp_client.store_memory(
-                "working",
-                "value_drivers",
-                {
-                    "identified_pillars": identified_pillars,
-                    "analysis_metadata": {
-                        "query_length": len(user_query),
-                        "focus_areas": focus_areas,
-                        "minimum_confidence": minimum_confidence,
-                        "total_pillars_found": len(identified_pillars)
-                    }
-                },
-                ["value_drivers", "workflow_step"]
-            )
-
-            result_data = {
+            
+            # Quantify business impact if requested
+            quantified_impact = {}
+            business_recommendations = []
+            
+            if include_quantification and identified_pillars:
+                quantified_impact = self._quantify_business_impact(
+                    identified_pillars, industry_context, company_size
+                )
+                business_recommendations = self._generate_business_recommendations(
+                    quantified_impact, identified_pillars
+                )
+            
+            # Prepare comprehensive response data
+            response_data = {
                 'drivers': identified_pillars,
                 'analysis_summary': {
                     'total_pillars_identified': len(identified_pillars),
                     'highest_confidence_pillar': identified_pillars[0]['pillar'] if identified_pillars else None,
                     'average_confidence': round(sum(p['confidence_score'] for p in identified_pillars) / len(identified_pillars), 3) if identified_pillars else 0,
+                    'analysis_type': analysis_type,
+                    'industry_context': industry_context,
+                    'company_size': company_size,
                     'focus_areas_applied': focus_areas,
-                    'minimum_confidence_threshold': minimum_confidence
+                    'minimum_confidence_threshold': minimum_confidence,
+                    'query_complexity': len(user_query.split()),
+                    'analysis_timestamp': datetime.now().isoformat()
+                },
+                'business_intelligence': {
+                    'quantified_impact': quantified_impact,
+                    'recommendations': business_recommendations,
+                    'implementation_priority': self._determine_implementation_priority(identified_pillars, quantified_impact),
+                    'risk_assessment': self._assess_implementation_risk(identified_pillars, quantified_impact)
                 }
             }
-
-            logger.info(f"Identified {len(identified_pillars)} value driver pillars: {[p['pillar'] for p in identified_pillars]}")
+            
+            # Store comprehensive results in MCP episodic memory
+            await self._store_value_driver_analysis(response_data, user_query)
             
             execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            logger.info(f"Value driver analysis completed in {execution_time_ms}ms. Identified {len(identified_pillars)} pillars")
+            
             return AgentResult(
-                status=AgentStatus.COMPLETED,
-                data=result_data,
+                status=AgentStatus.SUCCESS,
+                data=response_data,
                 execution_time_ms=execution_time_ms
             )
             
         except Exception as e:
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
             logger.error(f"Value driver analysis failed: {str(e)}")
             return AgentResult(
                 status=AgentStatus.FAILED,
                 data={"error": f"Value driver analysis failed: {str(e)}"},
-                execution_time_ms=int((time.monotonic() - start_time) * 1000)
+                execution_time_ms=execution_time_ms
             )
+
+    def _determine_implementation_priority(self, identified_pillars: List[Dict[str, Any]], 
+                                         quantified_impact: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Determine implementation priority based on confidence, impact, and complexity."""
+        if not identified_pillars:
+            return []
+        
+        priority_list = []
+        
+        for pillar in identified_pillars:
+            confidence = pillar['confidence_score']
+            
+            # Calculate potential impact score
+            pillar_impact = 0
+            if quantified_impact and 'pillar_breakdown' in quantified_impact:
+                pillar_breakdown = quantified_impact['pillar_breakdown']
+                matching_pillar = next((p for p in pillar_breakdown if p['pillar'] == pillar['pillar']), None)
+                if matching_pillar:
+                    pillar_impact = (matching_pillar['cost_savings'] + 
+                                   matching_pillar['productivity_value'] + 
+                                   matching_pillar['revenue_impact'])
+            
+            # Calculate priority score (confidence * impact / complexity)
+            complexity = len(pillar['tier_2_drivers'])  # Simple complexity measure
+            priority_score = (confidence * (pillar_impact / 100000)) / max(complexity, 1)
+            
+            priority_list.append({
+                'pillar': pillar['pillar'],
+                'priority_score': round(priority_score, 3),
+                'confidence': confidence,
+                'estimated_impact': pillar_impact,
+                'complexity': complexity,
+                'recommendation': self._get_priority_recommendation(priority_score)
+            })
+        
+        # Sort by priority score
+        priority_list.sort(key=lambda x: x['priority_score'], reverse=True)
+        
+        return priority_list
+
+    def _get_priority_recommendation(self, priority_score: float) -> str:
+        """Get implementation recommendation based on priority score."""
+        if priority_score > 5.0:
+            return "High Priority - Immediate implementation recommended"
+        elif priority_score > 2.0:
+            return "Medium Priority - Plan for next quarter"
+        elif priority_score > 0.5:
+            return "Low Priority - Consider for future phases"
+        else:
+            return "Monitor - Requires further analysis"
+
+    def _assess_implementation_risk(self, identified_pillars: List[Dict[str, Any]], 
+                                  quantified_impact: Dict[str, Any]) -> Dict[str, Any]:
+        """Assess implementation risk based on confidence levels and complexity."""
+        if not identified_pillars:
+            return {}
+        
+        # Calculate risk factors
+        confidence_levels = [p['confidence_score'] for p in identified_pillars]
+        avg_confidence = statistics.mean(confidence_levels)
+        confidence_variance = statistics.variance(confidence_levels) if len(confidence_levels) > 1 else 0
+        
+        # Complexity assessment
+        total_drivers = sum(len(p['tier_2_drivers']) for p in identified_pillars)
+        complexity_score = min(10, total_drivers)  # Cap at 10
+        
+        # ROI risk assessment
+        roi_risk = "Low"
+        if quantified_impact and 'roi_projection' in quantified_impact:
+            roi_percentage = quantified_impact['roi_projection'].get('roi_percentage', 0)
+            if roi_percentage < 10:
+                roi_risk = "High"
+            elif roi_percentage < 25:
+                roi_risk = "Medium"
+        
+        # Overall risk calculation
+        risk_score = (1 - avg_confidence) * 0.4 + (confidence_variance * 0.3) + (complexity_score / 20 * 0.3)
+        
+        if risk_score < 0.3:
+            overall_risk = "Low"
+        elif risk_score < 0.6:
+            overall_risk = "Medium"
+        else:
+            overall_risk = "High"
+        
+        return {
+            'overall_risk': overall_risk,
+            'risk_score': round(risk_score, 3),
+            'confidence_risk': "High" if avg_confidence < 0.6 else "Low",
+            'complexity_risk': "High" if complexity_score > 7 else "Low",
+            'roi_risk': roi_risk,
+            'risk_factors': [
+                f"Average confidence: {avg_confidence:.2f}",
+                f"Complexity score: {complexity_score}/10",
+                f"Confidence variance: {confidence_variance:.3f}"
+            ]
+        }
+
+    async def _store_value_driver_analysis(self, analysis_data: Dict[str, Any], original_query: str) -> None:
+        """Store comprehensive value driver analysis in MCP episodic memory."""
+        try:
+            # Create primary analysis entity
+            analysis_entity = KnowledgeEntity(
+                entity_id=f"value_driver_analysis_{int(time.time())}",
+                entity_type="value_driver_analysis",
+                attributes={
+                    "agent_id": self.agent_id,
+                    "analysis_type": analysis_data['analysis_summary']['analysis_type'],
+                    "pillars_identified": analysis_data['analysis_summary']['total_pillars_identified'],
+                    "average_confidence": analysis_data['analysis_summary']['average_confidence'],
+                    "industry_context": analysis_data['analysis_summary']['industry_context'],
+                    "company_size": analysis_data['analysis_summary']['company_size'],
+                    "timestamp": time.time()
+                },
+                content=f"Value driver analysis of '{original_query[:200]}...' identified "
+                       f"{analysis_data['analysis_summary']['total_pillars_identified']} value pillars "
+                       f"with {analysis_data['analysis_summary']['average_confidence']:.2f} average confidence"
+            )
+            
+            await self.mcp_client.store_memory(analysis_entity)
+            
+            # Store quantified impact if available
+            if analysis_data['business_intelligence']['quantified_impact']:
+                impact_data = analysis_data['business_intelligence']['quantified_impact']
+                impact_entity = KnowledgeEntity(
+                    entity_id=f"value_quantification_{int(time.time())}",
+                    entity_type="value_quantification",
+                    attributes={
+                        "agent_id": self.agent_id,
+                        "annual_cost_savings": impact_data.get('annual_cost_savings', 0),
+                        "annual_productivity_gains": impact_data.get('annual_productivity_gains', 0),
+                        "annual_revenue_impact": impact_data.get('annual_revenue_impact', 0),
+                        "roi_percentage": impact_data.get('roi_projection', {}).get('roi_percentage', 0),
+                        "payback_months": impact_data.get('roi_projection', {}).get('payback_months', 0),
+                        "timestamp": time.time()
+                    },
+                    content=f"Value quantification: ${impact_data.get('annual_cost_savings', 0):,.0f} cost savings, "
+                           f"${impact_data.get('annual_productivity_gains', 0):,.0f} productivity gains, "
+                           f"{impact_data.get('roi_projection', {}).get('roi_percentage', 0):.1f}% ROI"
+                )
+                
+                await self.mcp_client.store_memory(impact_entity)
+            
+            logger.info("Value driver analysis results stored in MCP episodic memory")
+            
+        except Exception as e:
+            logger.error(f"Failed to store value driver analysis in MCP memory: {e}")
