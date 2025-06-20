@@ -7,6 +7,7 @@ PostgreSQL backend.
 """
 
 import logging
+import os
 from typing import Dict, Any, List, Optional
 
 from memory.types import WorkflowMemoryEntity
@@ -22,13 +23,18 @@ class EpisodicMemory:
     This implementation uses a dedicated PostgreSQL backend via the EpisodicStorageBackend.
     """
     
-    def __init__(self, dsn: str):
+    def __init__(self, dsn: Optional[str] = None):
         """
         Initialize episodic memory store.
 
         Args:
             dsn: The Data Source Name for connecting to the PostgreSQL database.
         """
+        if dsn is None:
+            dsn = os.getenv("DATABASE_URL")
+            if dsn is None:
+                logger.error("DATABASE_URL environment variable not set and no DSN provided to EpisodicMemory.")
+                raise ValueError("DATABASE_URL environment variable not set and no DSN provided.")
         self._backend = EpisodicStorageBackend(dsn)
         self._initialized = False
         logger.info("EpisodicMemory instance created. Call initialize() to connect to the database.")

@@ -1,8 +1,8 @@
 import unittest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock
-from src.agents.intake_assistant.main import IntakeAssistantAgent
-from src.agents.core.agent_base import AgentStatus
+from agents.intake_assistant.main import IntakeAssistantAgent
+from agents.core.agent_base import AgentStatus
 
 class TestIntakeAssistantAgent(unittest.TestCase):
 
