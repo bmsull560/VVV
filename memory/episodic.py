@@ -35,7 +35,6 @@ class EpisodicMemory:
             if dsn is None:
                 logger.error("DATABASE_URL environment variable not set and no DSN provided to EpisodicMemory.")
                 raise ValueError("DATABASE_URL environment variable not set and no DSN provided.")
-        print(f"EpisodicMemory: Using DSN: {dsn}") # Added for debugging
         self._backend = EpisodicStorageBackend(dsn)
         self._initialized = False
         logger.info("EpisodicMemory instance created. Call initialize() to connect to the database.")

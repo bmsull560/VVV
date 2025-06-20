@@ -36,7 +36,7 @@ class EpisodicStorageBackend(StorageBackend):
         if dsn.startswith("postgresql"):
             connect_args["ssl"] = True
 
-        print(f"EpisodicStorageBackend: Using DSN: {dsn}") # Added for debugging
+
         self._engine = create_async_engine(
             dsn,
             connect_args=connect_args
