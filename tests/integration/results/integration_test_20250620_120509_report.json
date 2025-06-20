@@ -1,0 +1,728 @@
+{
+  "execution_id": "integration_test_20250620_120509",
+  "start_time": "2025-06-20 16:05:09.709087+00:00",
+  "end_time": "2025-06-20 16:05:14.971149+00:00",
+  "total_duration_ms": 5262.062,
+  "environment": "integration",
+  "configuration": {
+    "test_environment": "integration",
+    "database_url": "postgresql://test:test@localhost:5432/b2bvalue_test",
+    "mcp_server_url": "http://localhost:8080",
+    "enable_real_mcp": false,
+    "enable_real_database": false,
+    "agents": {
+      "analytics_aggregator": {
+        "agent_id": "test_analytics_aggregator",
+        "timeout_seconds": 30,
+        "retry_attempts": 3,
+        "max_concurrent_executions": 10,
+        "performance_threshold_ms": 10000,
+        "memory_limit_mb": 256,
+        "enable_logging": true,
+        "log_level": "INFO"
+      },
+      "data_correlator": {
+        "agent_id": "test_data_correlator",
+        "timeout_seconds": 30,
+        "retry_attempts": 3,
+        "max_concurrent_executions": 10,
+        "performance_threshold_ms": 5000,
+        "memory_limit_mb": 256,
+        "enable_logging": true,
+        "log_level": "INFO"
+      },
+      "database_connector": {
+        "agent_id": "test_database_connector",
+        "timeout_seconds": 30,
+        "retry_attempts": 3,
+        "max_concurrent_executions": 10,
+        "performance_threshold_ms": 5000,
+        "memory_limit_mb": 256,
+        "enable_logging": true,
+        "log_level": "INFO"
+      },
+      "intake_assistant": {
+        "agent_id": "test_intake_assistant",
+        "timeout_seconds": 30,
+        "retry_attempts": 3,
+        "max_concurrent_executions": 10,
+        "performance_threshold_ms": 5000,
+        "memory_limit_mb": 256,
+        "enable_logging": true,
+        "log_level": "INFO"
+      },
+      "risk_mitigation": {
+        "agent_id": "test_risk_mitigation",
+        "timeout_seconds": 30,
+        "retry_attempts": 3,
+        "max_concurrent_executions": 10,
+        "performance_threshold_ms": 5000,
+        "memory_limit_mb": 256,
+        "enable_logging": true,
+        "log_level": "INFO"
+      },
+      "roi_calculator": {
+        "agent_id": "test_roi_calculator",
+        "timeout_seconds": 30,
+        "retry_attempts": 3,
+        "max_concurrent_executions": 10,
+        "performance_threshold_ms": 5000,
+        "memory_limit_mb": 256,
+        "enable_logging": true,
+        "log_level": "INFO"
+      },
+      "sensitivity_analysis": {
+        "agent_id": "test_sensitivity_analysis",
+        "timeout_seconds": 30,
+        "retry_attempts": 3,
+        "max_concurrent_executions": 10,
+        "performance_threshold_ms": 5000,
+        "memory_limit_mb": 256,
+        "enable_logging": true,
+        "log_level": "INFO"
+      },
+      "value_driver": {
+        "agent_id": "test_value_driver",
+        "timeout_seconds": 30,
+        "retry_attempts": 3,
+        "max_concurrent_executions": 10,
+        "performance_threshold_ms": 5000,
+        "memory_limit_mb": 256,
+        "enable_logging": true,
+        "log_level": "INFO"
+      }
+    },
+    "workflows": {
+      "business_case_creation": {
+        "workflow_name": "business_case_creation",
+        "agents": [
+          "intake_assistant",
+          "value_driver",
+          "roi_calculator",
+          "risk_mitigation"
+        ],
+        "max_execution_time_ms": 30000,
+        "success_rate_threshold": 0.95,
+        "enable_performance_monitoring": true
+      },
+      "data_analysis": {
+        "workflow_name": "data_analysis",
+        "agents": [
+          "database_connector",
+          "data_correlator",
+          "analytics_aggregator"
+        ],
+        "max_execution_time_ms": 35000,
+        "success_rate_threshold": 0.85,
+        "enable_performance_monitoring": true
+      },
+      "financial_analysis": {
+        "workflow_name": "financial_analysis",
+        "agents": [
+          "roi_calculator",
+          "sensitivity_analysis",
+          "analytics_aggregator"
+        ],
+        "max_execution_time_ms": 25000,
+        "success_rate_threshold": 0.9,
+        "enable_performance_monitoring": true
+      },
+      "risk_assessment": {
+        "workflow_name": "risk_assessment",
+        "agents": [
+          "risk_mitigation",
+          "sensitivity_analysis",
+          "data_correlator"
+        ],
+        "max_execution_time_ms": 20000,
+        "success_rate_threshold": 0.9,
+        "enable_performance_monitoring": true
+      }
+    },
+    "load_test": {
+      "concurrent_users": [
+        5,
+        10,
+        20,
+        50
+      ],
+      "test_duration_seconds": 60,
+      "ramp_up_seconds": 10,
+      "success_rate_threshold": 0.9,
+      "response_time_p95_ms": 10000,
+      "memory_usage_limit_mb": 1024
+    },
+    "test_data_sets": {
+      "complex_project": "test_data/complex_project.json",
+      "financial_data": "test_data/financial_data.json",
+      "large_project": "test_data/large_project.json",
+      "medium_project": "test_data/medium_project.json",
+      "performance_dataset": "test_data/performance_dataset.json",
+      "risk_scenarios": "test_data/risk_scenarios.json",
+      "small_project": "test_data/small_project.json"
+    }
+  },
+  "suite_results": [
+    {
+      "suite_name": "business_case_workflow",
+      "start_time": "2025-06-20 16:05:09.709348+00:00",
+      "end_time": "2025-06-20 16:05:12.320761+00:00",
+      "duration_ms": 2611.413,
+      "total_tests": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "success_rate": 0.0,
+      "test_results": [],
+      "system_metrics": {},
+      "configuration": {
+        "test_environment": "integration",
+        "database_url": "postgresql://test:test@localhost:5432/b2bvalue_test",
+        "mcp_server_url": "http://localhost:8080",
+        "enable_real_mcp": false,
+        "enable_real_database": false,
+        "agents": {
+          "analytics_aggregator": {
+            "agent_id": "test_analytics_aggregator",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 10000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "data_correlator": {
+            "agent_id": "test_data_correlator",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "database_connector": {
+            "agent_id": "test_database_connector",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "intake_assistant": {
+            "agent_id": "test_intake_assistant",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "risk_mitigation": {
+            "agent_id": "test_risk_mitigation",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "roi_calculator": {
+            "agent_id": "test_roi_calculator",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "sensitivity_analysis": {
+            "agent_id": "test_sensitivity_analysis",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "value_driver": {
+            "agent_id": "test_value_driver",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          }
+        },
+        "workflows": {
+          "business_case_creation": {
+            "workflow_name": "business_case_creation",
+            "agents": [
+              "intake_assistant",
+              "value_driver",
+              "roi_calculator",
+              "risk_mitigation"
+            ],
+            "max_execution_time_ms": 30000,
+            "success_rate_threshold": 0.95,
+            "enable_performance_monitoring": true
+          },
+          "data_analysis": {
+            "workflow_name": "data_analysis",
+            "agents": [
+              "database_connector",
+              "data_correlator",
+              "analytics_aggregator"
+            ],
+            "max_execution_time_ms": 35000,
+            "success_rate_threshold": 0.85,
+            "enable_performance_monitoring": true
+          },
+          "financial_analysis": {
+            "workflow_name": "financial_analysis",
+            "agents": [
+              "roi_calculator",
+              "sensitivity_analysis",
+              "analytics_aggregator"
+            ],
+            "max_execution_time_ms": 25000,
+            "success_rate_threshold": 0.9,
+            "enable_performance_monitoring": true
+          },
+          "risk_assessment": {
+            "workflow_name": "risk_assessment",
+            "agents": [
+              "risk_mitigation",
+              "sensitivity_analysis",
+              "data_correlator"
+            ],
+            "max_execution_time_ms": 20000,
+            "success_rate_threshold": 0.9,
+            "enable_performance_monitoring": true
+          }
+        },
+        "load_test": {
+          "concurrent_users": [
+            5,
+            10,
+            20,
+            50
+          ],
+          "test_duration_seconds": 60,
+          "ramp_up_seconds": 10,
+          "success_rate_threshold": 0.9,
+          "response_time_p95_ms": 10000,
+          "memory_usage_limit_mb": 1024
+        },
+        "test_data_sets": {
+          "complex_project": "test_data/complex_project.json",
+          "financial_data": "test_data/financial_data.json",
+          "large_project": "test_data/large_project.json",
+          "medium_project": "test_data/medium_project.json",
+          "performance_dataset": "test_data/performance_dataset.json",
+          "risk_scenarios": "test_data/risk_scenarios.json",
+          "small_project": "test_data/small_project.json"
+        }
+      }
+    },
+    {
+      "suite_name": "mcp_compliance",
+      "start_time": "2025-06-20 16:05:12.321261+00:00",
+      "end_time": "2025-06-20 16:05:13.647007+00:00",
+      "duration_ms": 1325.746,
+      "total_tests": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "success_rate": 0.0,
+      "test_results": [],
+      "system_metrics": {},
+      "configuration": {
+        "test_environment": "integration",
+        "database_url": "postgresql://test:test@localhost:5432/b2bvalue_test",
+        "mcp_server_url": "http://localhost:8080",
+        "enable_real_mcp": false,
+        "enable_real_database": false,
+        "agents": {
+          "analytics_aggregator": {
+            "agent_id": "test_analytics_aggregator",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 10000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "data_correlator": {
+            "agent_id": "test_data_correlator",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "database_connector": {
+            "agent_id": "test_database_connector",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "intake_assistant": {
+            "agent_id": "test_intake_assistant",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "risk_mitigation": {
+            "agent_id": "test_risk_mitigation",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "roi_calculator": {
+            "agent_id": "test_roi_calculator",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "sensitivity_analysis": {
+            "agent_id": "test_sensitivity_analysis",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "value_driver": {
+            "agent_id": "test_value_driver",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          }
+        },
+        "workflows": {
+          "business_case_creation": {
+            "workflow_name": "business_case_creation",
+            "agents": [
+              "intake_assistant",
+              "value_driver",
+              "roi_calculator",
+              "risk_mitigation"
+            ],
+            "max_execution_time_ms": 30000,
+            "success_rate_threshold": 0.95,
+            "enable_performance_monitoring": true
+          },
+          "data_analysis": {
+            "workflow_name": "data_analysis",
+            "agents": [
+              "database_connector",
+              "data_correlator",
+              "analytics_aggregator"
+            ],
+            "max_execution_time_ms": 35000,
+            "success_rate_threshold": 0.85,
+            "enable_performance_monitoring": true
+          },
+          "financial_analysis": {
+            "workflow_name": "financial_analysis",
+            "agents": [
+              "roi_calculator",
+              "sensitivity_analysis",
+              "analytics_aggregator"
+            ],
+            "max_execution_time_ms": 25000,
+            "success_rate_threshold": 0.9,
+            "enable_performance_monitoring": true
+          },
+          "risk_assessment": {
+            "workflow_name": "risk_assessment",
+            "agents": [
+              "risk_mitigation",
+              "sensitivity_analysis",
+              "data_correlator"
+            ],
+            "max_execution_time_ms": 20000,
+            "success_rate_threshold": 0.9,
+            "enable_performance_monitoring": true
+          }
+        },
+        "load_test": {
+          "concurrent_users": [
+            5,
+            10,
+            20,
+            50
+          ],
+          "test_duration_seconds": 60,
+          "ramp_up_seconds": 10,
+          "success_rate_threshold": 0.9,
+          "response_time_p95_ms": 10000,
+          "memory_usage_limit_mb": 1024
+        },
+        "test_data_sets": {
+          "complex_project": "test_data/complex_project.json",
+          "financial_data": "test_data/financial_data.json",
+          "large_project": "test_data/large_project.json",
+          "medium_project": "test_data/medium_project.json",
+          "performance_dataset": "test_data/performance_dataset.json",
+          "risk_scenarios": "test_data/risk_scenarios.json",
+          "small_project": "test_data/small_project.json"
+        }
+      }
+    },
+    {
+      "suite_name": "load_performance",
+      "start_time": "2025-06-20 16:05:13.647726+00:00",
+      "end_time": "2025-06-20 16:05:14.970812+00:00",
+      "duration_ms": 1323.086,
+      "total_tests": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "success_rate": 0.0,
+      "test_results": [],
+      "system_metrics": {},
+      "configuration": {
+        "test_environment": "integration",
+        "database_url": "postgresql://test:test@localhost:5432/b2bvalue_test",
+        "mcp_server_url": "http://localhost:8080",
+        "enable_real_mcp": false,
+        "enable_real_database": false,
+        "agents": {
+          "analytics_aggregator": {
+            "agent_id": "test_analytics_aggregator",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 10000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "data_correlator": {
+            "agent_id": "test_data_correlator",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "database_connector": {
+            "agent_id": "test_database_connector",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "intake_assistant": {
+            "agent_id": "test_intake_assistant",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "risk_mitigation": {
+            "agent_id": "test_risk_mitigation",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "roi_calculator": {
+            "agent_id": "test_roi_calculator",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "sensitivity_analysis": {
+            "agent_id": "test_sensitivity_analysis",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          },
+          "value_driver": {
+            "agent_id": "test_value_driver",
+            "timeout_seconds": 30,
+            "retry_attempts": 3,
+            "max_concurrent_executions": 10,
+            "performance_threshold_ms": 5000,
+            "memory_limit_mb": 256,
+            "enable_logging": true,
+            "log_level": "INFO"
+          }
+        },
+        "workflows": {
+          "business_case_creation": {
+            "workflow_name": "business_case_creation",
+            "agents": [
+              "intake_assistant",
+              "value_driver",
+              "roi_calculator",
+              "risk_mitigation"
+            ],
+            "max_execution_time_ms": 30000,
+            "success_rate_threshold": 0.95,
+            "enable_performance_monitoring": true
+          },
+          "data_analysis": {
+            "workflow_name": "data_analysis",
+            "agents": [
+              "database_connector",
+              "data_correlator",
+              "analytics_aggregator"
+            ],
+            "max_execution_time_ms": 35000,
+            "success_rate_threshold": 0.85,
+            "enable_performance_monitoring": true
+          },
+          "financial_analysis": {
+            "workflow_name": "financial_analysis",
+            "agents": [
+              "roi_calculator",
+              "sensitivity_analysis",
+              "analytics_aggregator"
+            ],
+            "max_execution_time_ms": 25000,
+            "success_rate_threshold": 0.9,
+            "enable_performance_monitoring": true
+          },
+          "risk_assessment": {
+            "workflow_name": "risk_assessment",
+            "agents": [
+              "risk_mitigation",
+              "sensitivity_analysis",
+              "data_correlator"
+            ],
+            "max_execution_time_ms": 20000,
+            "success_rate_threshold": 0.9,
+            "enable_performance_monitoring": true
+          }
+        },
+        "load_test": {
+          "concurrent_users": [
+            5,
+            10,
+            20,
+            50
+          ],
+          "test_duration_seconds": 60,
+          "ramp_up_seconds": 10,
+          "success_rate_threshold": 0.9,
+          "response_time_p95_ms": 10000,
+          "memory_usage_limit_mb": 1024
+        },
+        "test_data_sets": {
+          "complex_project": "test_data/complex_project.json",
+          "financial_data": "test_data/financial_data.json",
+          "large_project": "test_data/large_project.json",
+          "medium_project": "test_data/medium_project.json",
+          "performance_dataset": "test_data/performance_dataset.json",
+          "risk_scenarios": "test_data/risk_scenarios.json",
+          "small_project": "test_data/small_project.json"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "execution_metrics": {
+      "total_duration_ms": 5260.245,
+      "average_suite_duration_ms": 1753.415,
+      "longest_suite_duration_ms": 2611.413,
+      "shortest_suite_duration_ms": 1323.086
+    },
+    "success_metrics": {
+      "suite_success_rates": {
+        "business_case_workflow": 0.0,
+        "mcp_compliance": 0.0,
+        "load_performance": 0.0
+      },
+      "average_success_rate": 0.0,
+      "lowest_success_rate": 0.0,
+      "highest_success_rate": 0.0
+    },
+    "system_metrics": {},
+    "test_distribution": {
+      "business_case_workflow": {
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "mcp_compliance": {
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "load_performance": {
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "recommendations": [
+    "Overall success rate is below 80%. Consider reviewing failed tests and addressing underlying issues before production deployment."
+  ]
+}
