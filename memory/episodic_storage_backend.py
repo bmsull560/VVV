@@ -12,7 +12,7 @@ from sqlalchemy.future import select
 from sqlalchemy import delete as sqlalchemy_delete
 
 from memory.storage_backend import StorageBackend
-from memory.types import WorkflowMemoryEntity, from_dict
+from memory.types import WorkflowMemoryEntity, from_dict, to_dict as global_to_dict
 from memory.database_models import EpisodicMemoryEntry as EpisodicMemoryModel, Base
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,7 @@ class EpisodicStorageBackend(StorageBackend):
     def _model_to_entity(self, model_instance: EpisodicMemoryModel) -> WorkflowMemoryEntity:
         """Converts a SQLAlchemy model instance to a WorkflowMemoryEntity dataclass."""
         entity_dict = {key: getattr(model_instance, key) for key in model_instance.__table__.columns.keys()}
+        entity_dict['entity_type'] = WorkflowMemoryEntity.__name__ # Add entity_type for from_dict
         # The from_dict function expects enums and datetimes in specific formats
         entity_dict['created_at'] = model_instance.created_at.isoformat()
         entity_dict['updated_at'] = model_instance.updated_at.isoformat()
@@ -51,7 +52,7 @@ class EpisodicStorageBackend(StorageBackend):
         if not isinstance(entity, WorkflowMemoryEntity):
             raise TypeError("EpisodicStorageBackend can only store WorkflowMemoryEntity objects")
 
-        entity_dict = entity.to_dict()
+        entity_dict = global_to_dict(entity) # Use global to_dict to include entity_type
         # SQLAlchemy model expects python objects, not serialized strings
         entity_dict['created_at'] = entity.created_at
         entity_dict['updated_at'] = entity.updated_at
