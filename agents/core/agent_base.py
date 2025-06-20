@@ -8,6 +8,7 @@ import logging
 
 # Import our real MCP client
 from agents.core.mcp_client import MCPClient
+from agents.core.llm_client import OpenAIClient # Import the new LLM client
 
 class CircuitBreakerOpen(Exception):
     pass
@@ -187,7 +188,7 @@ class LRUCache(dict):
 class LLMAgent(BaseAgent):
     def __init__(self, agent_id: str, mcp_client: MCPClient, config: Dict[str, Any]):
         super().__init__(agent_id, mcp_client, config)
-        self.llm_client = None  # Placeholder for actual LLM client
+        self.llm_client = OpenAIClient(model=config.get('llm_model', 'gpt-4o')) # Initialize LLM client
         self.prompt_cache = LRUCache(maxsize=config.get('prompt_cache_size', 100))
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
         start_time = time.time()
@@ -200,11 +201,13 @@ class LLMAgent(BaseAgent):
                     status=AgentStatus.COMPLETED,
                     data=cached_result,
                     execution_time_ms=int((time.time() - start_time) * 1000),
-                    tokens_used=0,
-                    cost_usd=0.0
+                    tokens_used=cached_result.get('tokens_used', 0),
+                    cost_usd=cached_result.get('cost_usd', 0.0)
                 )
-            # Placeholder LLM call
-            response = {"output": "LLM response", "confidence": 0.9}
+            llm_response = await self.llm_client.generate_text(prompt, temperature=self.config.get('temperature', 0.7))
+            response = {"output": llm_response["text"], "confidence": 0.9} # Placeholder confidence, can be improved
+            tokens_used = llm_response["tokens_used"]
+            cost_usd = llm_response["cost_usd"]
             parsed_output = await self._parse_and_validate_response(response)
             if parsed_output.get('confidence', 0.0) > 0.8:
                 self.prompt_cache[cache_key] = parsed_output
@@ -212,8 +215,8 @@ class LLMAgent(BaseAgent):
                 status=AgentStatus.COMPLETED,
                 data=parsed_output,
                 execution_time_ms=int((time.time() - start_time) * 1000),
-                tokens_used=100,
-                cost_usd=0.02,
+                tokens_used=tokens_used,
+                cost_usd=cost_usd,
                 confidence_score=parsed_output.get('confidence', 0.0)
             )
         except Exception as e:

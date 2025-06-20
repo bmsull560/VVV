@@ -4,6 +4,11 @@ from typing import Dict, Any, List
 import time
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
+from agents.utils.calculations import (
+    get_calculation_functions,
+    calculate_total_annual_gain,
+    calculate_roi_metrics
+)
 
 logger = logging.getLogger(__name__)
 
@@ -12,65 +17,24 @@ class SensitivityAnalysisAgent(BaseAgent):
 
     def __init__(self, agent_id, mcp_client, config):
         super().__init__(agent_id, mcp_client, config)
-        # This logic is duplicated from ROICalculatorAgent to keep the agent self-contained.
-        self.calculation_functions = {
-            "Reduce Manual Labor": self._calculate_manual_labor_savings,
-            "Lower Operational Overhead": self._calculate_overhead_reduction,
-            "Accelerate Task Completion": self._calculate_task_completion_gains,
-            "Improve Security Posture": self._calculate_security_improvement_value,
-            "Ensure Regulatory Compliance": self._calculate_compliance_value,
-            "Increase Lead Conversion": self._calculate_lead_conversion_gain,
-        }
+        # Use shared calculation functions from utils
+        self.calculation_functions = get_calculation_functions()
 
-    def _get_metric_value(self, metrics: List[Dict], name: str) -> float:
-        for metric in metrics:
-            if metric['name'] == name:
-                return float(metric.get('value', metric.get('default_value')))
-        return 0.0
-
-    def _calculate_manual_labor_savings(self, metrics: List[Dict]) -> float:
-        hours_saved = self._get_metric_value(metrics, 'Hours saved per week')
-        hourly_rate = self._get_metric_value(metrics, 'Average hourly rate')
-        return hours_saved * hourly_rate * 52
-
-    def _calculate_overhead_reduction(self, metrics: List[Dict]) -> float:
-        return self._get_metric_value(metrics, 'Monthly overhead reduction') * 12
-
-    def _calculate_task_completion_gains(self, metrics: List[Dict]) -> float:
-        time_saved = self._get_metric_value(metrics, 'Time saved per task (minutes)')
-        tasks = self._get_metric_value(metrics, 'Tasks per week')
-        return (time_saved / 60) * tasks * 50 * 52  # Placeholder rate
-
-    def _calculate_security_improvement_value(self, metrics: List[Dict]) -> float:
-        cost = self._get_metric_value(metrics, 'Estimated cost of a breach')
-        reduction = self._get_metric_value(metrics, 'Likelihood reduction (%)')
-        return cost * (reduction / 100)
-
-    def _calculate_compliance_value(self, metrics: List[Dict]) -> float:
-        return self._get_metric_value(metrics, 'Potential fine amount')
-
-    def _calculate_lead_conversion_gain(self, metrics: List[Dict]) -> float:
-        leads = self._get_metric_value(metrics, 'Additional leads per month')
-        increase = self._get_metric_value(metrics, 'Conversion rate increase (%)')
-        deal_size = self._get_metric_value(metrics, 'Average deal size')
-        return leads * (increase / 100) * deal_size * 12
+    # Calculation methods have been moved to agents.utils.calculations
 
     def _run_full_calculation(self, investment: float, drivers: List[Dict]) -> Dict[str, Any]:
         """Runs a full ROI calculation based on a given set of drivers."""
-        total_annual_gain = 0
-        for pillar in drivers:
-            for driver in pillar.get('tier_2_drivers', []):
-                if driver['name'] in self.calculation_functions:
-                    total_annual_gain += self.calculation_functions[driver['name']](driver['tier_3_metrics'])
+        # Calculate total annual gain using shared utility function
+        total_annual_gain = calculate_total_annual_gain(drivers, self.calculation_functions)
         
-        net_gain = total_annual_gain - investment
-        roi = (net_gain / investment) * 100 if investment > 0 else 0
-        payback = (investment / (total_annual_gain / 12)) if total_annual_gain > 0 else float('inf')
-
+        # Calculate ROI metrics using shared utility function
+        roi_metrics = calculate_roi_metrics(total_annual_gain, investment)
+        
+        # Return only the metrics needed for sensitivity analysis
         return {
-            'roi_percentage': round(roi, 2),
-            'net_gain': round(net_gain, 2),
-            'payback_period_months': round(payback, 1)
+            'roi_percentage': roi_metrics['roi_percentage'],
+            'net_gain': roi_metrics['net_gain'],
+            'payback_period_months': roi_metrics['payback_period_months']
         }
 
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
