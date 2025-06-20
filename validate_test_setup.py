@@ -62,11 +62,20 @@ def validate_test_data():
         from tests.integration.test_config import TestDataManager, TestConfigurationManager
         config = TestConfigurationManager.load_config()
         data_manager = TestDataManager(config)
-        datasets = data_manager.get_test_datasets()
-        print(f"✅ Test data loaded successfully")
-        print(f"   - Available datasets: {len(datasets)}")
-        for name in list(datasets.keys())[:3]:  # Show first 3
-            print(f"   - {name}")
+        
+        # Check if test data sets are configured
+        test_data_sets = config.test_data_sets if config.test_data_sets else {}
+        print(f"✅ Test data manager initialized successfully")
+        print(f"   - Available datasets: {len(test_data_sets)}")
+        
+        # Try to load a sample dataset
+        if test_data_sets:
+            sample_dataset = list(test_data_sets.keys())[0]
+            sample_data = data_manager.load_test_data(sample_dataset)
+            print(f"   - Sample dataset '{sample_dataset}' loaded successfully")
+        else:
+            print("   - No test datasets configured")
+        
         return True
         
     except Exception as e:

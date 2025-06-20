@@ -7,23 +7,30 @@ and reporting capabilities for the B2BValue agent system.
 
 import asyncio
 import json
-import time
 import logging
-import statistics
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
-from pathlib import Path
-from datetime import datetime, timezone
-import pytest
-import sys
-import subprocess
 import psutil
+import sys
+import time
 import traceback
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Any, Optional, Tuple, Union
 
-from test_config import (
+# Import pytest for test discovery and execution
+import pytest
+
+# Add parent directories to path for imports
+current_dir = Path(__file__).parent
+sys.path.insert(0, str(current_dir.parent.parent))  # Add project root
+sys.path.insert(0, str(current_dir.parent))  # Add tests directory
+
+from tests.integration.test_config import (
     IntegrationTestConfig, TestConfigurationManager, TestDataManager,
     TEST_RESULTS_DIR, cleanup_test_environment
 )
+
+from dataclasses import dataclass, asdict
+from statistics import mean
 
 
 @dataclass
@@ -178,12 +185,12 @@ class SystemMonitor:
         
         return {
             "memory_usage": {
-                "avg_mb": statistics.mean(memory_values),
+                "avg_mb": mean(memory_values),
                 "max_mb": max(memory_values),
                 "min_mb": min(memory_values)
             },
             "cpu_usage": {
-                "avg_percent": statistics.mean(cpu_values),
+                "avg_percent": mean(cpu_values),
                 "max_percent": max(cpu_values),
                 "min_percent": min(cpu_values)
             },
@@ -438,7 +445,7 @@ class TestRunner:
             },
             "success_metrics": {
                 "suite_success_rates": suite_success_rates,
-                "average_success_rate": statistics.mean(suite_success_rates.values()),
+                "average_success_rate": mean(suite_success_rates.values()),
                 "lowest_success_rate": min(suite_success_rates.values()),
                 "highest_success_rate": max(suite_success_rates.values())
             },

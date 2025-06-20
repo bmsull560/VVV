@@ -23,7 +23,7 @@ sys.path.insert(0, str(tests_dir))
 integration_dir = tests_dir / "integration"
 os.chdir(integration_dir)
 
-from test_runner import main as run_integration_tests
+from tests.integration.test_runner import main as run_integration_tests
 
 
 def main():
