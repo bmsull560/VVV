@@ -32,9 +32,14 @@ class EpisodicStorageBackend(StorageBackend):
         """
         # For Supabase and other PostgreSQL services, we need to ensure SSL is enabled
         # when using asyncpg. The ssl=True parameter is required for secure connections.
+        connect_args = {}
+        if dsn.startswith("postgresql"):
+            connect_args["ssl"] = True
+
+        print(f"EpisodicStorageBackend: Using DSN: {dsn}") # Added for debugging
         self._engine = create_async_engine(
             dsn,
-            connect_args={"ssl": True}
+            connect_args=connect_args
         )
         self._async_session = sessionmaker(
             self._engine, expire_on_commit=False, class_=AsyncSession
