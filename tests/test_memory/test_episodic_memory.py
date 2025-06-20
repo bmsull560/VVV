@@ -17,7 +17,7 @@ TEST_DSN = "sqlite+aiosqlite:///:memory:"
 @pytest_asyncio.fixture
 async def episodic_memory():
     """Provides an initialized EpisodicMemory instance with an in-memory DB."""
-    memory = EpisodicMemory(dsn=TEST_DSN)
+    memory = EpisodicMemory()  # Will use DATABASE_URL from environment
     # We need to initialize the schema for the in-memory database
     await memory._backend.initialize_schema()
     await memory.initialize()
