@@ -34,7 +34,7 @@ class EpisodicMemoryEntry(Base):
     sensitivity = Column(String(50), nullable=False)
     tier = Column(String(50), nullable=False)
     ttl = Column(Integer)
-    metadata = Column(JSON, nullable=False, default={})
+    entry_metadata = Column(JSON, nullable=False, default={})
     tags = Column(ARRAY(Text), nullable=False, default=[])
     version = Column(Integer, nullable=False)
     checksum = Column(String(64))

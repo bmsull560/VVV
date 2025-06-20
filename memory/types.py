@@ -43,7 +43,7 @@ class MemoryEntity:
     sensitivity: DataSensitivity = field(default=DataSensitivity.INTERNAL)
     tier: MemoryTier = field(default=MemoryTier.WORKING)
     ttl: Optional[int] = field(default=None)  # Time to live in seconds
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    entry_metadata: Dict[str, Any] = field(default_factory=dict)
     tags: List[str] = field(default_factory=list)
     version: int = field(default=1)
     checksum: Optional[str] = field(default=None)  # For integrity verification
@@ -59,7 +59,7 @@ class MemoryEntity:
             "sensitivity": self.sensitivity.name if isinstance(self.sensitivity, DataSensitivity) else self.sensitivity,
             "tier": self.tier.name if isinstance(self.tier, MemoryTier) else self.tier,
             "version": self.version,
-            "metadata": self.metadata,
+            "entry_metadata": self.entry_metadata,
             "tags": self.tags,
         }
         

@@ -3,6 +3,7 @@ Tests for the PostgreSQL-backed EpisodicMemory.
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 from datetime import datetime, timezone
 import uuid
@@ -13,7 +14,7 @@ from memory.types import WorkflowMemoryEntity, DataSensitivity, MemoryTier
 # Use an in-memory SQLite database for testing
 TEST_DSN = "sqlite+aiosqlite:///:memory:"
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def episodic_memory():
     """Provides an initialized EpisodicMemory instance with an in-memory DB."""
     memory = EpisodicMemory(dsn=TEST_DSN)

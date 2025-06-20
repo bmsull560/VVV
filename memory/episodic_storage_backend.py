@@ -3,6 +3,7 @@ Specialized PostgreSQL storage backend for Episodic Memory using SQLAlchemy.
 """
 
 import logging
+import orjson
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -23,7 +24,11 @@ class EpisodicStorageBackend(StorageBackend):
     """
 
     def __init__(self, dsn: str):
-        self._engine = create_async_engine(dsn)
+        self._engine = create_async_engine(
+            dsn,
+            json_serializer=orjson.dumps,
+            json_deserializer=orjson.loads,
+        )
         self._async_session = sessionmaker(
             self._engine, expire_on_commit=False, class_=AsyncSession
         )
