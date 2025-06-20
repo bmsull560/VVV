@@ -1,5 +1,7 @@
 # Entity Schemas for B2BValue Memory System
 
+**Note:** EpisodicMemory entities are now backed by PostgreSQL using SQLAlchemy ORM. See `memory/database_models.py` for the implementation and `migrations/` for database schema definitions.
+
 Below are the schemas for all major memory entities. All fields are required unless marked optional.
 
 ## ContextMemoryEntity
