@@ -3,12 +3,76 @@ SQLAlchemy ORM models for the B2BValue application.
 """
 
 import uuid
+import orjson
 from sqlalchemy import (
-    create_engine, Column, String, DateTime, ForeignKey, Integer, JSON, ARRAY, Text, CheckConstraint
+    create_engine, Column, String, DateTime, ForeignKey, Integer, JSON, ARRAY, Text, CheckConstraint, TypeDecorator
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
+
+# Custom TypeDecorator for JSON handling, especially for SQLite
+class ArrayAsJsonText(TypeDecorator):
+    """Represents a Python list as a JSON-encoded string in the DB.
+
+    Stores as TEXT, uses orjson for serialization/deserialization.
+    """
+    impl = Text
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            if not isinstance(value, list):
+                # Or raise a TypeError, depending on desired strictness
+                # For now, let's assume it should be a list or None
+                raise ValueError("ArrayAsJsonText expects a list or None")
+            return orjson.dumps(value).decode('utf-8')
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            loaded_value = orjson.loads(value)
+            if not isinstance(loaded_value, list):
+                # Handle cases where DB might store non-list JSON, though unlikely with our bind
+                raise ValueError("ArrayAsJsonText expected to deserialize a list")
+            return loaded_value
+        return value
+
+    def copy(self, **kw): # pragma: no cover
+        return ArrayAsJsonText()
+
+
+class JsonAsText(TypeDecorator):
+    """Represents an immutable structure as a json-encoded string in the DB.
+
+    Usage::
+
+        JsonAsText(255)
+
+    """
+
+    impl = Text
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            # Use orjson for efficient serialization
+            # Ensure bytes are decoded to string for TEXT column
+            return orjson.dumps(value).decode('utf-8')
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return orjson.loads(value)
+        return value
+
+    def copy(self, **kw): # pragma: no cover
+        # For TypeDecorator, copy() is used by SQLAlchemy internally.
+        # If the custom type had parameters (e.g., length for a VARCHAR-like type),
+        # they should be passed to the constructor here.
+        # Since our JsonAsText is based on TEXT and doesn't take parameters itself,
+        # we just return a new instance of JsonAsText.
+        return JsonAsText()
 
 Base = declarative_base()
 
@@ -34,11 +98,11 @@ class EpisodicMemoryEntry(Base):
     sensitivity = Column(String(50), nullable=False)
     tier = Column(String(50), nullable=False)
     ttl = Column(Integer)
-    entry_metadata = Column(JSON, nullable=False, default={})
-    tags = Column(ARRAY(Text), nullable=False, default=[])
+    entry_metadata = Column(JsonAsText, nullable=False, default={})
+    tags = Column(ArrayAsJsonText, nullable=False, default=[]) # Uses ArrayAsJsonText
     version = Column(Integer, nullable=False)
     checksum = Column(String(64))
-    access_policy = Column(JSON)
+    access_policy = Column(JsonAsText)
 
     # WorkflowMemoryEntity Fields
     workflow_id = Column(String(36), nullable=False)
@@ -48,9 +112,9 @@ class EpisodicMemoryEntry(Base):
     end_time = Column(DateTime(timezone=True))
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'))
     customer_id = Column(String(255))
-    context_versions = Column(ARRAY(Text), nullable=False, default=[])
-    stages = Column(JSON, nullable=False, default=[])
-    result = Column(JSON)
+    context_versions = Column(ArrayAsJsonText, nullable=False, default=[]) # Uses ArrayAsJsonText
+    stages = Column(JsonAsText, nullable=False, default=[])
+    result = Column(JsonAsText)
 
     user = relationship("User", back_populates="episodic_entries")
 
