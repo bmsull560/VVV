@@ -16,6 +16,20 @@ class SensitivityAnalysisAgent(BaseAgent):
     """Performs what-if analysis on financial models by varying driver metrics."""
 
     def __init__(self, agent_id, mcp_client, config):
+        # Set up validation rules in config
+        if 'input_validation' not in config:
+            config['input_validation'] = {
+                'required_fields': ['drivers', 'investment'],
+                'field_types': {
+                    'drivers': 'array',
+                    'investment': 'number',
+                    'variations': 'array'
+                },
+                'field_constraints': {
+                    'investment': {'min': 0.01}
+                }
+            }
+            
         super().__init__(agent_id, mcp_client, config)
         # Use shared calculation functions from utils
         self.calculation_functions = get_calculation_functions()
@@ -37,6 +51,64 @@ class SensitivityAnalysisAgent(BaseAgent):
             'payback_period_months': roi_metrics['payback_period_months']
         }
 
+    async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
+        """Perform sensitivity analysis-specific validations beyond the standard validations."""
+        errors = []
+        
+        # Check that drivers contain the expected structure
+        drivers_data = inputs.get('drivers')
+        if drivers_data:
+            for i, pillar in enumerate(drivers_data):
+                if not isinstance(pillar, dict):
+                    errors.append(f"Pillar {i} must be an object")
+                    continue
+                    
+                if 'tier_2_drivers' not in pillar or not isinstance(pillar.get('tier_2_drivers'), list):
+                    errors.append(f"Pillar {i} is missing required 'tier_2_drivers' array")
+                    continue
+                    
+                # Check tier 2 drivers
+                for j, driver in enumerate(pillar.get('tier_2_drivers', [])):
+                    if not isinstance(driver, dict):
+                        errors.append(f"Driver {j} in pillar {i} must be an object")
+                        continue
+                        
+                    if 'name' not in driver:
+                        errors.append(f"Driver {j} in pillar {i} is missing required 'name' field")
+                        
+                    if 'tier_3_metrics' not in driver or not isinstance(driver.get('tier_3_metrics'), dict):
+                        errors.append(f"Driver {j} in pillar {i} is missing required 'tier_3_metrics' object")
+        
+        # Convert investment to float if it's a string number
+        if 'investment' in inputs and isinstance(inputs['investment'], str):
+            try:
+                inputs['investment'] = float(inputs['investment'])
+            except (ValueError, TypeError):
+                errors.append(f"Invalid investment value: '{inputs['investment']}'. Must be a number.")
+        
+        # Validate variations structure if provided
+        variations = inputs.get('variations')
+        if variations is not None:
+            if not isinstance(variations, list):
+                errors.append(f"Input 'variations' must be a list, got {type(variations)}.")
+            else:
+                for i, variation in enumerate(variations):
+                    if not isinstance(variation, dict):
+                        errors.append(f"Variation {i} must be an object")
+                        continue
+                        
+                    # Check required fields in each variation
+                    required_fields = ['tier_3_metric_name', 'tier_2_driver_name', 'percentage_changes']
+                    for field in required_fields:
+                        if field not in variation:
+                            errors.append(f"Variation {i} is missing required field '{field}'")
+                    
+                    # Check that percentage_changes is a list
+                    if 'percentage_changes' in variation and not isinstance(variation['percentage_changes'], list):
+                        errors.append(f"Variation {i} field 'percentage_changes' must be a list")
+        
+        return errors
+        
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
         start_time = time.monotonic()
         """
@@ -48,41 +120,20 @@ class SensitivityAnalysisAgent(BaseAgent):
                 'investment': The base investment cost.
                 'variations': A list of variations to test.
         """
+        # Use centralized validation
+        validation_result = await self.validate_inputs(inputs)
+        if not validation_result.is_valid:
+            return AgentResult(
+                status=AgentStatus.FAILED, 
+                data={"error": validation_result.errors[0] if validation_result.errors else "Input validation failed"},
+                execution_time_ms=int((time.monotonic() - start_time) * 1000)
+            )
+            
         base_drivers = inputs.get('drivers')
-        investment_input = inputs.get('investment')
-        variations = inputs.get('variations') # This can be None if not provided
-
-        if base_drivers is None:
-            error_message = "Required input 'drivers' is missing or null."
-            execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
-
-        if investment_input is None:
-            error_message = "Required input 'investment' is missing or null."
-            execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
+        base_investment = inputs.get('investment')
         
-        try:
-            base_investment = float(investment_input)
-        except (ValueError, TypeError):
-            error_message = f"Invalid investment value: '{investment_input}'. Must be a number."
-            execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
-
-        if base_investment <= 0:
-            error_message = "Investment must be positive for sensitivity analysis."
-            execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
-
         # If variations is None (not provided), default to an empty list to run 0 scenarios.
-        if variations is None:
-            logger.info("Input 'variations' not provided or is null. Running 0 sensitivity scenarios.")
-            variations = []
-        
-        if not isinstance(variations, list):
-            error_message = f"Input 'variations' must be a list, got {type(variations)}."
-            execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            return AgentResult(status=AgentStatus.FAILED, data={"error": error_message}, execution_time_ms=execution_time_ms)
+        variations = inputs.get('variations', [])
         scenario_results = []
 
         for variation in variations:

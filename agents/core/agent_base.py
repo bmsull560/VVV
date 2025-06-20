@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
-from dataclasses import dataclass
+from typing import Dict, Any, Optional, List, Union, Type, Callable, TypeVar, cast
+from dataclasses import dataclass, field
 from enum import Enum
 import asyncio
 import time
 import logging
+import re
+from decimal import Decimal
 
 # Import our real MCP client
 from agents.core.mcp_client import MCPClient
@@ -49,8 +51,9 @@ class RetryPolicy:
 
 @dataclass
 class ValidationResult:
+    """Result of input validation with detailed error information."""
     is_valid: bool
-    errors: Optional[Any] = None
+    errors: List[str] = field(default_factory=list)
 
 class AgentStatus(Enum):
     IDLE = "idle"
@@ -158,7 +161,141 @@ class BaseAgent(ABC):
     async def update_context(self, data: Dict[str, Any]) -> None:
         await self.mcp_client.update_context(self.agent_id, data)
     async def validate_inputs(self, inputs: Dict[str, Any]) -> ValidationResult:
-        return ValidationResult(is_valid=True, errors=[])  # Placeholder
+        """Centralized input validation for all agents.
+        
+        This method provides a common validation framework that all agent subclasses
+        can use. It performs standard validations based on field requirements defined
+        in the agent's config and can be extended by subclasses for specific validations.
+        
+        Args:
+            inputs: Dictionary of input values to validate
+            
+        Returns:
+            ValidationResult: Object containing validation status and any error messages
+        """
+        errors = []
+        
+        # Get validation rules from config if available
+        validation_rules = self.config.get('input_validation', {})
+        required_fields = validation_rules.get('required_fields', [])
+        field_types = validation_rules.get('field_types', {})
+        field_constraints = validation_rules.get('field_constraints', {})
+        
+        # Check required fields
+        for field in required_fields:
+            if field not in inputs or inputs[field] is None:
+                errors.append(f"Required field '{field}' is missing or null")
+        
+        # Check field types
+        for field, expected_type in field_types.items():
+            if field in inputs and inputs[field] is not None:
+                if not self._validate_field_type(inputs[field], expected_type):
+                    errors.append(f"Field '{field}' must be of type {expected_type}")
+        
+        # Check field constraints
+        for field, constraints in field_constraints.items():
+            if field in inputs and inputs[field] is not None:
+                field_errors = self._validate_field_constraints(field, inputs[field], constraints)
+                errors.extend(field_errors)
+        
+        # Run agent-specific validations (to be implemented by subclasses)
+        custom_errors = await self._custom_validations(inputs)
+        errors.extend(custom_errors)
+        
+        return ValidationResult(is_valid=len(errors) == 0, errors=errors)
+        
+    def _validate_field_type(self, value: Any, expected_type: str) -> bool:
+        """Validate that a field value matches the expected type.
+        
+        Args:
+            value: The value to check
+            expected_type: String representation of expected type
+            
+        Returns:
+            bool: True if value matches expected type, False otherwise
+        """
+        if expected_type == 'string':
+            return isinstance(value, str)
+        elif expected_type == 'number':
+            return isinstance(value, (int, float, Decimal))
+        elif expected_type == 'integer':
+            return isinstance(value, int)
+        elif expected_type == 'boolean':
+            return isinstance(value, bool)
+        elif expected_type == 'array':
+            return isinstance(value, list)
+        elif expected_type == 'object':
+            return isinstance(value, dict)
+        elif expected_type == 'email':
+            if not isinstance(value, str):
+                return False
+            # Simple email validation regex
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            return bool(re.match(email_pattern, value))
+        return True  # Default to True for unknown types
+    
+    def _validate_field_constraints(self, field: str, value: Any, constraints: Dict[str, Any]) -> List[str]:
+        """Validate that a field value satisfies all constraints.
+        
+        Args:
+            field: Name of the field being validated
+            value: The value to check
+            constraints: Dictionary of constraints to check against
+            
+        Returns:
+            List[str]: List of error messages (empty if all constraints are satisfied)
+        """
+        errors = []
+        
+        # Numeric constraints
+        if isinstance(value, (int, float, Decimal)):
+            if 'min' in constraints and value < constraints['min']:
+                errors.append(f"Field '{field}' must be at least {constraints['min']}")
+            if 'max' in constraints and value > constraints['max']:
+                errors.append(f"Field '{field}' must be at most {constraints['max']}")
+        
+        # String constraints
+        if isinstance(value, str):
+            if 'min_length' in constraints and len(value) < constraints['min_length']:
+                errors.append(f"Field '{field}' must be at least {constraints['min_length']} characters long")
+            if 'max_length' in constraints and len(value) > constraints['max_length']:
+                errors.append(f"Field '{field}' must be at most {constraints['max_length']} characters long")
+            if 'pattern' in constraints and not re.match(constraints['pattern'], value):
+                errors.append(f"Field '{field}' does not match required pattern")
+        
+        # Array constraints
+        if isinstance(value, list):
+            if 'min_items' in constraints and len(value) < constraints['min_items']:
+                errors.append(f"Field '{field}' must contain at least {constraints['min_items']} items")
+            if 'max_items' in constraints and len(value) > constraints['max_items']:
+                errors.append(f"Field '{field}' must contain at most {constraints['max_items']} items")
+            
+            # Validate items in array if item_type is specified
+            if 'item_type' in constraints and value:
+                for i, item in enumerate(value):
+                    if not self._validate_field_type(item, constraints['item_type']):
+                        errors.append(f"Item {i} in field '{field}' must be of type {constraints['item_type']}")
+        
+        # Enum constraints
+        if 'enum' in constraints and value not in constraints['enum']:
+            enum_values = ', '.join(map(str, constraints['enum']))
+            errors.append(f"Field '{field}' must be one of: {enum_values}")
+        
+        return errors
+    
+    async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
+        """Perform agent-specific custom validations.
+        
+        This method should be overridden by subclasses to implement
+        validations specific to that agent type.
+        
+        Args:
+            inputs: Dictionary of input values to validate
+            
+        Returns:
+            List[str]: List of error messages (empty if all validations pass)
+        """
+        return []  # No custom validations in base class
 
 # Simple LRU cache for demonstration
 class LRUCache(dict):
