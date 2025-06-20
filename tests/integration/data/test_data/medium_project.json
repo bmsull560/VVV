@@ -1,0 +1,59 @@
+{
+  "intake": {
+    "project_name": "Customer Portal Modernization",
+    "description": "Modernize customer portal with new UI and features",
+    "industry": "financial_services",
+    "department": "customer_service",
+    "stakeholders": [
+      {
+        "name": "Carol Davis",
+        "role": "sponsor",
+        "influence_level": "high"
+      },
+      {
+        "name": "David Wilson",
+        "role": "owner",
+        "influence_level": "high"
+      },
+      {
+        "name": "Eve Brown",
+        "role": "user",
+        "influence_level": "medium"
+      }
+    ],
+    "goals": [
+      "Improve customer satisfaction scores by 25%",
+      "Reduce support ticket volume by 40%",
+      "Increase self-service adoption by 60%"
+    ],
+    "success_criteria": [
+      "Customer satisfaction survey improvement",
+      "Support ticket reduction measurable within 6 months",
+      "Self-service usage analytics show 60% increase"
+    ],
+    "budget": 150000,
+    "timeline": 6,
+    "urgency": "high",
+    "expected_participants": 12
+  },
+  "risks": [
+    {
+      "name": "User Adoption Challenges",
+      "category": "operational",
+      "probability": "medium",
+      "impact": "high"
+    },
+    {
+      "name": "Integration Complexity",
+      "category": "technical",
+      "probability": "medium",
+      "impact": "medium"
+    },
+    {
+      "name": "Budget Overrun",
+      "category": "financial",
+      "probability": "low",
+      "impact": "medium"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "intake": {
+    "project_name": "Enterprise Resource Planning Implementation",
+    "description": "Implement comprehensive ERP system across multiple departments",
+    "industry": "manufacturing",
+    "department": "operations",
+    "stakeholders": [
+      {
+        "name": "Frank Miller",
+        "role": "sponsor",
+        "influence_level": "high"
+      },
+      {
+        "name": "Grace Taylor",
+        "role": "owner",
+        "influence_level": "high"
+      },
+      {
+        "name": "Henry Anderson",
+        "role": "user",
+        "influence_level": "high"
+      },
+      {
+        "name": "Ivy Thompson",
+        "role": "user",
+        "influence_level": "medium"
+      },
+      {
+        "name": "Jack Wilson",
+        "role": "stakeholder",
+        "influence_level": "medium"
+      }
+    ],
+    "goals": [
+      "Streamline operations across all departments",
+      "Reduce operational costs by 20%",
+      "Improve reporting accuracy by 95%",
+      "Enhance inventory management efficiency by 40%"
+    ],
+    "success_criteria": [
+      "ERP system fully operational within 18 months",
+      "All departments migrated successfully",
+      "Cost reduction targets achieved within 2 years",
+      "User training completion rate > 90%"
+    ],
+    "budget": 500000,
+    "timeline": 18,
+    "urgency": "medium",
+    "expected_participants": 35
+  }
+}

@@ -1,0 +1,135 @@
+agents:
+  analytics_aggregator:
+    agent_id: test_analytics_aggregator
+    enable_logging: true
+    log_level: INFO
+    max_concurrent_executions: 10
+    memory_limit_mb: 256
+    performance_threshold_ms: 10000
+    retry_attempts: 3
+    timeout_seconds: 30
+  data_correlator:
+    agent_id: test_data_correlator
+    enable_logging: true
+    log_level: INFO
+    max_concurrent_executions: 10
+    memory_limit_mb: 256
+    performance_threshold_ms: 5000
+    retry_attempts: 3
+    timeout_seconds: 30
+  database_connector:
+    agent_id: test_database_connector
+    enable_logging: true
+    log_level: INFO
+    max_concurrent_executions: 10
+    memory_limit_mb: 256
+    performance_threshold_ms: 5000
+    retry_attempts: 3
+    timeout_seconds: 30
+  intake_assistant:
+    agent_id: test_intake_assistant
+    enable_logging: true
+    log_level: INFO
+    max_concurrent_executions: 10
+    memory_limit_mb: 256
+    performance_threshold_ms: 5000
+    retry_attempts: 3
+    timeout_seconds: 30
+  risk_mitigation:
+    agent_id: test_risk_mitigation
+    enable_logging: true
+    log_level: INFO
+    max_concurrent_executions: 10
+    memory_limit_mb: 256
+    performance_threshold_ms: 5000
+    retry_attempts: 3
+    timeout_seconds: 30
+  roi_calculator:
+    agent_id: test_roi_calculator
+    enable_logging: true
+    log_level: INFO
+    max_concurrent_executions: 10
+    memory_limit_mb: 256
+    performance_threshold_ms: 5000
+    retry_attempts: 3
+    timeout_seconds: 30
+  sensitivity_analysis:
+    agent_id: test_sensitivity_analysis
+    enable_logging: true
+    log_level: INFO
+    max_concurrent_executions: 10
+    memory_limit_mb: 256
+    performance_threshold_ms: 5000
+    retry_attempts: 3
+    timeout_seconds: 30
+  value_driver:
+    agent_id: test_value_driver
+    enable_logging: true
+    log_level: INFO
+    max_concurrent_executions: 10
+    memory_limit_mb: 256
+    performance_threshold_ms: 5000
+    retry_attempts: 3
+    timeout_seconds: 30
+database_url: postgresql://test:test@localhost:5432/b2bvalue_test
+enable_real_database: false
+enable_real_mcp: false
+load_test:
+  concurrent_users:
+  - 5
+  - 10
+  - 20
+  - 50
+  memory_usage_limit_mb: 1024
+  ramp_up_seconds: 10
+  response_time_p95_ms: 10000
+  success_rate_threshold: 0.9
+  test_duration_seconds: 60
+mcp_server_url: http://localhost:8080
+test_data_sets:
+  complex_project: test_data/complex_project.json
+  financial_data: test_data/financial_data.json
+  large_project: test_data/large_project.json
+  medium_project: test_data/medium_project.json
+  performance_dataset: test_data/performance_dataset.json
+  risk_scenarios: test_data/risk_scenarios.json
+  small_project: test_data/small_project.json
+test_environment: integration
+workflows:
+  business_case_creation:
+    agents:
+    - intake_assistant
+    - value_driver
+    - roi_calculator
+    - risk_mitigation
+    enable_performance_monitoring: true
+    max_execution_time_ms: 30000
+    success_rate_threshold: 0.95
+    workflow_name: business_case_creation
+  data_analysis:
+    agents:
+    - database_connector
+    - data_correlator
+    - analytics_aggregator
+    enable_performance_monitoring: true
+    max_execution_time_ms: 35000
+    success_rate_threshold: 0.85
+    workflow_name: data_analysis
+  financial_analysis:
+    agents:
+    - roi_calculator
+    - sensitivity_analysis
+    - analytics_aggregator
+    enable_performance_monitoring: true
+    max_execution_time_ms: 25000
+    success_rate_threshold: 0.9
+    workflow_name: financial_analysis
+  risk_assessment:
+    agents:
+    - risk_mitigation
+    - sensitivity_analysis
+    - data_correlator
+    enable_performance_monitoring: true
+    max_execution_time_ms: 20000
+    success_rate_threshold: 0.9
+    workflow_name: risk_assessment

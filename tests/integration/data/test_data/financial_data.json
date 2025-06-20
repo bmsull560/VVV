@@ -1,0 +1,45 @@
+{
+  "roi_scenarios": [
+    {
+      "name": "Conservative Scenario",
+      "investment": 100000,
+      "annual_benefits": 120000,
+      "time_horizon": 5,
+      "discount_rate": 0.08
+    },
+    {
+      "name": "Optimistic Scenario",
+      "investment": 100000,
+      "annual_benefits": 180000,
+      "time_horizon": 5,
+      "discount_rate": 0.08
+    },
+    {
+      "name": "Pessimistic Scenario",
+      "investment": 100000,
+      "annual_benefits": 80000,
+      "time_horizon": 5,
+      "discount_rate": 0.08
+    }
+  ],
+  "sensitivity_variables": [
+    {
+      "name": "annual_benefits",
+      "base_value": 150000,
+      "range_min": 100000,
+      "range_max": 200000
+    },
+    {
+      "name": "implementation_cost",
+      "base_value": 100000,
+      "range_min": 80000,
+      "range_max": 150000
+    },
+    {
+      "name": "time_to_value",
+      "base_value": 6,
+      "range_min": 3,
+      "range_max": 12
+    }
+  ]
+}

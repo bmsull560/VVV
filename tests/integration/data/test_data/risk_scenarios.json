@@ -1,0 +1,56 @@
+{
+  "common_risks": [
+    {
+      "name": "Technical Integration Complexity",
+      "category": "technical",
+      "probability": "medium",
+      "impact": "high",
+      "description": "Challenges integrating with existing systems"
+    },
+    {
+      "name": "User Resistance to Change",
+      "category": "operational",
+      "probability": "high",
+      "impact": "medium",
+      "description": "Users may resist adopting new processes"
+    },
+    {
+      "name": "Vendor Performance Issues",
+      "category": "vendor",
+      "probability": "low",
+      "impact": "high",
+      "description": "Third-party vendor may not deliver as expected"
+    },
+    {
+      "name": "Budget Constraints",
+      "category": "financial",
+      "probability": "medium",
+      "impact": "high",
+      "description": "Project may exceed allocated budget"
+    },
+    {
+      "name": "Timeline Delays",
+      "category": "timeline",
+      "probability": "medium",
+      "impact": "medium",
+      "description": "Project may take longer than planned"
+    }
+  ],
+  "risk_tolerance_profiles": [
+    {
+      "name": "Conservative",
+      "risk_tolerance": "low",
+      "description": "Prefer lower risk with guaranteed returns"
+    },
+    {
+      "name": "Moderate",
+      "risk_tolerance": "medium",
+      "description": "Balanced approach to risk and return"
+    },
+    {
+      "name": "Aggressive",
+      "risk_tolerance": "high",
+      "description": "Willing to accept higher risk for higher returns"
+    }
+  ]
+}

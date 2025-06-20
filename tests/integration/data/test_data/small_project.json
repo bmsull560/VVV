@@ -1,0 +1,67 @@
+{
+  "intake": {
+    "project_name": "Small CRM Integration",
+    "description": "Integrate new CRM system with existing tools",
+    "industry": "technology",
+    "department": "sales",
+    "stakeholders": [
+      {
+        "name": "Alice Smith",
+        "role": "sponsor",
+        "influence_level": "high"
+      },
+      {
+        "name": "Bob Johnson",
+        "role": "owner",
+        "influence_level": "high"
+      }
+    ],
+    "goals": [
+      "Improve sales team productivity",
+      "Reduce data entry time by 30%"
+    ],
+    "success_criteria": [
+      "CRM integration completed within 3 months",
+      "User adoption rate > 80%"
+    ],
+    "budget": 50000,
+    "timeline": 3,
+    "urgency": "medium",
+    "expected_participants": 5
+  },
+  "value_driver": {
+    "user_query": "Analyze productivity gains from CRM integration",
+    "analysis_type": "focused",
+    "focus_areas": [
+      "productivity_gains"
+    ],
+    "business_context": {
+      "industry": "technology",
+      "company_size": "small",
+      "project_type": "integration"
+    }
+  },
+  "roi": {
+    "drivers": [
+      {
+        "pillar": "Productivity Gains",
+        "tier_2_drivers": [
+          {
+            "name": "Accelerate Task Completion",
+            "tier_3_metrics": [
+              {
+                "name": "Time saved per task (minutes)",
+                "value": 10
+              },
+              {
+                "name": "Tasks per week",
+                "value": 50
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "investment": 50000
+  }
+}
