@@ -131,6 +131,11 @@ class B2BValueAPIClient {
 // ==========================================
 
 // Phase 1: Discovery Types
+export interface DiscoveryRequest {
+  user_query: string;
+  analysis_type: string;
+}
+
 export interface DiscoveryResponse {
   value_drivers: ValueDriverPillar[];
   personas: Persona[];
@@ -266,6 +271,7 @@ export const b2bValueAPI = new B2BValueAPIClient();
 
 // Export types for use in components
 export type {
+  DiscoveryRequest,
   DiscoveryResponse,
   QuantificationRequest,
   QuantificationResponse,
