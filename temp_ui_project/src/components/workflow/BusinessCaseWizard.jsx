@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Step1_BasicInfo from './Step1_BasicInfo';
+import Step1_BasicInfo from './Step1_BasicInfo.tsx';
 // Import other steps here as they are created
 import Step2_ValueDrivers from './Step2_ValueDrivers';
 import Step3_DataInput from './Step3_DataInput';
