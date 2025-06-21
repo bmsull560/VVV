@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import { useState, ElementType } from 'react';
 import { LayoutDashboard, FilePlus, BrainCircuit, Calculator, Briefcase, FileText, BarChart2, Settings } from 'lucide-react';
 import AnalysisForm from './components/AnalysisForm';
 import AnalysisResults from './components/AnalysisResults';
 import SensitivityAnalysis from './components/SensitivityAnalysis';
+import BusinessCaseWizard from './components/workflow/BusinessCaseWizard';
 
 // Placeholder components for views that are not yet fully implemented
 const PlaceholderView = ({ title }: { title: string }) => (
@@ -12,14 +13,19 @@ const PlaceholderView = ({ title }: { title: string }) => (
   </div>
 );
 
-const DashboardView = () => (
+const DashboardView = ({ setActiveView }: { setActiveView: (view: string) => void }) => (
     <div className="p-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Welcome back, John!</h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <h3 className="font-semibold text-lg mb-2">Create Business Case</h3>
                 <p className="text-sm text-gray-600 mb-4">Start a new value analysis.</p>
-                <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Create Case</button>
+                <button 
+                    onClick={() => setActiveView('create-case')}
+                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+                >
+                    Create Case
+                </button>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <h3 className="font-semibold text-lg mb-2">Use a Template</h3>
@@ -57,7 +63,7 @@ const AiAnalysisView = () => {
   );
 };
 
-const NavItem = ({ icon, label, active, onClick }: { icon: React.ElementType, label: string, active: boolean, onClick: () => void }) => (
+const NavItem = ({ icon, label, active, onClick }: { icon: ElementType, label: string, active: boolean, onClick: () => void }) => (
   <button
     onClick={onClick}
     className={`flex items-center w-full text-left px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
@@ -74,8 +80,9 @@ function App() {
 
   const renderView = () => {
     switch (activeView) {
-      case 'dashboard': return <DashboardView />;
+      case 'dashboard': return <DashboardView setActiveView={setActiveView} />;
       case 'analysis': return <AiAnalysisView />;
+      case 'create-case': return <BusinessCaseWizard />;
       // Using placeholders for other views
       case 'intake': return <PlaceholderView title="Project Intake" />;
       case 'roi': return <PlaceholderView title="ROI Calculator" />;
@@ -83,7 +90,7 @@ function App() {
       case 'templates': return <PlaceholderView title="Templates" />;
       case 'reports': return <PlaceholderView title="Reports" />;
       case 'settings': return <PlaceholderView title="Settings" />;
-      default: return <DashboardView />;
+      default: return <DashboardView setActiveView={setActiveView} />;
     }
   };
 

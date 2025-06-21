@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 
-import React from 'react';
 import { Users, DollarSign, Zap } from 'lucide-react';
 
 const ValueDriverCard = ({ driver }) => (
