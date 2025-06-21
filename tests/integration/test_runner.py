@@ -12,7 +12,7 @@ import psutil
 import sys
 import time
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Union
 
@@ -26,7 +26,7 @@ sys.path.insert(0, str(current_dir.parent))  # Add tests directory
 
 from tests.integration.test_config import (
     IntegrationTestConfig, TestConfigurationManager, TestDataManager,
-    TEST_RESULTS_DIR, cleanup_test_environment
+    TEST_RESULTS_DIR, cleanup_test_environment, create_test_directories
 )
 
 from dataclasses import dataclass, asdict
@@ -629,7 +629,6 @@ async def main():
     config = TestConfigurationManager.load_config()
     
     # Initialize test environment
-    from test_config import create_test_directories
     create_test_directories()
     
     # Create and run test runner
