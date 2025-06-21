@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Step1_BasicInfo from './Step1_BasicInfo.tsx';
+import Step2_Quantification from './Step2_Quantification.tsx';
 // Import other steps here as they are created
-import Step2_ValueDrivers from './Step2_ValueDrivers';
 import Step3_DataInput from './Step3_DataInput';
 import Step4_Review from './Step4_Review';
 // import AnalysisResults from '../AnalysisResults'; // Assuming this will be used for the final step
@@ -46,7 +46,7 @@ const BusinessCaseWizard = () => {
             case 1:
                 return <Step1_BasicInfo formData={formData} handleChange={handleChange} />;
             case 2:
-                return <Step2_ValueDrivers formData={formData} setFormData={setFormData} />;
+                return <Step2_Quantification formData={formData} setFormData={setFormData} />;
             case 3:
                 return <Step3_DataInput formData={formData} setFormData={setFormData} />;
             case 4:
