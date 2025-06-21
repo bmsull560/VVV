@@ -1,21 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import { useState, FC } from 'react';
 import { Search, Lightbulb, Users, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { b2bValueAPI, DiscoveryResponse, ValueDriverPillar, Persona } from '../../services/b2bValueApi';
 
 interface Step1Props {
-  formData: any;
-  setFormData: (data: any) => void;
-  handleNext: () => void;
-  handleBack: () => void;
+  onNext: (discoveryData: DiscoveryResponse) => void;
 }
 
-const Step1_BasicInfo: React.FC<Step1Props> = ({ formData, setFormData, handleNext, handleBack }) => {
-  const [userQuery, setUserQuery] = useState(formData.userQuery || '');
-  const [discoveryResults, setDiscoveryResults] = useState<DiscoveryResponse | null>(formData.discoveryResults || null);
+const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
+  const [userQuery, setUserQuery] = useState('');
+  const [discoveryResults, setDiscoveryResults] = useState<DiscoveryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDrivers, setSelectedDrivers] = useState<string[]>(formData.selectedDrivers || []);
-  const [selectedPersonas, setSelectedPersonas] = useState<string[]>(formData.selectedPersonas || []);
+  const [selectedDrivers, setSelectedDrivers] = useState<string[]>([]);
+  const [selectedPersonas, setSelectedPersonas] = useState<string[]>([]);
 
   // Example queries to guide users
   const exampleQueries = [
@@ -37,15 +34,6 @@ const Step1_BasicInfo: React.FC<Step1Props> = ({ formData, setFormData, handleNe
     try {
       const results = await b2bValueAPI.discoverValue(userQuery);
       setDiscoveryResults(results);
-      
-      // Update form data with discovery results
-      setFormData({
-        ...formData,
-        userQuery,
-        discoveryResults: results,
-        selectedDrivers: [],
-        selectedPersonas: []
-      });
     } catch (err) {
       setError('Failed to discover value drivers. Please try again.');
       console.error('Discovery error:', err);
@@ -60,10 +48,6 @@ const Step1_BasicInfo: React.FC<Step1Props> = ({ formData, setFormData, handleNe
       : [...selectedDrivers, pillar];
     
     setSelectedDrivers(updated);
-    setFormData({
-      ...formData,
-      selectedDrivers: updated
-    });
   };
 
   const togglePersonaSelection = (personaName: string) => {
@@ -72,17 +56,13 @@ const Step1_BasicInfo: React.FC<Step1Props> = ({ formData, setFormData, handleNe
       : [...selectedPersonas, personaName];
     
     setSelectedPersonas(updated);
-    setFormData({
-      ...formData,
-      selectedPersonas: updated
-    });
   };
 
   const canProceed = discoveryResults && selectedDrivers.length > 0 && selectedPersonas.length > 0;
 
   const handleNextStep = () => {
     if (canProceed) {
-      handleNext();
+      onNext(discoveryResults!);
     }
   };
 
@@ -275,7 +255,7 @@ const Step1_BasicInfo: React.FC<Step1Props> = ({ formData, setFormData, handleNe
       {/* Navigation */}
       <div className="flex justify-between mt-8">
         <button
-          onClick={handleBack}
+          onClick={() => {}}
           className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
           disabled
         >
