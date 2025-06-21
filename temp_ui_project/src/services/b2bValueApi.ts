@@ -6,7 +6,7 @@
 import axios, { AxiosInstance } from 'axios';
 
 // API Configuration
-const API_BASE_URL = process.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const API_TIMEOUT = 30000; // 30 seconds
 
 // API Client Setup
