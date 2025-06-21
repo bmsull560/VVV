@@ -1,4 +1,4 @@
-import { useState, ElementType } from 'react';
+import { useState, ElementType, createElement } from 'react';
 import { LayoutDashboard, FilePlus, BrainCircuit, Calculator, Briefcase, FileText, BarChart2, Settings } from 'lucide-react';
 import AnalysisForm from './components/AnalysisForm';
 import AnalysisResults from './components/AnalysisResults';
@@ -70,7 +70,7 @@ const NavItem = ({ icon, label, active, onClick }: { icon: ElementType, label: s
       active ? 'bg-green-200 text-green-800' : 'text-gray-600 hover:bg-gray-100'
     }`}
   >
-    {React.createElement(icon, { className: 'w-5 h-5 mr-3' })}
+    {createElement(icon, { className: 'w-5 h-5 mr-3' })}
     {label}
   </button>
 );
