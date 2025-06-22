@@ -17,11 +17,11 @@ interface Step2QuantificationData {
 
 interface Step2QuantificationProps {
   onNext: (data: Step2QuantificationData) => void;
-  onBack: () => void;
+  onNavigate: (step: number) => void;
   discoveryData: DiscoveryResponse | null;
 }
 
-const Step2_Quantification = ({ onNext, onBack, discoveryData }: Step2QuantificationProps) => {
+const Step2_Quantification = ({ onNext, onNavigate, discoveryData }: Step2QuantificationProps) => {
   const [investmentAmount, setInvestmentAmount] = useState<number>(0);
   const [metricInputs, setMetricInputs] = useState<MetricInput[]>([]);
   const [quantificationResults, setQuantificationResults] = useState<QuantificationResponse | null>(null);
@@ -135,6 +135,19 @@ const Step2_Quantification = ({ onNext, onBack, discoveryData }: Step2Quantifica
 
   return (
     <div className="max-w-6xl mx-auto p-6">
+      {/* Development Mode Indicator */}
+      {import.meta.env.DEV && (
+        <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+            <p className="text-yellow-800 text-sm">
+              <strong>Development Mode:</strong> Using mock data for demonstration. 
+              Real ROI calculations will use your backend API.
+            </p>
+          </div>
+        </div>
+      )}
+      
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-800 mb-2">Phase 2: ROI Quantification</h2>
         <p className="text-gray-600">Input your investment amount and refine metric values to calculate comprehensive ROI projections.</p>
@@ -182,12 +195,13 @@ const Step2_Quantification = ({ onNext, onBack, discoveryData }: Step2Quantifica
             <div className="space-y-4">
               {metricInputs.map((metric, index) => (
                 <div key={index} className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label htmlFor={`metric-${index}`} className="block text-sm font-medium text-gray-700">
                     {metric.name}
                     <span className="text-xs text-gray-500 ml-2">({metric.unit})</span>
                   </label>
                   <p className="text-xs text-gray-500 mb-2">{metric.description}</p>
                   <input
+                    id={`metric-${index}`}
                     type="number"
                     value={metric.value}
                     onChange={(e) => updateMetricValue(index, Number(e.target.value))}
@@ -356,7 +370,7 @@ const Step2_Quantification = ({ onNext, onBack, discoveryData }: Step2Quantifica
       {/* Navigation */}
       <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
         <button
-          onClick={onBack}
+          onClick={() => onNavigate(1)}
           className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
         >
           Back to Discovery

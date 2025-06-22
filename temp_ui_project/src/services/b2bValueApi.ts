@@ -8,6 +8,190 @@ import axios, { AxiosInstance } from 'axios';
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const API_TIMEOUT = 30000; // 30 seconds
+const DEVELOPMENT_MODE = import.meta.env.DEV || false;
+
+// Mock Data for Development (when backend is not available)
+const MOCK_DISCOVERY_RESPONSE: DiscoveryResponse = {
+  value_drivers: [
+    {
+      pillar: "Cost Reduction",
+      tier_2_drivers: ["Operational Efficiency", "Process Automation", "Resource Optimization"],
+      tier_3_metrics: [
+        {
+          name: "productivity_gain",
+          description: "Percentage increase in staff productivity",
+          unit: "percentage",
+          suggested_value: 25,
+          confidence_level: "high"
+        },
+        {
+          name: "cost_reduction",
+          description: "Annual cost savings from automation",
+          unit: "dollars",
+          suggested_value: 150000,
+          confidence_level: "medium"
+        }
+      ]
+    },
+    {
+      pillar: "Revenue Enhancement",
+      tier_2_drivers: ["Customer Experience", "Sales Acceleration", "Market Expansion"],
+      tier_3_metrics: [
+        {
+          name: "customer_satisfaction",
+          description: "Improvement in customer satisfaction scores",
+          unit: "percentage",
+          suggested_value: 20,
+          confidence_level: "medium"
+        }
+      ]
+    }
+  ],
+  personas: [
+    {
+      name: "CFO",
+      description: "Chief Financial Officer focused on ROI and cost management",
+      priorities: ["Cost reduction", "ROI optimization", "Budget efficiency"],
+      concerns: ["Implementation costs", "Payback period", "Financial risk"]
+    },
+    {
+      name: "CIO",
+      description: "Chief Information Officer focused on technology strategy",
+      priorities: ["Digital transformation", "System integration", "Technology modernization"],
+      concerns: ["Technical complexity", "Security", "System reliability"]
+    }
+  ],
+  suggested_metrics: [
+    {
+      name: "productivity_gain",
+      description: "Percentage increase in staff productivity",
+      unit: "percentage",
+      suggested_value: 25,
+      confidence_level: "high"
+    },
+    {
+      name: "cost_reduction",
+      description: "Annual cost savings from automation",
+      unit: "dollars",
+      suggested_value: 150000,
+      confidence_level: "medium"
+    }
+  ],
+  project_insights: {
+    industry_context: "Technology sector showing strong adoption of automation solutions",
+    complexity_assessment: "Medium complexity - requires careful change management",
+    recommended_approach: "Phased implementation with pilot program"
+  }
+};
+
+const MOCK_QUANTIFICATION_RESPONSE: QuantificationResponse = {
+  roi_summary: {
+    total_annual_value: 450000,
+    roi_percentage: 1.8,
+    payback_period_months: 14,
+    confidence_score: 0.85
+  },
+  sensitivity_analysis: [
+    {
+      scenario_name: "Conservative (-10% productivity)",
+      resulting_roi_percentage: 1.5,
+      resulting_total_annual_value: 380000,
+      risk_level: "low"
+    },
+    {
+      scenario_name: "Optimistic (+10% productivity)",
+      resulting_roi_percentage: 2.1,
+      resulting_total_annual_value: 520000,
+      risk_level: "medium"
+    }
+  ],
+  financial_projections: {
+    year_1_benefit: 300000,
+    year_2_benefit: 450000,
+    year_3_benefit: 500000,
+    total_npv: 1050000,
+    irr_percentage: 0.45
+  }
+};
+
+const MOCK_NARRATIVE_RESPONSE: NarrativeResponse = {
+  narrative_text: `Executive Summary
+
+The implementation of an AI-powered customer service chatbot represents a strategic investment opportunity that will fundamentally transform our customer experience while delivering substantial operational efficiencies and cost savings.
+
+Strategic Business Case
+
+In today's competitive landscape, customer expectations for instant, accurate support have never been higher. Our analysis reveals that implementing an AI-powered customer service solution will address three critical business challenges:
+
+1. Operational Efficiency: Current response times averaging 4-6 hours will be reduced to under 60 seconds for standard inquiries, representing a 99% improvement in responsiveness.
+
+2. Cost Optimization: By automating routine inquiries that represent 70% of our current support volume, we project annual cost savings of $150,000 while redirecting human agents to high-value, complex customer issues.
+
+3. Scalability: The solution provides 24/7 availability and can handle unlimited concurrent conversations, eliminating capacity constraints during peak periods.
+
+Financial Impact
+
+Our comprehensive ROI analysis demonstrates compelling financial returns:
+• Total Annual Value: $450,000
+• Return on Investment: 180%
+• Payback Period: 14 months
+• 3-Year NPV: $1,050,000
+
+These projections are based on conservative assumptions and include comprehensive sensitivity analysis accounting for various implementation scenarios.
+
+Implementation Approach
+
+We recommend a phased implementation beginning with a pilot program targeting our most common inquiry types. This approach minimizes risk while allowing for optimization based on real-world performance data.
+
+The technology integration leverages our existing CRM infrastructure, ensuring seamless deployment without disrupting current operations.
+
+Conclusion
+
+This investment aligns with our digital transformation strategy while delivering measurable improvements in customer satisfaction, operational efficiency, and financial performance. The compelling ROI, combined with competitive advantages in customer experience, makes this initiative a strategic imperative for our continued growth and market leadership.`,
+  
+  key_points: [
+    "99% improvement in customer response times (from hours to seconds)",
+    "$450,000 total annual value with 180% ROI",
+    "24/7 availability eliminating capacity constraints",
+    "70% automation of routine inquiries reduces operational costs",
+    "Seamless integration with existing CRM infrastructure",
+    "Phased implementation approach minimizes deployment risk",
+    "14-month payback period with $1,050,000 three-year NPV"
+  ],
+  
+  ai_critique: {
+    critique_summary: "This business case narrative effectively combines quantitative financial projections with strategic positioning. The structure follows best practices with clear executive summary, detailed analysis, and actionable recommendations. The narrative successfully translates technical benefits into business value that resonates with executive decision-makers.",
+    suggestions: [
+      "Consider adding a competitive analysis section to strengthen market positioning",
+      "Include specific customer satisfaction metrics and improvement targets",
+      "Add risk mitigation strategies for potential implementation challenges",
+      "Reference industry benchmarks to validate projected efficiency gains"
+    ],
+    confidence_score: 0.87,
+    strengths: [
+      "Clear structure and logical flow",
+      "Strong financial analysis with specific metrics",
+      "Effective translation of technical benefits to business value",
+      "Professional tone appropriate for executive audience"
+    ],
+    areas_for_improvement: [
+      "Competitive analysis",
+      "Customer satisfaction metrics",
+      "Risk mitigation strategies",
+      "Industry benchmark references"
+    ]
+  },
+  
+  executive_summary: "The implementation of an AI-powered customer service chatbot represents a strategic investment opportunity that will fundamentally transform our customer experience while delivering substantial operational efficiencies and cost savings.",
+  
+  talking_points: [
+    "The AI-powered chatbot will improve customer response times by 99%.",
+    "The solution will provide annual cost savings of $150,000.",
+    "The phased implementation approach minimizes risk and allows for optimization based on real-world performance data.",
+    "24/7 availability eliminates capacity constraints during peak periods.",
+    "Integration with existing CRM infrastructure ensures seamless deployment."
+  ]
+};
 
 // API Client Setup
 class B2BValueAPIClient {
@@ -50,6 +234,9 @@ class B2BValueAPIClient {
   // ==========================================
   
   async discoverValue(query: string): Promise<DiscoveryResponse> {
+    if (DEVELOPMENT_MODE) {
+      return MOCK_DISCOVERY_RESPONSE;
+    }
     try {
       const response = await this.client.post('/api/discover-value', {
         user_query: query,
@@ -67,6 +254,9 @@ class B2BValueAPIClient {
   // ==========================================
   
   async quantifyROI(data: QuantificationRequest): Promise<QuantificationResponse> {
+    if (DEVELOPMENT_MODE) {
+      return MOCK_QUANTIFICATION_RESPONSE;
+    }
     try {
       const response = await this.client.post('/api/quantify-roi', data);
       return response.data;
@@ -81,6 +271,9 @@ class B2BValueAPIClient {
   // ==========================================
   
   async generateNarrative(data: NarrativeRequest): Promise<NarrativeResponse> {
+    if (DEVELOPMENT_MODE) {
+      return MOCK_NARRATIVE_RESPONSE;
+    }
     try {
       const response = await this.client.post('/api/generate-narrative', data);
       return response.data;
@@ -131,12 +324,12 @@ class B2BValueAPIClient {
 // ==========================================
 
 // Phase 1: Discovery Types
-export interface DiscoveryRequest {
+interface DiscoveryRequest {
   user_query: string;
-  analysis_type: string;
+  analysis_type?: string;
 }
 
-export interface DiscoveryResponse {
+interface DiscoveryResponse {
   value_drivers: ValueDriverPillar[];
   personas: Persona[];
   suggested_metrics: Tier3Metric[];
@@ -147,13 +340,13 @@ export interface DiscoveryResponse {
   };
 }
 
-export interface ValueDriverPillar {
+interface ValueDriverPillar {
   pillar: string;
   tier_2_drivers: string[];
   tier_3_metrics: Tier3Metric[];
 }
 
-export interface Tier3Metric {
+interface Tier3Metric {
   name: string;
   description: string;
   unit: string;
@@ -161,7 +354,7 @@ export interface Tier3Metric {
   confidence_level: 'high' | 'medium' | 'low';
 }
 
-export interface Persona {
+interface Persona {
   name: string;
   description: string;
   priorities: string[];
@@ -169,14 +362,14 @@ export interface Persona {
 }
 
 // Phase 2: Quantification Types
-export interface QuantificationRequest {
+interface QuantificationRequest {
   investment_amount: number;
   metrics: { [key: string]: number };
   sensitivity_variations?: SensitivityVariation[];
   time_horizon_years?: number;
 }
 
-export interface QuantificationResponse {
+interface QuantificationResponse {
   roi_summary: RoiSummary;
   sensitivity_analysis: SensitivityScenarioOutput[];
   financial_projections: {
@@ -188,19 +381,19 @@ export interface QuantificationResponse {
   };
 }
 
-export interface RoiSummary {
+interface RoiSummary {
   total_annual_value: number;
   roi_percentage: number;
   payback_period_months: number;
   confidence_score: number;
 }
 
-export interface SensitivityVariation {
+interface SensitivityVariation {
   metric_name: string;
   percentage_change: number;
 }
 
-export interface SensitivityScenarioOutput {
+interface SensitivityScenarioOutput {
   scenario_name: string;
   resulting_roi_percentage: number;
   resulting_total_annual_value: number;
@@ -208,14 +401,14 @@ export interface SensitivityScenarioOutput {
 }
 
 // Phase 3: Narrative Types
-export interface NarrativeRequest {
+interface NarrativeRequest {
   discovery_data: DiscoveryResponse;
   quantification_data: QuantificationResponse;
   target_audience: string[];
   narrative_style: 'executive' | 'technical' | 'financial';
 }
 
-export interface NarrativeResponse {
+interface NarrativeResponse {
   narrative_text: string;
   key_points: string[];
   ai_critique: {
@@ -230,7 +423,7 @@ export interface NarrativeResponse {
 }
 
 // Phase 4: Composition Types
-export interface CompositionRequest {
+interface CompositionRequest {
   discovery_data: DiscoveryResponse;
   quantification_data: QuantificationResponse;
   narrative_data: NarrativeResponse;
@@ -238,7 +431,7 @@ export interface CompositionRequest {
   export_format: 'pdf' | 'docx' | 'presentation';
 }
 
-export interface ComposedBusinessCase {
+interface ComposedBusinessCase {
   title: string;
   executive_summary: string;
   introduction: string;
@@ -257,7 +450,7 @@ export interface ComposedBusinessCase {
   };
 }
 
-export interface BusinessCaseTemplate {
+interface BusinessCaseTemplate {
   id: string;
   name: string;
   description: string;

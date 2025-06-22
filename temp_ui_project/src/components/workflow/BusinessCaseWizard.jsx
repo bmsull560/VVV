@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Step1_BasicInfo from './Step1_BasicInfo.tsx';
 import Step2_Quantification from './Step2_Quantification.tsx';
 // Import other steps here as they are created
-import Step3_DataInput from './Step3_DataInput';
+import Step3_NarrativeGeneration from './Step3_NarrativeGeneration.tsx';
 import Step4_Review from './Step4_Review';
 
 const BusinessCaseWizard = () => {
@@ -11,6 +11,7 @@ const BusinessCaseWizard = () => {
         discoveryData: null,
         quantificationData: null,
         narrativeData: null,
+        userFeedback: null,
         compositionData: null
     });
 
@@ -24,8 +25,8 @@ const BusinessCaseWizard = () => {
         setCurrentStep(3);
     };
 
-    const handleStep3Complete = (narrativeData) => {
-        setWizardData(prev => ({ ...prev, narrativeData }));
+    const handleStep3Complete = (narrativeData, userFeedback) => {
+        setWizardData(prev => ({ ...prev, narrativeData, userFeedback }));
         setCurrentStep(4);
     };
 
@@ -35,7 +36,7 @@ const BusinessCaseWizard = () => {
         console.log('Business Case Complete:', { ...wizardData, compositionData });
     };
 
-    const handleStepBack = (targetStep) => {
+    const handleStepNavigation = (targetStep) => {
         setCurrentStep(targetStep);
     };
 
@@ -51,24 +52,24 @@ const BusinessCaseWizard = () => {
                 return (
                     <Step2_Quantification 
                         onNext={handleStep2Complete}
-                        onBack={() => handleStepBack(1)}
+                        onNavigate={handleStepNavigation}
                         discoveryData={wizardData.discoveryData}
                     />
                 );
             case 3:
                 return (
-                    <Step3_DataInput 
-                        onNext={handleStep3Complete}
-                        onBack={() => handleStepBack(2)}
+                    <Step3_NarrativeGeneration 
                         discoveryData={wizardData.discoveryData}
                         quantificationData={wizardData.quantificationData}
+                        onNavigate={handleStepNavigation}
+                        onNarrativeComplete={handleStep3Complete}
                     />
                 );
             case 4:
                 return (
                     <Step4_Review 
                         onNext={handleStep4Complete}
-                        onBack={() => handleStepBack(3)}
+                        onBack={() => handleStepNavigation(3)}
                         allData={wizardData}
                     />
                 );

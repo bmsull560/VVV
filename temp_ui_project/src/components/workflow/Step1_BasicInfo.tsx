@@ -68,6 +68,19 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+      {/* Development Mode Indicator */}
+      {import.meta.env.DEV && (
+        <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+            <p className="text-yellow-800 text-sm">
+              <strong>Development Mode:</strong> Using mock data for demonstration. 
+              Connect to backend API at localhost:8000 for live data.
+            </p>
+          </div>
+        </div>
+      )}
+      
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-800 mb-4">
           <Search className="inline mr-3 text-blue-600" />
@@ -114,23 +127,37 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
           </div>
         </div>
 
-        <button
-          onClick={handleDiscoverValue}
-          disabled={isLoading || !userQuery.trim()}
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
-        >
-          {isLoading ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Discovering Value Drivers...
-            </>
-          ) : (
-            <>
-              <Search className="mr-2" size={16} />
-              Discover Value Drivers
-            </>
-          )}
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={handleDiscoverValue}
+            disabled={isLoading || !userQuery.trim()}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+          >
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Discovering...
+              </>
+            ) : (
+              <>
+                <Search className="mr-2" size={16} />
+                Discover Value Drivers
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={() => {
+              setUserQuery("We want to implement an AI-powered customer service chatbot to reduce response times and operational costs while improving customer satisfaction and reducing staff workload.");
+              setTimeout(() => handleDiscoverValue(), 100);
+            }}
+            disabled={isLoading}
+            className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+          >
+            <Lightbulb className="mr-2" size={16} />
+            Try Demo
+          </button>
+        </div>
 
         {error && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
@@ -262,27 +289,39 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
           Back
         </button>
         
-        <button
-          onClick={handleNextStep}
-          disabled={!canProceed}
-          className={`px-6 py-3 rounded-lg flex items-center ${
-            canProceed
-              ? 'bg-green-600 text-white hover:bg-green-700'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          Continue to Quantification
-          <TrendingUp className="ml-2" size={16} />
-        </button>
+        <div className="flex justify-end">
+          <button
+            onClick={handleNextStep}
+            disabled={!canProceed}
+            className={`px-6 py-3 rounded-lg flex items-center ${
+              canProceed
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            Continue to Quantification
+            <TrendingUp className="ml-2" size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Progress Indicator */}
       <div className="mt-6 text-center text-sm text-gray-500">
         Step 1 of 4: Discovery Phase
-        {canProceed && (
+        {canProceed ? (
           <span className="text-green-600 ml-2">
             ✓ Ready to proceed
           </span>
+        ) : (
+          <div className="mt-2 text-orange-600">
+            {!discoveryResults ? (
+              "↑ Start by discovering value drivers for your business challenge"
+            ) : selectedDrivers.length === 0 ? (
+              "↑ Select at least one value driver to continue"
+            ) : selectedPersonas.length === 0 ? (
+              "↑ Select at least one stakeholder persona to continue"
+            ) : null}
+          </div>
         )}
       </div>
     </div>
