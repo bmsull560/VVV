@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { FC } from 'react';
 import Step1_BasicInfo from './Step1_BasicInfo';
 import Step2_ModelBuilder from '../Step2_ModelBuilder';
 import Step3_NarrativeGeneration from './Step3_NarrativeGeneration';
 import Step4_Composition from './Step4_Composition';
 import type { DiscoveryResponse } from '../../services/b2bValueApi';
-import type { TemplateContext } from './Step1_BasicInfo';
+
+// Re-export TemplateContext from Step1_BasicInfo
+export interface TemplateContext {
+  industry: string;
+  commonValueDrivers: string[];
+  keyMetrics: string[];
+}
 
 interface WizardData {
   discoveryData: DiscoveryResponse | null;
@@ -16,90 +22,84 @@ interface WizardData {
   compositionData: any;
 }
 
-interface StepProps {
-  onNext: (data: any) => void;
-  wizardData: WizardData;
-}
+type WizardStep = 1 | 2 | 3 | 4;
 
 const BusinessCaseWizard: FC = () => {
-    const [currentStep, setCurrentStep] = useState<number>(1);
-    const [wizardData, setWizardData] = useState<WizardData>({
-        discoveryData: null,
-        templateContext: undefined,
-        quantificationData: null,
-        narrativeData: null,
-        userFeedback: null,
-        compositionData: null
-    });
+  const [currentStep, setCurrentStep] = useState<WizardStep>(1);
+  const [wizardData, setWizardData] = useState<WizardData>({
+    discoveryData: null,
+    templateContext: undefined,
+    quantificationData: null,
+    narrativeData: null,
+    userFeedback: null,
+    compositionData: null,
+  });
 
-    const handleStep1Complete = (data: { discoveryData: DiscoveryResponse; templateContext?: TemplateContext }) => {
-        setWizardData(prev => ({
-            ...prev,
-            discoveryData: data.discoveryData,
-            templateContext: data.templateContext
-        }));
-        setCurrentStep(2);
-    };
+  const handleStep1Complete = (data: { discoveryData: DiscoveryResponse; templateContext?: TemplateContext }) => {
+    setWizardData((prev) => ({
+      ...prev,
+      discoveryData: data.discoveryData,
+      templateContext: data.templateContext,
+    }));
+    setCurrentStep(2);
+  };
 
-    const handleStep2Complete = (quantificationData) => {
-        setWizardData(prev => ({ ...prev, quantificationData }));
-        setCurrentStep(3);
-    };
+  const handleStep2Complete = (quantificationData: any) => {
+    setWizardData((prev) => ({ ...prev, quantificationData }));
+    setCurrentStep(3);
+  };
 
-    const handleStep3Complete = (narrativeData, userFeedback) => {
-        setWizardData(prev => ({ ...prev, narrativeData, userFeedback }));
-        setCurrentStep(4);
-    };
+  const handleStep3Complete = (narrativeData: any, userFeedback: any) => {
+    setWizardData((prev) => ({ ...prev, narrativeData, userFeedback }));
+    setCurrentStep(4);
+  };
 
-    const handleStep4Complete = (compositionData) => {
-        setWizardData(prev => ({ ...prev, compositionData }));
-        // Navigate to final results or completion
-        console.log('Business Case Complete:', { ...wizardData, compositionData });
-    };
+  const handleStep4Complete = (compositionData: any) => {
+    setWizardData((prev) => ({ ...prev, compositionData }));
+    // Navigate to final results or completion
+    console.log('Business Case Complete:', { ...wizardData, compositionData });
+  };
 
-    const handleStepNavigation = (targetStep) => {
-        setCurrentStep(targetStep);
-    };
+  const handleStepNavigation = (targetStep: number) => {
+    setCurrentStep(targetStep as WizardStep);
+  };
 
-    const renderStep = () => {
-        const stepProps = {
-            onNext: () => {},
-            wizardData
-        };
-
-        switch (currentStep) {
-            case 1:
-                return (
-                    <Step1_BasicInfo 
-                        onNext={handleStep1Complete}
-                    />
-                );
-            case 2:
-                return (
-                    <Step2_ModelBuilder 
-                        onNext={handleStep2Complete}
-                        onNavigate={handleStepNavigation}
-                        discoveryData={wizardData.discoveryData}
-                        templateContext={wizardData.templateContext}
-                    />
-                );
-            case 3:
-                return (
-                    <Step3_NarrativeGeneration 
-                        discoveryData={wizardData.discoveryData}
-                        quantificationData={wizardData.quantificationData}
-                        onNavigate={handleStepNavigation}
-                        onNarrativeComplete={handleStep3Complete}
-                    />
-                );
-            case 4:
-                return (wizardData.discoveryData && wizardData.quantificationData && wizardData.narrativeData) ? (
-                    <Step4_Composition
-                        discoveryData={wizardData.discoveryData}
-                        quantificationData={wizardData.quantificationData}
-                        narrativeData={wizardData.narrativeData}
-                        userFeedback={wizardData.userFeedback}
-                        onNavigate={handleStepNavigation}
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return <Step1_BasicInfo onNext={handleStep1Complete} />;
+      case 2:
+        return (
+          <Step2_ModelBuilder
+            onNext={handleStep2Complete}
+            discoveryData={wizardData.discoveryData}
+            templateContext={wizardData.templateContext}
+            onNavigate={handleStepNavigation}
+          />
+        );
+      case 3:
+        return (
+          <Step3_NarrativeGeneration
+            discoveryData={wizardData.discoveryData}
+            quantificationData={wizardData.quantificationData}
+            onNavigate={handleStepNavigation}
+            onNext={handleStep3Complete}
+          />
+        );
+      case 4:
+        return (
+          <Step4_Composition
+            discoveryData={wizardData.discoveryData}
+            quantificationData={wizardData.quantificationData}
+            narrativeData={wizardData.narrativeData}
+            onNavigate={handleStepNavigation}
+            onNext={handleStep4Complete}
+          />
+        );
+      default:
+        return <div>Invalid step</div>;
+    }
+  };
                         onCompositionComplete={handleStep4Complete}
                     />
                 ) : (
