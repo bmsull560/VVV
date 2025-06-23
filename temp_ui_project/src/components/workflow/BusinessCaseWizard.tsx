@@ -67,9 +67,9 @@ const BusinessCaseWizard: FC = () => {
 
   const handleStep1Complete = (data: { 
     discoveryData: DiscoveryResponse; 
-    templateContext: TemplateContext | null; // Ensure it matches WizardData type
+    templateContext?: TemplateContext; // Make it optional to match Step1_BasicInfo
   }) => {
-    // Ensure templateContext is never undefined
+    // Convert undefined to null to match WizardData type
     const templateContext = data.templateContext || null;
     
     setWizardData(prev => ({
