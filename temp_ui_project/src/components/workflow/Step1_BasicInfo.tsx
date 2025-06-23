@@ -1,8 +1,17 @@
 import { useState, FC, useCallback } from 'react';
 import { Search, Lightbulb, Users, TrendingUp, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
-import { b2bValueAPI, DiscoveryResponse, ValueDriverPillar, Persona } from '../../services/b2bValueApi';
-import IndustryTemplateSelector, { IndustryTemplate } from '../discovery/IndustryTemplateSelector';
-import { getIndustryTemplate } from '../../types/industryTemplates';
+import { b2bValueAPI, type DiscoveryResponse, type ValueDriverPillar, type Persona } from '../../services/b2bValueApi';
+import IndustryTemplateSelector from '../discovery/IndustryTemplateSelector';
+import type { IndustryTemplate } from '../../types/industryTemplates';
+
+// Extend DiscoveryResponse to include template context
+interface ExtendedDiscoveryResponse extends DiscoveryResponse {
+  templateContext?: {
+    industry: string;
+    commonValueDrivers: string[];
+    keyMetrics: string[];
+  };
+}
 
 interface Step1Props {
   onNext: (discoveryData: DiscoveryResponse) => void;
@@ -11,6 +20,11 @@ interface Step1Props {
 const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
   const [userQuery, setUserQuery] = useState('');
   const [discoveryResults, setDiscoveryResults] = useState<DiscoveryResponse | null>(null);
+  const [templateContext, setTemplateContext] = useState<{
+    industry: string;
+    commonValueDrivers: string[];
+    keyMetrics: string[];
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDrivers, setSelectedDrivers] = useState<string[]>([]);
@@ -36,14 +50,23 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
     setError(null);
 
     try {
-      // Include selected template context in the discovery request if available
+      // Prepare context data if template is selected
       const context = selectedTemplate ? {
         industry: selectedTemplate.name,
         commonValueDrivers: selectedTemplate.commonValueDrivers,
         keyMetrics: selectedTemplate.keyMetrics
       } : undefined;
       
-      const results = await b2bValueAPI.discoverValue(userQuery, context);
+      // Call API with just the query string as per API interface
+      const results = await b2bValueAPI.discoverValue(
+        userQuery + (context ? `\n\nIndustry Context: ${context.industry}` : '')
+      );
+      
+      // Store template context separately from API results
+      if (context) {
+        setTemplateContext(context);
+      }
+      
       setDiscoveryResults(results);
     } catch (err) {
       setError('Failed to discover value drivers. Please try again.');
@@ -71,25 +94,19 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
 
   const canProceed = discoveryResults && selectedDrivers.length > 0 && selectedPersonas.length > 0;
 
-  const handleNext = () => {
+  const handleNextStep = () => {
     if (!discoveryResults) {
       setError('Please complete the discovery process first');
       return;
     }
     
-    // Include the selected template in the discovery results
-    const enhancedResults = {
+    // Combine discovery results with template context
+    const resultsWithContext = {
       ...discoveryResults,
-      metadata: {
-        ...discoveryResults.metadata,
-        industryTemplate: selectedTemplate ? {
-          id: selectedTemplate.id,
-          name: selectedTemplate.name
-        } : undefined
-      }
+      ...(templateContext && { templateContext })
     };
     
-    onNext(enhancedResults);
+    onNext(resultsWithContext);
   };
   
   const handleTemplateSelect = (template: IndustryTemplate) => {
@@ -104,7 +121,18 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
   
   const handleResetTemplate = () => {
     setSelectedTemplate(null);
-    setShowTemplateSelector(true);
+    // Show template selector if enabled
+    if (showTemplateSelector) {
+      return (
+        <div className="max-w-4xl mx-auto p-6">
+          <IndustryTemplateSelector 
+            onSelectTemplate={handleTemplateSelect}
+            onCancel={() => setShowTemplateSelector(false)}
+            initialIndustry={selectedTemplate?.id}
+          />
+        </div>
+      );
+    }
   };
 
   if (showTemplateSelector && !selectedTemplate) {
@@ -113,7 +141,7 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
         <IndustryTemplateSelector 
           onSelectTemplate={handleTemplateSelect}
           onCancel={() => setShowTemplateSelector(false)}
-          initialIndustry={selectedTemplate?.id || 'technology'}
+          initialIndustry={selectedTemplate?.id}
         />
       </div>
     );
@@ -335,34 +363,41 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
                 </div>
               </div>
             </div>
-          )}
+
+      {/* Error Display */}
+      {error && (
+        <div className="mt-4 text-red-600 text-sm flex items-center">
+          <AlertCircle className="w-4 h-4 mr-1" />
+          {error}
         </div>
       )}
 
       {/* Navigation */}
-      <div className="flex justify-between mt-8">
+      <div className="flex justify-between mt-8 pt-4 border-t border-gray-200">
         <button
-          onClick={() => {}}
-          className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          disabled
+          type="button"
+          onClick={() => setShowTemplateSelector(true)}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          aria-label={selectedTemplate ? 'Change industry template' : 'Select industry template'}
         >
-          Back
+          <Building2 className="h-4 w-4 mr-2" />
+          {selectedTemplate ? 'Change Industry' : 'Select Industry'}
         </button>
         
-        <div className="flex justify-end">
-          <button
-            onClick={handleNextStep}
-            disabled={!canProceed}
-            className={`px-6 py-3 rounded-lg flex items-center ${
-              canProceed
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            Continue to Quantification
-            <TrendingUp className="ml-2" size={16} />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleNextStep}
+          disabled={!canProceed}
+          className={`px-6 py-2 rounded-md font-medium ${
+            canProceed
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+          } transition-colors`}
+          aria-label="Proceed to quantification"
+        >
+          Next: Quantify Value
+          <TrendingUp className="ml-2 inline h-4 w-4" />
+        </button>
       </div>
 
       {/* Progress Indicator */}
