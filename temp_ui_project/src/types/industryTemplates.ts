@@ -65,23 +65,84 @@ const createIndustryTemplate = (
 });
 
 export const industryTemplates: Record<IndustryVertical, IndustryTemplate> = {
-  technology: {
-    id: 'tech',
-    name: 'Technology',
-    description: 'Optimize software development and IT operations',
-    commonValueDrivers: [
+  technology: createIndustryTemplate(
+    'tech',
+    'Technology',
+    'Optimize software development and IT operations',
+    'technology',
+    [
       'Developer productivity improvements',
       'Cloud cost optimization',
       'Reduced time-to-market',
       'Improved system reliability',
       'Enhanced security posture'
     ],
-    keyMetrics: [
+    [
       'Deployment frequency',
       'Lead time for changes',
       'Mean time to recover',
       'Change failure rate',
       'Infrastructure cost per deployment'
+    ],
+    [
+      'How can we reduce cloud costs while maintaining performance?',
+      'What are the best practices for CI/CD pipeline optimization?',
+      'How can we improve developer productivity with better tooling?'
+    ],
+    { min: 25, max: 75, average: 45 },
+    'medium',
+    '3-6 months',
+    [
+      'Integration complexity with existing systems',
+      'Talent acquisition and retention',
+      'Security and compliance requirements'
+    ],
+    [
+      'Strong executive sponsorship',
+      'Cross-functional collaboration',
+      'Clear success metrics and KPIs',
+      'Ongoing training and support'
+    ]
+  ),
+  manufacturing: createIndustryTemplate(
+    'mfg',
+    'Manufacturing',
+    'Optimize production and supply chain operations',
+    'manufacturing',
+    [
+      'Increased production efficiency',
+      'Reduced equipment downtime',
+      'Improved quality control',
+      'Supply chain optimization',
+      'Reduced waste and scrap'
+    ],
+    [
+      'Overall equipment effectiveness (OEE)',
+      'Production cycle time',
+      'First-pass yield',
+      'Inventory turnover',
+      'On-time delivery'
+    ],
+    [
+      'How can we reduce production downtime?',
+      'What are the best practices for predictive maintenance?',
+      'How can we optimize our supply chain for just-in-time delivery?'
+    ],
+    { min: 30, max: 80, average: 55 },
+    'high',
+    '6-12 months',
+    [
+      'High upfront capital investment',
+      'Workforce training requirements',
+      'Integration with legacy systems'
+    ],
+    [
+      'Strong change management',
+      'Employee engagement and training',
+      'Clear ROI metrics',
+      'Vendor support and partnership'
+    ]
+  )
     ],
     typicalROIRange: {
       min: 2.5,
