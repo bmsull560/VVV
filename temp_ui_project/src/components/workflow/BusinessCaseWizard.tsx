@@ -10,14 +10,14 @@ import {
   QuantificationResponse,
   NarrativeResponse,
   ComposedBusinessCase,
-  type DiscoveryData as APIDiscoveryData
+  type ValueDriverPillar
 } from '../../services/b2bValueApi';
 import { adaptDiscoveryResponseToData } from '../../utils/typeAdapters';
 import styles from './BusinessCaseWizard.module.css';
 
 // Re-export TemplateContext from Step1_BasicInfo
 import type { IndustryTemplate } from '../../types/industryTemplates';
-import type { DiscoveryData } from '../../services/modelBuilderApi';
+import type { DiscoveryData, ModelBuilderData, ModelValidationResult, CalculationResult } from '../../services/modelBuilderApi';
 
 export interface TemplateContext {
   industry: string;
@@ -73,11 +73,11 @@ const BusinessCaseWizard: FC = () => {
     setCurrentStep(2);
   };
 
-  const handleStep2Complete = (data: { 
-    modelBuilderData: any; 
+  const handleStep2Complete = (data: DiscoveryData & { 
+    modelBuilderData: ModelBuilderData;
     quantificationResults?: QuantificationResponse;
-    localCalculations?: Record<string, any>;
-    validationResults?: any;
+    localCalculations?: Record<string, CalculationResult>;
+    validationResults?: ModelValidationResult;
   }) => {
     if (!data.quantificationResults) {
       console.error('Quantification results are required');
@@ -152,10 +152,10 @@ const BusinessCaseWizard: FC = () => {
         }
         return (
           <Step3_NarrativeGeneration
-            onNext={handleStep3Complete}
+            onSubmit={handleStep3Complete}
             discoveryData={wizardData.discoveryData}
             quantificationData={wizardData.quantificationData}
-            onNavigate={handleStepNavigation}
+            onBack={() => handleStepNavigation(2)}
           />
         );
       case 4:
@@ -164,11 +164,11 @@ const BusinessCaseWizard: FC = () => {
         }
         return (
           <Step4_Composition
-            onComplete={handleStep4Complete}
+            onSubmit={handleStep4Complete}
             discoveryData={wizardData.discoveryData}
             quantificationData={wizardData.quantificationData}
             narrativeData={wizardData.narrativeData}
-            onNavigate={handleStepNavigation}
+            onBack={() => handleStepNavigation(3)}
           />
         );
       default:
