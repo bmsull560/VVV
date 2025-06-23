@@ -12,8 +12,10 @@ export interface IndustryTemplate {
   id: string;
   name: string;
   description: string;
+  industry: string;
   commonValueDrivers: string[];
   keyMetrics: string[];
+  suggestedQueries: string[];
   typicalROIRange: {
     min: number;
     max: number;
@@ -23,6 +25,7 @@ export interface IndustryTemplate {
   timeToValue: string;
   commonRisks: string[];
   successFactors: string[];
+  metadata?: Record<string, any>;
   caseStudy?: {
     title: string;
     description: string;
