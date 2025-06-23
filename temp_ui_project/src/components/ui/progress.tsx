@@ -1,5 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, HTMLAttributes } from 'react';
 import styles from './Progress.module.css';
+
+// Extend HTMLAttributes to include our custom ARIA attributes
+interface ProgressBarProps extends Omit<HTMLAttributes<HTMLDivElement>, 'role'> {
+  'aria-valuemin'?: number;
+  'aria-valuemax'?: number;
+  'aria-valuenow'?: number;
+  'aria-valuetext'?: string;
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+  role?: 'progressbar';
+}
 
 interface ProgressProps {
   /**
@@ -66,11 +77,30 @@ export const Progress: React.FC<ProgressProps> = ({
   const progressId = React.useId();
   const descriptionId = description ? `progress-desc-${progressId}` : undefined;
 
+  // Generate unique IDs for ARIA attributes
+  const labelId = `${progressId}-label`;
+  
+  // Generate a class name for the current percentage
+  const indicatorClass = `${styles.progressIndicator} ${styles[`width_${Math.round(percentage)}`] || ''}`;
+
+  // Create the progress bar props with proper typing
+  const progressBarProps: ProgressBarProps = {
+    className: `${styles.progressBar} ${indicatorClassName}`,
+    role: 'progressbar',
+    'aria-valuemin': 0,
+    'aria-valuemax': max,
+    'aria-valuenow': ariaValueNow,
+    'aria-valuetext': ariaValueText,
+    'aria-labelledby': labelId,
+    'aria-describedby': descriptionId,
+    tabIndex: 0,
+  };
+
   return (
     <div className={`${styles.progressContainer} ${className}`}>
       <div className={styles.progressHeader}>
         {label && (
-          <span className={styles.progressLabel} id={`${progressId}-label`}>
+          <span id={labelId} className={styles.progressLabel}>
             {label}
           </span>
         )}
@@ -81,20 +111,10 @@ export const Progress: React.FC<ProgressProps> = ({
         )}
       </div>
       
-      <div
-        className={styles.progressBar}
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={max}
-        aria-valuenow={ariaValueNow}
-        aria-valuetext={ariaValueText}
-        aria-labelledby={`${progressId}-label`}
-        aria-describedby={descriptionId}
-        tabIndex={0}
-      >
+      <div {...progressBarProps}>
         <div
-          className={`${styles.progressIndicator} ${indicatorClassName}`}
-          style={{ '--progress-width': `${percentage}%` } as React.CSSProperties}
+          className={indicatorClass}
+          aria-hidden="true"
         />
       </div>
       

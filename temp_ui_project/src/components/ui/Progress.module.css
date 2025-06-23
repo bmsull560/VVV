@@ -51,10 +51,16 @@
 /* Progress indicator */
 .progressIndicator {
   height: 100%;
-  width: var(--progress-width, 0%);
+  width: 0%;
   background-color: var(--progress-fill);
   transition: width var(--transition-duration) var(--transition-timing);
   border-radius: var(--progress-radius);
+}
+
+/* Width will be set via inline style for better browser support */
+.progressIndicator {
+  /* Default width is set to 0% and will be overridden by inline style */
+  width: 0%;
 }
 
 /* Progress description */
