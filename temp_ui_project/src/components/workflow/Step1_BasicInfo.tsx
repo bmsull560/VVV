@@ -4,13 +4,11 @@ import { b2bValueAPI, type DiscoveryResponse, type ValueDriverPillar, type Perso
 import IndustryTemplateSelector from '../discovery/IndustryTemplateSelector';
 import type { IndustryTemplate } from '../../types/industryTemplates';
 
-// Extend DiscoveryResponse to include template context
-interface ExtendedDiscoveryResponse extends DiscoveryResponse {
-  templateContext?: {
-    industry: string;
-    commonValueDrivers: string[];
-    keyMetrics: string[];
-  };
+// Type for template context
+interface TemplateContext {
+  industry: string;
+  commonValueDrivers: string[];
+  keyMetrics: string[];
 }
 
 interface Step1Props {
@@ -20,11 +18,7 @@ interface Step1Props {
 const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
   const [userQuery, setUserQuery] = useState('');
   const [discoveryResults, setDiscoveryResults] = useState<DiscoveryResponse | null>(null);
-  const [templateContext, setTemplateContext] = useState<{
-    industry: string;
-    commonValueDrivers: string[];
-    keyMetrics: string[];
-  } | null>(null);
+  const [templateContext, setTemplateContext] = useState<TemplateContext | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDrivers, setSelectedDrivers] = useState<string[]>([]);
@@ -121,18 +115,7 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
   
   const handleResetTemplate = () => {
     setSelectedTemplate(null);
-    // Show template selector if enabled
-    if (showTemplateSelector) {
-      return (
-        <div className="max-w-4xl mx-auto p-6">
-          <IndustryTemplateSelector 
-            onSelectTemplate={handleTemplateSelect}
-            onCancel={() => setShowTemplateSelector(false)}
-            initialIndustry={selectedTemplate?.id}
-          />
-        </div>
-      );
-    }
+    setTemplateContext(null);
   };
 
   if (showTemplateSelector && !selectedTemplate) {
@@ -141,11 +124,13 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
         <IndustryTemplateSelector 
           onSelectTemplate={handleTemplateSelect}
           onCancel={() => setShowTemplateSelector(false)}
-          initialIndustry={selectedTemplate?.id}
+          initialIndustry={undefined}
         />
       </div>
     );
   }
+
+
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow">
@@ -160,6 +145,7 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
                 <button 
                   onClick={handleResetTemplate}
                   className="ml-2 text-blue-600 hover:text-blue-800 text-xs underline"
+                  type="button"
                 >
                   Change
                 </button>
@@ -334,7 +320,7 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
                   <div className="text-xs text-gray-500">
                     <p className="font-medium">Key priorities:</p>
                     <ul className="list-disc list-inside">
-                      {persona.priorities.slice(0, 2).map((priority, index) => (
+                      {persona.priorities.slice(0, 2).map((priority: string, index: number) => (
                         <li key={index}>{priority}</li>
                       ))}
                     </ul>
@@ -346,7 +332,7 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
 
           {/* Project Insights */}
           {discoveryResults.project_insights && (
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 mb-6">
               <h3 className="text-xl font-semibold mb-4">AI-Generated Project Insights</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -363,6 +349,9 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (
@@ -399,8 +388,6 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
           <TrendingUp className="ml-2 inline h-4 w-4" />
         </button>
       </div>
-
-      {/* Progress Indicator */}
       <div className="mt-6 text-center text-sm text-gray-500">
         Step 1 of 4: Discovery Phase
         {canProceed ? (
