@@ -1,0 +1,36 @@
+/* Container for the progress bar */
+.progressContainer {
+  width: 100%;
+}
+
+/* Base progress bar styles */
+.progressBar {
+  position: relative;
+  height: 0.5rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: #e5e7eb; /* bg-gray-200 */
+}
+
+/* Progress indicator */
+.progressIndicator {
+  height: 100%;
+  background-color: #2563eb; /* bg-blue-600 */
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Screen reader only text */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

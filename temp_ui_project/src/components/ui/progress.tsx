@@ -1,8 +1,10 @@
 import React from 'react';
+import styles from './Progress.module.css';
 
 interface ProgressProps {
   value: number;
   max?: number;
+  label?: string;
   className?: string;
   indicatorClassName?: string;
 }
@@ -10,23 +12,31 @@ interface ProgressProps {
 export const Progress: React.FC<ProgressProps> = ({ 
   value, 
   max = 100, 
+  label = 'Progress',
   className = '', 
   indicatorClassName = '' 
 }) => {
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
+  const ariaValueNow = Math.round(value);
+  const ariaValueText = `${ariaValueNow}%`;
 
   return (
-    <div
-      className={`relative h-2 w-full overflow-hidden rounded-full bg-gray-200 ${className}`}
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={max}
-      aria-valuenow={value}
-    >
+    <div className={`${styles.progressContainer} ${className}`}>
+      {label && <span className="sr-only">{label}</span>}
       <div
-        className={`h-full bg-blue-600 transition-all duration-300 ease-in-out ${indicatorClassName}`}
-        style={{ width: `${percentage}%` }}
-      />
+        className={`${styles.progressBar} ${className}`}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={max}
+        aria-valuenow={ariaValueNow}
+        aria-valuetext={ariaValueText}
+        aria-label={label}
+      >
+        <div
+          className={`${styles.progressIndicator} ${indicatorClassName}`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
     </div>
   );
 };
