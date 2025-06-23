@@ -9,8 +9,11 @@ import {
   DiscoveryResponse,
   QuantificationResponse,
   NarrativeResponse,
-  ComposedBusinessCase
+  ComposedBusinessCase,
+  DiscoveryData
 } from '../../services/b2bValueApi';
+import { CalculationResult } from '../../utils/calculationEngine';
+import { ModelValidationResult } from '../../services/modelBuilderApi';
 import { adaptDiscoveryResponseToData } from '../../utils/typeAdapters';
 import styles from './BusinessCaseWizard.module.css';
 
