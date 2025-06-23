@@ -7,10 +7,13 @@ import Step4_Composition from './Step4_Composition';
 import type { DiscoveryResponse } from '../../services/b2bValueApi';
 
 // Re-export TemplateContext from Step1_BasicInfo
+import type { IndustryTemplate } from '../../types/industryTemplates';
+
 export interface TemplateContext {
   industry: string;
   commonValueDrivers: string[];
   keyMetrics: string[];
+  template?: IndustryTemplate;
 }
 
 interface WizardData {
