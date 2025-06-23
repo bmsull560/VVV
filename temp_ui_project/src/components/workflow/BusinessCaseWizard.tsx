@@ -151,7 +151,10 @@ const BusinessCaseWizard: FC = () => {
         }
         return (
           <Step3_NarrativeGeneration
-            onNext={(narrativeData, userFeedback) => {
+            discoveryData={wizardData.discoveryData}
+            quantificationData={wizardData.quantificationData}
+            onNavigate={(step) => handleStepNavigation(step)}
+            onNarrativeComplete={(narrativeData, userFeedback) => {
               setWizardData(prev => ({
                 ...prev,
                 narrativeData,
@@ -159,9 +162,6 @@ const BusinessCaseWizard: FC = () => {
               }));
               setCurrentStep(4);
             }}
-            discoveryData={wizardData.discoveryData}
-            quantificationData={wizardData.quantificationData}
-            onBack={() => handleStepNavigation(2)}
           />
         );
       case 4:
@@ -170,17 +170,18 @@ const BusinessCaseWizard: FC = () => {
         }
         return (
           <Step4_Composition
-            onComplete={(compositionData) => {
+            discoveryData={wizardData.discoveryData}
+            quantificationData={wizardData.quantificationData}
+            narrativeData={wizardData.narrativeData}
+            userFeedback={wizardData.userFeedback || { approved: false }}
+            onNavigate={(step) => handleStepNavigation(step)}
+            onCompositionComplete={(compositionData) => {
               setWizardData(prev => ({
                 ...prev,
                 compositionData
               }));
               handleStep4Complete(compositionData);
             }}
-            discoveryData={wizardData.discoveryData}
-            quantificationData={wizardData.quantificationData}
-            narrativeData={wizardData.narrativeData}
-            onBack={() => handleStepNavigation(3)}
           />
         );
       default:
