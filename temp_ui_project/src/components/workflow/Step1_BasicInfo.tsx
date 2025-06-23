@@ -28,9 +28,20 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
     const [selectedPersonas, setSelectedPersonas] = useState<string[]>([]);
   const [showTemplateSelector, setShowTemplateSelector] = useState<boolean>(true);
   const [selectedTemplate, setSelectedTemplate] = useState<IndustryTemplate | null>(null);
+  
+  // Handle template selection from IndustryTemplateSelector
+  const handleTemplateSelect = useCallback((template: IndustryTemplate) => {
+    setSelectedTemplate(template);
+    setShowTemplateSelector(false);
+    
+    // Pre-fill the query with template suggestions if empty
+    if (!userQuery.trim()) {
+      setUserQuery(template.suggestedQueries[0] || '');
+    }
+  }, [userQuery]);
 
-  // Example queries to guide users
-  const exampleQueries = [
+  // Use template-specific example queries if available, otherwise use defaults
+  const exampleQueries = selectedTemplate?.suggestedQueries || [
     "Implement AI chatbot to reduce customer service costs by 30%",
     "Deploy data analytics platform to increase sales conversion rates",
     "Automate invoice processing to eliminate manual data entry",
@@ -47,7 +58,14 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
     setError(null);
 
     try {
-      // Prepare context data if template is selected
+      // Prepare template context if a template is selected
+      const templateContext = selectedTemplate ? {
+        industry: selectedTemplate.industry,
+        commonValueDrivers: selectedTemplate.commonValueDrivers,
+        keyMetrics: selectedTemplate.keyMetrics
+      } : undefined;
+
+      // Call the discovery API with the user's query and template context
       const context = selectedTemplate ? {
         industry: selectedTemplate.name,
         commonValueDrivers: selectedTemplate.commonValueDrivers,
