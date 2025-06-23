@@ -76,22 +76,16 @@ const BusinessCaseWizard: FC = () => {
     setCurrentStep(2);
   };
 
-  const handleStep2Complete = (data: {
+  const handleStep2Complete = (data: DiscoveryData & {
     modelBuilderData: ModelBuilderData;
-    quantificationResults: QuantificationResponse;
-    localCalculations?: Record<string, unknown>;
-    validationResults?: unknown;
+    quantificationResults?: QuantificationResponse;
+    localCalculations?: Record<string, CalculationResult>;
+    validationResults?: ModelValidationResult;
   }) => {
-    setWizardData(prev => {
-      if (!prev.templateContext) {
-        console.error('Template context is required');
-        return prev;
-      }
-      return {
-        ...prev,
-        quantificationData: data.quantificationResults,
-      };
-    });
+    setWizardData(prev => ({
+      ...prev,
+      quantificationData: data.quantificationResults || null,
+    }));
     setCurrentStep(3);
   };
 
