@@ -48,14 +48,15 @@ interface SwitchProps extends SwitchButtonProps {
   name?: string;
 }
 
-export const Switch: React.FC<SwitchProps> = ({ 
+const SwitchComponent = React.forwardRef<HTMLButtonElement, SwitchProps>(({ 
   checked = false, 
   onCheckedChange, 
   className = '',
   disabled = false,
   label,
-  id
-}) => {
+  id,
+  ...props 
+}: SwitchProps, ref) => {
   const handleClick = () => {
     if (!disabled && onCheckedChange) {
       onCheckedChange(!checked);
@@ -72,6 +73,7 @@ export const Switch: React.FC<SwitchProps> = ({
   return (
     <div className={`${styles.switchContainer} ${className}`}>
       <button
+        ref={ref}
         id={id}
         type="button"
         role="switch"
@@ -81,7 +83,7 @@ export const Switch: React.FC<SwitchProps> = ({
         disabled={disabled}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
-        className={`${styles.switch} ${checked ? styles.checked : ''} ${disabled ? styles.disabled : ''}`}
+        className={`${styles.switch} ${checked ? styles.checked : ''} ${disabled ? styles.disabled : ''} ${className}`}
         tabIndex={disabled ? -1 : 0}
         {...props}
       >
@@ -92,6 +94,10 @@ export const Switch: React.FC<SwitchProps> = ({
       </label>
     </div>
   );
-};
+});
+
+SwitchComponent.displayName = 'Switch';
+
+export const Switch = React.memo(SwitchComponent);
 
 export default Switch;
