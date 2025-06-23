@@ -7,7 +7,15 @@ export interface SelectOption {
   disabled?: boolean;
 }
 
-interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'aria-invalid' | 'aria-required' | 'aria-describedby' | 'aria-label' | 'aria-labelledby'> {
+type AriaAttributes = {
+  'aria-invalid'?: boolean | 'false' | 'true' | 'grammar' | 'spelling';
+  'aria-required'?: boolean | 'false' | 'true';
+  'aria-describedby'?: string;
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
+}
+
+interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, keyof AriaAttributes>, AriaAttributes {
   /** Unique identifier for the select element */
   id: string;
   /** Label text for the select element */
@@ -102,7 +110,7 @@ export const Select: React.FC<SelectProps> = ({
           title={label}
           {...props}
         >
-        {options.map((option) => (
+        {options.map((option: SelectOption) => (
           <option 
             key={option.value} 
             value={option.value}
