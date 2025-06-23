@@ -17,8 +17,8 @@ interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>
   error?: string;
   helpText?: string;
   required?: boolean;
-  'aria-invalid'?: boolean | 'true' | 'false';
-  'aria-required'?: boolean | 'true' | 'false';
+  'aria-invalid'?: boolean | 'false' | 'true' | 'grammar' | 'spelling';
+  'aria-required'?: boolean | 'false' | 'true';
   'aria-describedby'?: string;
 }
 

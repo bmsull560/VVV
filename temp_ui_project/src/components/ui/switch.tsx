@@ -3,8 +3,14 @@ import styles from './Switch.module.css';
 
 // Extend button props but exclude the ones we're customizing
 type SwitchButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 
-  'onChange' | 'onClick' | 'aria-checked' | 'aria-disabled' | 'role'
->;
+  'onChange' | 'onClick' | 'aria-checked' | 'aria-disabled' | 'role' | 'type'
+> & {
+  /**
+   * The type of the button. Set to 'button' to prevent form submission.
+   * @default 'button'
+   */
+  type?: 'button' | 'submit' | 'reset';
+};
 
 interface SwitchProps extends SwitchButtonProps {
   /**
@@ -77,6 +83,7 @@ export const Switch: React.FC<SwitchProps> = ({
         onKeyDown={handleKeyDown}
         className={`${styles.switch} ${checked ? styles.checked : ''} ${disabled ? styles.disabled : ''}`}
         tabIndex={disabled ? -1 : 0}
+        {...props}
       >
         <span className={styles.switchHandle} />
       </button>
