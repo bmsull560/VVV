@@ -53,14 +53,15 @@
   transform: translateZ(0);
   
   /* Standard border-radius for modern browsers */
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
   border-radius: 4px;
   
-  /* Webkit prefix for SVG elements (Safari) */
-  -webkit-rx: 4px;
-  -webkit-ry: 4px;
-  /* Standard SVG properties */
+  /* Standard SVG properties with fallbacks */
   rx: 4px;
   ry: 4px;
+  /* Standard border-radius for modern browsers */
+  border-radius: 4px;
   
   stroke-width: 1px;
   stroke: #1e293b;

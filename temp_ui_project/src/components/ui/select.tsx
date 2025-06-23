@@ -7,7 +7,7 @@ export interface SelectOption {
   disabled?: boolean;
 }
 
-interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'aria-invalid' | 'aria-required' | 'aria-describedby'> {
+interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'aria-invalid' | 'aria-required' | 'aria-describedby' | 'aria-label'> {
   id: string;
   label: string;
   options: SelectOption[];
@@ -80,6 +80,7 @@ export const Select: React.FC<SelectProps> = ({
         aria-invalid={error ? 'true' : 'false'}
         aria-required={required ? 'true' : 'false'}
         aria-describedby={ariaDescribedBy || undefined}
+        aria-label={label}
         title={label}
         {...props}
       >
