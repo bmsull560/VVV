@@ -46,11 +46,20 @@
 
 /* JointJS element styling */
 .joint-element .body {
+  /* Standard border-radius for modern browsers */
+  border-radius: 4px;
+  /* Legacy properties for SVG elements */
   rx: 4px;
   ry: 4px;
+  /* Webkit prefix for Safari */
+  -webkit-rx: 4px;
+  -webkit-ry: 4px;
   stroke-width: 1px;
   stroke: #1e293b;
   transition: filter 0.2s;
+  /* Ensure proper rendering in WebKit browsers */
+  -webkit-backface-visibility: hidden;
+  -webkit-transform: translateZ(0);
 }
 
 .joint-element .label {
