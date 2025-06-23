@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FC } from 'react';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Progress } from '../ui/progress';
 import Step1_BasicInfo from './Step1_BasicInfo';
 import Step2_ModelBuilder from '../Step2_ModelBuilder';
 import Step3_NarrativeGeneration from './Step3_NarrativeGeneration';
@@ -241,21 +242,14 @@ const BusinessCaseWizard: FC = () => {
       {/* Main Content */}
       <main className={styles.stepContent}>
         {/* Progress Bar */}
-        <div className={styles.progressContainer}>
-          <div className={styles.progressBar}>
-            <div 
-              className={styles.progressIndicator} 
-              style={{ width: `${progress}%` }}
-              aria-valuenow={progress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              role="progressbar"
-            />
-          </div>
-          <div className={styles.progressText}>
-            Step {currentStep} of {STEPS.length}: {STEPS[currentStep - 1]?.name}
-          </div>
-        </div>
+        <Progress
+          value={progress}
+          max={100}
+          label={`Step ${currentStep} of ${STEPS.length}: ${STEPS[currentStep - 1]?.name}`}
+          description={`Currently on ${STEPS[currentStep - 1]?.name} step`}
+          showPercentage
+          className="mb-6"
+        />
         
         {/* Current Step Content */}
         <div className={styles.stepPanel}>

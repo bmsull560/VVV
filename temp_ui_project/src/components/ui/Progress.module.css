@@ -1,25 +1,67 @@
 /* Container for the progress bar */
 .progressContainer {
   width: 100%;
+  --progress-bg: #e5e7eb; /* bg-gray-200 */
+  --progress-fill: #2563eb; /* bg-blue-600 */
+  --progress-height: 0.5rem;
+  --progress-radius: 9999px;
+  --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-duration: 300ms;
+}
+
+/* Progress header containing label and percentage */
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+/* Progress label */
+.progressLabel {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Percentage text */
+.percentage {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 
 /* Base progress bar styles */
 .progressBar {
   position: relative;
-  height: 0.5rem;
+  height: var(--progress-height);
   width: 100%;
   overflow: hidden;
-  border-radius: 9999px;
-  background-color: #e5e7eb; /* bg-gray-200 */
+  border-radius: var(--progress-radius);
+  background-color: var(--progress-bg);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.2s;
+}
+
+/* Focus state for keyboard navigation */
+.progressBar:focus-visible {
+  outline-color: var(--progress-fill);
+  outline-offset: 2px;
 }
 
 /* Progress indicator */
 .progressIndicator {
   height: 100%;
-  background-color: #2563eb; /* bg-blue-600 */
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 300ms;
+  width: var(--progress-width, 0%);
+  background-color: var(--progress-fill);
+  transition: width var(--transition-duration) var(--transition-timing);
+  border-radius: var(--progress-radius);
+}
+
+/* Progress description */
+.progressDescription {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 
 /* Screen reader only text */
@@ -33,4 +75,15 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+  .progressBar {
+    border: 1px solid CanvasText;
+  }
+  
+  .progressIndicator {
+    background-color: Highlight;
+  }
 }
