@@ -61,7 +61,33 @@ const createIndustryTemplate = (
   timeToValue: ttv,
   commonRisks: risks,
   successFactors,
-  caseStudy,
+  name: string,
+  description: string,
+  industry: IndustryVertical,
+  valueDrivers: string[],
+  metrics: string[],
+  suggestedQueries: string[],
+  roiRange: { min: number; max: number; average: number },
+  complexity: 'low' | 'medium' | 'high',
+  ttv: string,
+  risks: string[],
+  successFactors: string[],
+  caseStudy?: { title: string; description: string; results: string }
+): IndustryTemplate => ({
+  id,
+  name,
+  description,
+  industry,
+  commonValueDrivers: valueDrivers,
+  keyMetrics: metrics,
+  suggestedQueries,
+  typicalROIRange: roiRange,
+  implementationComplexity: complexity,
+  timeToValue: ttv,
+  commonRisks: risks,
+  successFactors,
+  metadata: {},
+  ...(caseStudy ? { caseStudy } : {})
 });
 
 export const industryTemplates: Record<IndustryVertical, IndustryTemplate> = {
@@ -98,6 +124,279 @@ export const industryTemplates: Record<IndustryVertical, IndustryTemplate> = {
       'Security and compliance requirements'
     ],
     [
+      'Executive sponsorship',
+      'Cross-functional collaboration',
+      'Clear success metrics',
+      'User adoption'
+    ]
+  ),
+  manufacturing: createIndustryTemplate(
+    'mfg',
+    'Manufacturing',
+    'Optimize manufacturing operations and supply chain',
+    'manufacturing',
+    [
+      'Production efficiency improvements',
+      'Reduced downtime',
+      'Supply chain optimization',
+      'Quality improvement',
+      'Labor productivity'
+    ],
+    [
+      'Overall Equipment Effectiveness (OEE)',
+      'Production yield',
+      'Cycle time',
+      'Inventory turnover',
+      'On-time delivery'
+    ],
+    [
+      'How can we reduce manufacturing defects?',
+      'What are best practices for predictive maintenance?',
+      'How to optimize our supply chain?'
+    ],
+    { min: 20, max: 60, average: 35 },
+    'high',
+    '6-12 months',
+    [
+      'Equipment integration challenges',
+      'Workforce training requirements',
+      'Supply chain disruptions'
+    ],
+    [
+      'Operator buy-in',
+      'Data quality and availability',
+      'Cross-department collaboration'
+    ]
+  ),
+  healthcare: createIndustryTemplate(
+    'healthcare',
+    'Healthcare',
+    'Improve patient care and healthcare operations',
+    'healthcare',
+    [
+      'Improved patient outcomes',
+      'Reduced operational costs',
+      'Enhanced patient experience',
+      'Regulatory compliance',
+      'Staff efficiency'
+    ],
+    [
+      'Patient wait times',
+      'Treatment success rates',
+      'Readmission rates',
+      'Staff productivity',
+      'Compliance scores'
+    ],
+    [
+      'How can we reduce patient wait times?',
+      'What are best practices for healthcare data security?',
+      'How to improve staff efficiency in healthcare?'
+    ],
+    { min: 30, max: 80, average: 50 },
+    'high',
+    '6-12 months',
+    [
+      'Data privacy concerns',
+      'Regulatory compliance requirements',
+      'Integration with existing healthcare systems'
+    ],
+    [
+      'Clinical staff involvement',
+      'Executive sponsorship',
+      'Clear compliance framework'
+    ]
+  ),
+  financial_services: createIndustryTemplate(
+    'fin',
+    'Financial Services',
+    'Enhance financial operations and customer experience',
+    'financial_services',
+    [
+      'Reduced operational costs',
+      'Improved compliance',
+      'Enhanced customer experience',
+      'Risk mitigation',
+      'Revenue growth'
+    ],
+    [
+      'Customer acquisition cost',
+      'Customer lifetime value',
+      'Fraud detection rates',
+      'Regulatory compliance scores',
+      'Transaction processing time'
+    ],
+    [
+      'How can we reduce fraud in financial transactions?',
+      'What are best practices for financial data security?',
+      'How to improve customer onboarding experience?'
+    ],
+    { min: 25, max: 70, average: 45 },
+    'high',
+    '4-8 months',
+    [
+      'Regulatory compliance',
+      'Data security concerns',
+      'System integration challenges'
+    ],
+    [
+      'Strong governance framework',
+      'Regulatory expertise',
+      'Customer-centric approach'
+    ]
+  ),
+  retail: createIndustryTemplate(
+    'retail',
+    'Retail',
+    'Enhance retail operations and customer experience',
+    'retail',
+    [
+      'Increased sales',
+      'Improved customer experience',
+      'Inventory optimization',
+      'Reduced operational costs',
+      'Omnichannel integration'
+    ],
+    [
+      'Sales per square foot',
+      'Customer conversion rates',
+      'Average transaction value',
+      'Inventory turnover',
+      'Customer satisfaction scores'
+    ],
+    [
+      'How can we improve in-store customer experience?',
+      'What are best practices for inventory optimization?',
+      'How to increase online conversion rates?'
+    ],
+    { min: 20, max: 65, average: 40 },
+    'medium',
+    '3-6 months',
+    [
+      'Integration with existing systems',
+      'Data privacy concerns',
+      'Change management'
+    ],
+    [
+      'Customer journey mapping',
+      'Data-driven decision making',
+      'Seamless omnichannel experience'
+    ]
+  ),
+  telecom: createIndustryTemplate(
+    'telecom',
+    'Telecommunications',
+    'Optimize network operations and customer service',
+    'telecom',
+    [
+      'Network performance',
+      'Customer satisfaction',
+      'Operational efficiency',
+      'Service reliability',
+      'New revenue streams'
+    ],
+    [
+      'Network uptime',
+      'Mean time to repair',
+      'Customer churn rate',
+      'Average revenue per user',
+      'Service activation time'
+    ],
+    [
+      'How can we reduce network downtime?',
+      'What are best practices for customer churn reduction?',
+      'How to improve service activation processes?'
+    ],
+    { min: 15, max: 50, average: 30 },
+    'high',
+    '6-12 months',
+    [
+      'Legacy system integration',
+      'Network complexity',
+      'Regulatory requirements'
+    ],
+    [
+      'Network reliability',
+      'Customer experience focus',
+      'Operational efficiency'
+    ]
+  ),
+  energy: createIndustryTemplate(
+    'energy',
+    'Energy',
+    'Optimize energy production and distribution',
+    'energy',
+    [
+      'Operational efficiency',
+      'Cost reduction',
+      'Sustainability',
+      'Asset performance',
+      'Regulatory compliance'
+    ],
+    [
+      'Energy production efficiency',
+      'Maintenance costs',
+      'Equipment uptime',
+      'Safety incident rate',
+      'Regulatory compliance score'
+    ],
+    [
+      'How can we improve energy production efficiency?',
+      'What are best practices for predictive maintenance?',
+      'How to reduce operational costs in energy production?'
+    ],
+    { min: 20, max: 60, average: 40 },
+    'high',
+    '6-18 months',
+    [
+      'High capital requirements',
+      'Regulatory changes',
+      'Technology integration challenges'
+    ],
+    [
+      'Strong project management',
+      'Stakeholder alignment',
+      'Clear ROI metrics'
+    ]
+  ),
+  education: createIndustryTemplate(
+    'edu',
+    'Education',
+    'Enhance learning outcomes and institutional efficiency',
+    'education',
+    [
+      'Improved learning outcomes',
+      'Operational efficiency',
+      'Student engagement',
+      'Cost reduction',
+      'Accessibility'
+    ],
+    [
+      'Student performance',
+      'Graduation rates',
+      'Student satisfaction',
+      'Operational costs',
+      'Technology adoption rates'
+    ],
+    [
+      'How can we improve student engagement in online learning?',
+      'What are best practices for educational technology integration?',
+      'How to measure the impact of educational technology?'
+    ],
+    { min: 15, max: 50, average: 30 },
+    'medium',
+    '4-8 months',
+    [
+      'Resistance to change',
+      'Budget constraints',
+      'Technology adoption challenges'
+    ],
+    [
+      'Faculty and staff buy-in',
+      'Student-centered design',
+      'Measurable learning outcomes'
+    ]
+  )
+};
       'Strong executive sponsorship',
       'Cross-functional collaboration',
       'Clear success metrics and KPIs',
