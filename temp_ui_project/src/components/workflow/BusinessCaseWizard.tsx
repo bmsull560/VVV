@@ -1,22 +1,43 @@
 import React, { useState } from 'react';
-import Step1_BasicInfo from './Step1_BasicInfo.tsx';
-import Step2_ModelBuilder from '../Step2_ModelBuilder.tsx';
-// Import other steps here as they are created
-import Step3_NarrativeGeneration from './Step3_NarrativeGeneration.tsx';
-import Step4_Composition from './Step4_Composition.tsx';
+import type { FC } from 'react';
+import Step1_BasicInfo from './Step1_BasicInfo';
+import Step2_ModelBuilder from '../Step2_ModelBuilder';
+import Step3_NarrativeGeneration from './Step3_NarrativeGeneration';
+import Step4_Composition from './Step4_Composition';
+import type { DiscoveryResponse } from '../../services/b2bValueApi';
+import type { TemplateContext } from './Step1_BasicInfo';
 
-const BusinessCaseWizard = () => {
-    const [currentStep, setCurrentStep] = useState(1);
-    const [wizardData, setWizardData] = useState({
+interface WizardData {
+  discoveryData: DiscoveryResponse | null;
+  templateContext?: TemplateContext;
+  quantificationData: any;
+  narrativeData: any;
+  userFeedback: any;
+  compositionData: any;
+}
+
+interface StepProps {
+  onNext: (data: any) => void;
+  wizardData: WizardData;
+}
+
+const BusinessCaseWizard: FC = () => {
+    const [currentStep, setCurrentStep] = useState<number>(1);
+    const [wizardData, setWizardData] = useState<WizardData>({
         discoveryData: null,
+        templateContext: undefined,
         quantificationData: null,
         narrativeData: null,
         userFeedback: null,
         compositionData: null
     });
 
-    const handleStep1Complete = (discoveryData) => {
-        setWizardData(prev => ({ ...prev, discoveryData }));
+    const handleStep1Complete = (data: { discoveryData: DiscoveryResponse; templateContext?: TemplateContext }) => {
+        setWizardData(prev => ({
+            ...prev,
+            discoveryData: data.discoveryData,
+            templateContext: data.templateContext
+        }));
         setCurrentStep(2);
     };
 
@@ -41,6 +62,11 @@ const BusinessCaseWizard = () => {
     };
 
     const renderStep = () => {
+        const stepProps = {
+            onNext: () => {},
+            wizardData
+        };
+
         switch (currentStep) {
             case 1:
                 return (
@@ -54,6 +80,7 @@ const BusinessCaseWizard = () => {
                         onNext={handleStep2Complete}
                         onNavigate={handleStepNavigation}
                         discoveryData={wizardData.discoveryData}
+                        templateContext={wizardData.templateContext}
                     />
                 );
             case 3:
