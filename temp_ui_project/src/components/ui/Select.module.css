@@ -2,16 +2,25 @@
 .selectWrapper {
   margin-bottom: 1rem;
   width: 100%;
+  position: relative;
+}
+
+/* Label container */
+.labelContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 /* Label styles */
 .label {
   display: block;
-  margin-bottom: 0.5rem;
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.25rem;
   color: #111827; /* text-gray-900 */
+  cursor: pointer;
 }
 
 /* Required indicator */
@@ -73,10 +82,10 @@
 
 /* Help text */
 .helpText {
-  margin-top: 0.25rem;
   font-size: 0.75rem;
   line-height: 1rem;
   color: #6b7280; /* text-gray-500 */
+  margin-top: 0;
 }
 
 /* Select trigger (for custom select implementations) */

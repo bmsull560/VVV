@@ -7,15 +7,24 @@ export interface SelectOption {
   disabled?: boolean;
 }
 
-interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'aria-invalid' | 'aria-required' | 'aria-describedby' | 'aria-label'> {
+interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'aria-invalid' | 'aria-required' | 'aria-describedby' | 'aria-label' | 'aria-labelledby'> {
+  /** Unique identifier for the select element */
   id: string;
+  /** Label text for the select element */
   label: string;
-  options: SelectOption[];
+  /** Array of options to display in the select */
+  options: Array<{ value: string; label: string; disabled?: boolean }>;
+  /** Additional CSS class name for the select element */
   className?: string;
+  /** Additional CSS class name for the wrapper div */
   wrapperClassName?: string;
+  /** Additional CSS class name for the label */
   labelClassName?: string;
+  /** Error message to display below the select */
   error?: string;
+  /** Help text to display below the select */
   helpText?: string;
+  /** Whether the select is required */
   required?: boolean;
   'aria-invalid'?: boolean | 'false' | 'true' | 'grammar' | 'spelling';
   'aria-required'?: boolean | 'false' | 'true';
@@ -66,24 +75,33 @@ export const Select: React.FC<SelectProps> = ({
 
   return (
     <div className={`${styles.selectWrapper} ${wrapperClassName}`}>
-      <label 
-        htmlFor={selectId} 
-        className={`${styles.label} ${labelClassName}`}
-      >
-        {label}
-        {required && <span className={styles.requiredIndicator} aria-hidden="true">*</span>}
-      </label>
+      <div className={styles.labelContainer}>
+        <label 
+          id={`${selectId}-label`}
+          htmlFor={selectId} 
+          className={`${styles.label} ${labelClassName}`}
+        >
+          {label}
+          {required && <span className={styles.requiredIndicator} aria-hidden="true">*</span>}
+        </label>
+        {helpText && (
+          <span id={`${selectId}-help`} className={styles.helpText}>
+            {helpText}
+          </span>
+        )}
+      </div>
       
-      <select
-        id={selectId}
-        className={`${styles.select} ${error ? styles.error : ''} ${className}`}
-        aria-invalid={error ? 'true' : 'false'}
-        aria-required={required ? 'true' : 'false'}
-        aria-describedby={ariaDescribedBy || undefined}
-        aria-label={label}
-        title={label}
-        {...props}
-      >
+      <div className={styles.selectContainer}>
+        <select
+          id={selectId}
+          className={`${styles.select} ${error ? styles.error : ''} ${className}`}
+          aria-invalid={error ? 'true' : undefined}
+          aria-required={required ? 'true' : undefined}
+          aria-describedby={ariaDescribedBy || undefined}
+          aria-labelledby={`${selectId}-label`}
+          title={label}
+          {...props}
+        >
         {options.map((option) => (
           <option 
             key={option.value} 
@@ -93,7 +111,8 @@ export const Select: React.FC<SelectProps> = ({
             {option.label}
           </option>
         ))}
-      </select>
+        </select>
+      </div>
 
       {error && (
         <p id={errorId} className={styles.errorMessage}>
