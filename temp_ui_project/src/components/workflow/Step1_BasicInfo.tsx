@@ -12,7 +12,10 @@ interface TemplateContext {
 }
 
 interface Step1Props {
-  onNext: (discoveryData: DiscoveryResponse) => void;
+  onNext: (data: {
+    discoveryData: DiscoveryResponse;
+    templateContext?: TemplateContext;
+  }) => void;
 }
 
 const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
@@ -94,13 +97,10 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
       return;
     }
     
-    // Combine discovery results with template context
-    const resultsWithContext = {
-      ...discoveryResults,
+    onNext({
+      discoveryData: discoveryResults,
       ...(templateContext && { templateContext })
-    };
-    
-    onNext(resultsWithContext);
+    });
   };
   
   const handleTemplateSelect = (template: IndustryTemplate) => {
