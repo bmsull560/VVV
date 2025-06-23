@@ -33,6 +33,37 @@ export interface IndustryTemplate {
   };
 }
 
+// Helper function to create consistent template structure
+const createIndustryTemplate = (
+  id: string,
+  name: string,
+  description: string,
+  industry: IndustryVertical,
+  valueDrivers: string[],
+  metrics: string[],
+  suggestedQueries: string[],
+  roiRange: { min: number; max: number; average: number },
+  complexity: 'low' | 'medium' | 'high',
+  ttv: string,
+  risks: string[],
+  successFactors: string[],
+  caseStudy?: { title: string; description: string; results: string }
+): IndustryTemplate => ({
+  id,
+  name,
+  description,
+  industry,
+  commonValueDrivers: valueDrivers,
+  keyMetrics: metrics,
+  suggestedQueries,
+  typicalROIRange: roiRange,
+  implementationComplexity: complexity,
+  timeToValue: ttv,
+  commonRisks: risks,
+  successFactors,
+  caseStudy,
+});
+
 export const industryTemplates: Record<IndustryVertical, IndustryTemplate> = {
   technology: {
     id: 'tech',

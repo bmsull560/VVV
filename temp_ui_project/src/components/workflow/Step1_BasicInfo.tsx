@@ -35,18 +35,28 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
     setShowTemplateSelector(false);
     
     // Pre-fill the query with template suggestions if empty
-    if (!userQuery.trim()) {
-      setUserQuery(template.suggestedQueries[0] || '');
+    if (!userQuery.trim() && template.suggestedQueries?.length > 0) {
+      setUserQuery(template.suggestedQueries[0]);
     }
+    
+    // Set the template context for the wizard
+    setTemplateContext({
+      industry: template.industry || template.name.toLowerCase(),
+      commonValueDrivers: template.commonValueDrivers || [],
+      keyMetrics: template.keyMetrics || [],
+      template
+    });
   }, [userQuery]);
 
   // Use template-specific example queries if available, otherwise use defaults
-  const exampleQueries = selectedTemplate?.suggestedQueries || [
-    "Implement AI chatbot to reduce customer service costs by 30%",
-    "Deploy data analytics platform to increase sales conversion rates",
-    "Automate invoice processing to eliminate manual data entry",
-    "Modernize legacy systems to improve operational efficiency"
-  ];
+  const exampleQueries = selectedTemplate?.suggestedQueries?.length 
+    ? selectedTemplate.suggestedQueries 
+    : [
+        "Implement AI chatbot to reduce customer service costs by 30%",
+        "Deploy data analytics platform to increase sales conversion rates",
+        "Automate invoice processing to eliminate manual data entry",
+        "Modernize legacy systems to improve operational efficiency"
+      ];
 
   const handleDiscoverValue = useCallback(async () => {
     if (!userQuery.trim()) {
