@@ -4,7 +4,8 @@ import Step1_BasicInfo from './Step1_BasicInfo';
 import Step2_ModelBuilder from '../Step2_ModelBuilder';
 import Step3_NarrativeGeneration from './Step3_NarrativeGeneration';
 import Step4_Composition from './Step4_Composition';
-import type { DiscoveryResponse } from '../../services/b2bValueApi';
+import type { DiscoveryResponse, DiscoveryData } from '../../services/b2bValueApi';
+import styles from './BusinessCaseWizard.module.css';
 
 // Re-export TemplateContext from Step1_BasicInfo
 import type { IndustryTemplate } from '../../types/industryTemplates';
@@ -18,7 +19,7 @@ export interface TemplateContext {
 
 interface WizardData {
   discoveryData: DiscoveryResponse | null;
-  templateContext?: TemplateContext;
+  templateContext?: TemplateContext | null;
   quantificationData: any;
   narrativeData: any;
   userFeedback: any;
@@ -27,7 +28,13 @@ interface WizardData {
 
 type WizardStep = 1 | 2 | 3 | 4;
 
-const STEPS = [
+interface Step {
+  id: WizardStep;
+  name: string;
+  description: string;
+}
+
+const STEPS: Step[] = [
   { id: 1, name: 'Discovery', description: 'Identify value drivers' },
   { id: 2, name: 'Model', description: 'Build financial model' },
   { id: 3, name: 'Narrative', description: 'Craft your story' },
