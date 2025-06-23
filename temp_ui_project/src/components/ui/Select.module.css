@@ -1,0 +1,160 @@
+/* Select wrapper */
+.selectWrapper {
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+/* Label styles */
+.label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: #111827; /* text-gray-900 */
+}
+
+/* Required indicator */
+.requiredIndicator {
+  margin-left: 0.25rem;
+  color: #dc2626; /* text-red-600 */
+}
+
+/* Base select styles */
+.select {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #111827; /* text-gray-900 */
+  background-color: #ffffff; /* bg-white */
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1.5em 1.5em;
+  border: 1px solid #d1d5db; /* border-gray-300 */
+  border-radius: 0.375rem; /* rounded-md */
+  appearance: none;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/* Focus state */
+.select:focus {
+  outline: 0;
+  border-color: #3b82f6; /* border-blue-500 */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); /* focus:ring-blue-500 */
+}
+
+/* Error state */
+.select.error {
+  border-color: #dc2626; /* border-red-600 */
+}
+
+.select.error:focus {
+  border-color: #dc2626; /* border-red-600 */
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25); /* focus:ring-red-500 */
+}
+
+/* Disabled state */
+.select:disabled {
+  background-color: #f3f4f6; /* bg-gray-100 */
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Error message */
+.errorMessage {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: #dc2626; /* text-red-600 */
+}
+
+/* Help text */
+.helpText {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: #6b7280; /* text-gray-500 */
+}
+
+/* Select trigger (for custom select implementations) */
+.selectTrigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #111827; /* text-gray-900 */
+  background-color: #ffffff; /* bg-white */
+  border: 1px solid #d1d5db; /* border-gray-300 */
+  border-radius: 0.375rem; /* rounded-md */
+  cursor: pointer;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/* Select value */
+.selectValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Select content (for dropdown) */
+.selectContent {
+  position: relative;
+  z-index: 50;
+  min-width: 8rem;
+  overflow: hidden;
+  background-color: #ffffff; /* bg-white */
+  border-radius: 0.375rem; /* rounded-md */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  animation: fadeIn 0.1s ease-out;
+}
+
+/* Select item */
+.selectItem {
+  position: relative;
+  display: flex;
+  width: 100%;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #111827; /* text-gray-900 */
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+}
+
+.selectItem:hover {
+  background-color: #f3f4f6; /* bg-gray-100 */
+}
+
+.selectItem:focus {
+  outline: none;
+  background-color: #3b82f6; /* bg-blue-600 */
+  color: #ffffff; /* text-white */
+}
+
+.selectItem[data-disabled] {
+  color: #9ca3af; /* text-gray-400 */
+  pointer-events: none;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
