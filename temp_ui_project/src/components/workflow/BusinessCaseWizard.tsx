@@ -22,7 +22,6 @@ import styles from './BusinessCaseWizard.module.css';
 
 // Re-export TemplateContext from Step1_BasicInfo
 import type { IndustryTemplate } from '../../types/industryTemplates';
-import type { ModelBuilderData } from '../../services/modelBuilderApi';
 
 export interface TemplateContext {
   industry: string;
@@ -68,29 +67,31 @@ const BusinessCaseWizard: FC = () => {
 
   const handleStep1Complete = (data: { 
     discoveryData: DiscoveryResponse; 
-    templateContext?: TemplateContext 
+    templateContext: TemplateContext | null; // Ensure it matches WizardData type
   }) => {
-    if (!data.templateContext) {
-      console.error('Template context is required');
-      return;
-    }
+    // Ensure templateContext is never undefined
+    const templateContext = data.templateContext || null;
+    
     setWizardData(prev => ({
       ...prev,
       discoveryData: data.discoveryData,
-      templateContext: data.templateContext,
+      templateContext, // This will be TemplateContext | null
     }));
     setCurrentStep(2);
   };
 
   const handleStep2Complete = (data: DiscoveryData & {
     modelBuilderData: ModelBuilderData;
-    quantificationResults?: QuantificationResponse;
+    quantificationResults?: unknown; // Matches Step2_ModelBuilder's expected type
     localCalculations?: Record<string, CalculationResult>;
     validationResults?: ModelValidationResult;
   }) => {
+    // Type assertion since we know the actual type from the API
+    const results = data.quantificationResults as QuantificationResponse | undefined;
+    
     setWizardData(prev => ({
       ...prev,
-      quantificationData: data.quantificationResults || null,
+      quantificationData: results || null,
     }));
     setCurrentStep(3);
   };
