@@ -1,6 +1,8 @@
-import { useState, FC } from 'react';
-import { Search, Lightbulb, Users, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useState, FC, useCallback } from 'react';
+import { Search, Lightbulb, Users, TrendingUp, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
 import { b2bValueAPI, DiscoveryResponse, ValueDriverPillar, Persona } from '../../services/b2bValueApi';
+import IndustryTemplateSelector, { IndustryTemplate } from '../discovery/IndustryTemplateSelector';
+import { getIndustryTemplate } from '../../types/industryTemplates';
 
 interface Step1Props {
   onNext: (discoveryData: DiscoveryResponse) => void;
@@ -12,7 +14,9 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDrivers, setSelectedDrivers] = useState<string[]>([]);
-  const [selectedPersonas, setSelectedPersonas] = useState<string[]>([]);
+    const [selectedPersonas, setSelectedPersonas] = useState<string[]>([]);
+  const [showTemplateSelector, setShowTemplateSelector] = useState<boolean>(true);
+  const [selectedTemplate, setSelectedTemplate] = useState<IndustryTemplate | null>(null);
 
   // Example queries to guide users
   const exampleQueries = [
@@ -22,7 +26,7 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
     "Modernize legacy systems to improve operational efficiency"
   ];
 
-  const handleDiscoverValue = async () => {
+  const handleDiscoverValue = useCallback(async () => {
     if (!userQuery.trim()) {
       setError('Please enter a description of your business challenge or investment idea');
       return;
@@ -32,7 +36,14 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
     setError(null);
 
     try {
-      const results = await b2bValueAPI.discoverValue(userQuery);
+      // Include selected template context in the discovery request if available
+      const context = selectedTemplate ? {
+        industry: selectedTemplate.name,
+        commonValueDrivers: selectedTemplate.commonValueDrivers,
+        keyMetrics: selectedTemplate.keyMetrics
+      } : undefined;
+      
+      const results = await b2bValueAPI.discoverValue(userQuery, context);
       setDiscoveryResults(results);
     } catch (err) {
       setError('Failed to discover value drivers. Please try again.');
@@ -40,7 +51,7 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userQuery, selectedTemplate]);
 
   const toggleDriverSelection = (pillar: string) => {
     const updated = selectedDrivers.includes(pillar)
@@ -60,26 +71,75 @@ const Step1_BasicInfo: FC<Step1Props> = ({ onNext }) => {
 
   const canProceed = discoveryResults && selectedDrivers.length > 0 && selectedPersonas.length > 0;
 
-  const handleNextStep = () => {
-    if (canProceed) {
-      onNext(discoveryResults!);
+  const handleNext = () => {
+    if (!discoveryResults) {
+      setError('Please complete the discovery process first');
+      return;
+    }
+    
+    // Include the selected template in the discovery results
+    const enhancedResults = {
+      ...discoveryResults,
+      metadata: {
+        ...discoveryResults.metadata,
+        industryTemplate: selectedTemplate ? {
+          id: selectedTemplate.id,
+          name: selectedTemplate.name
+        } : undefined
+      }
+    };
+    
+    onNext(enhancedResults);
+  };
+  
+  const handleTemplateSelect = (template: IndustryTemplate) => {
+    setSelectedTemplate(template);
+    setShowTemplateSelector(false);
+    
+    // Pre-fill the query with template-specific suggestions if empty
+    if (!userQuery.trim()) {
+      setUserQuery(`I'm looking to improve ${template.name.toLowerCase()} operations with a focus on ${template.commonValueDrivers[0].toLowerCase()}.`);
     }
   };
+  
+  const handleResetTemplate = () => {
+    setSelectedTemplate(null);
+    setShowTemplateSelector(true);
+  };
+
+  if (showTemplateSelector && !selectedTemplate) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <IndustryTemplateSelector 
+          onSelectTemplate={handleTemplateSelect}
+          onCancel={() => setShowTemplateSelector(false)}
+          initialIndustry={selectedTemplate?.id || 'technology'}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      {/* Development Mode Indicator */}
-      {import.meta.env.DEV && (
-        <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
-            <p className="text-yellow-800 text-sm">
-              <strong>Development Mode:</strong> Using mock data for demonstration. 
-              Connect to backend API at localhost:8000 for live data.
-            </p>
-          </div>
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow">
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Discover Value Drivers</h2>
+          {selectedTemplate && (
+            <div className="flex items-center gap-2 mt-1">
+              <Building2 className="h-4 w-4 text-blue-600" />
+              <span className="text-sm text-gray-600">
+                Using template: <span className="font-medium">{selectedTemplate.name}</span>
+                <button 
+                  onClick={handleResetTemplate}
+                  className="ml-2 text-blue-600 hover:text-blue-800 text-xs underline"
+                >
+                  Change
+                </button>
+              </span>
+            </div>
+          )}
         </div>
-      )}
+      </div>
       
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-800 mb-4">
