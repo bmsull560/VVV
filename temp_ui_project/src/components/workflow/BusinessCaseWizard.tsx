@@ -16,7 +16,7 @@ import styles from './BusinessCaseWizard.module.css';
 
 // Re-export TemplateContext from Step1_BasicInfo
 import type { IndustryTemplate } from '../../types/industryTemplates';
-import type { DiscoveryData, ModelBuilderData, ModelValidationResult } from '../../services/modelBuilderApi';
+import type { ModelBuilderData } from '../../services/modelBuilderApi';
 
 export interface TemplateContext {
   industry: string;
@@ -30,7 +30,7 @@ export interface WizardData {
   templateContext: TemplateContext | null;
   quantificationData: QuantificationResponse | null;
   narrativeData: NarrativeResponse | null;
-  userFeedback: Record<string, unknown> | null;
+  userFeedback: { approved: boolean; comments?: string } | null;
   compositionData: ComposedBusinessCase | null;
 }
 
@@ -60,10 +60,7 @@ const BusinessCaseWizard: FC = () => {
     compositionData: null,
   });
 
-  const handleStep1Complete = (data: { 
-    discoveryData: DiscoveryResponse; 
-    templateContext?: TemplateContext 
-  }) => {
+  const handleStep1Complete = (data: { discoveryData: DiscoveryResponse; templateContext: TemplateContext | null }) => {
     if (!data.templateContext) {
       console.error('Template context is required');
       return;
@@ -80,7 +77,7 @@ const BusinessCaseWizard: FC = () => {
     modelBuilderData: ModelBuilderData;
     quantificationResults: QuantificationResponse;
     localCalculations?: Record<string, unknown>;
-    validationResults?: ModelValidationResult;
+    validationResults?: unknown;
   }) => {
     setWizardData(prev => ({
       ...prev,
@@ -93,14 +90,17 @@ const BusinessCaseWizard: FC = () => {
     setWizardData({
       ...wizardData,
       narrativeData,
-      userFeedback,
+      userFeedback: { approved: userFeedback.approved, comments: userFeedback.comments },
     });
     setCurrentStep(4);
   };
 
   const handleStep4Complete = (compositionData: ComposedBusinessCase) => {
-    setWizardData(prev => ({ ...prev, compositionData }));
-    // Navigate to final results or completion
+    setWizardData(prev => ({
+      ...prev,
+      compositionData,
+      templateContext: prev.templateContext || null,
+    }));
     console.log('Business Case Complete:', { ...wizardData, compositionData });
   };
 
@@ -173,7 +173,7 @@ const BusinessCaseWizard: FC = () => {
             discoveryData={wizardData.discoveryData}
             quantificationData={wizardData.quantificationData}
             narrativeData={wizardData.narrativeData}
-            userFeedback={wizardData.userFeedback || { approved: false }}
+            userFeedback={wizardData.userFeedback || { approved: false, comments: '' }}
             onNavigate={(step) => handleStepNavigation(step)}
             onCompositionComplete={(compositionData) => {
               setWizardData(prev => ({
