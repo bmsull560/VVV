@@ -60,7 +60,10 @@ const BusinessCaseWizard: FC = () => {
     compositionData: null,
   });
 
-  const handleStep1Complete = (data: { discoveryData: DiscoveryResponse; templateContext: TemplateContext | null }) => {
+  const handleStep1Complete = (data: { 
+    discoveryData: DiscoveryResponse; 
+    templateContext?: TemplateContext 
+  }) => {
     if (!data.templateContext) {
       console.error('Template context is required');
       return;
@@ -79,20 +82,17 @@ const BusinessCaseWizard: FC = () => {
     localCalculations?: Record<string, unknown>;
     validationResults?: unknown;
   }) => {
-    setWizardData(prev => ({
-      ...prev,
-      quantificationData: data.quantificationResults,
-    }));
-    setCurrentStep(3);
-  };
-
-  const handleStep3Complete = (narrativeData: NarrativeResponse, userFeedback: Record<string, unknown>) => {
-    setWizardData({
-      ...wizardData,
-      narrativeData,
-      userFeedback: { approved: userFeedback.approved, comments: userFeedback.comments },
+    setWizardData(prev => {
+      if (!prev.templateContext) {
+        console.error('Template context is required');
+        return prev;
+      }
+      return {
+        ...prev,
+        quantificationData: data.quantificationResults,
+      };
     });
-    setCurrentStep(4);
+    setCurrentStep(3);
   };
 
   const handleStep4Complete = (compositionData: ComposedBusinessCase) => {
