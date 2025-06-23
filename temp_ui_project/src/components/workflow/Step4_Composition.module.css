@@ -1,0 +1,130 @@
+.documentSection {
+  scroll-margin-top: 6rem; /* Account for sticky header */
+  padding: 1.5rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.documentSection:last-child {
+  border-bottom: none;
+}
+
+/* Print styles */
+@media print {
+  .documentSection {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  .documentSection h2 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+}
+
+/* Prose styling for better readability */
+.documentSection .prose {
+  line-height: 1.7;
+}
+
+.documentSection .prose p {
+  margin-bottom: 1rem;
+  text-align: justify;
+}
+
+.documentSection .prose h1,
+.documentSection .prose h2,
+.documentSection .prose h3 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.documentSection .prose h1:first-child,
+.documentSection .prose h2:first-child,
+.documentSection .prose h3:first-child {
+  margin-top: 0;
+}
+
+/* Table of contents active state */
+.tocItem {
+  transition: all 0.2s ease;
+}
+
+.tocItem:hover {
+  background-color: #f3f4f6;
+}
+
+.tocItemActive {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border-left: 3px solid #3b82f6;
+}
+
+/* Export format selection */
+.exportOption {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.exportOption:hover {
+  background-color: #f9fafb;
+}
+
+.exportOptionSelected {
+  background-color: #eff6ff;
+  border-color: #3b82f6;
+}
+
+/* Document preview styling */
+.documentPreview {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+.documentPreview:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Confidence indicator styling */
+.confidenceHigh {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.confidenceMedium {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.confidenceLow {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+/* Loading states */
+.loadingSpinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive typography */
+@media (max-width: 768px) {
+  .documentSection h1 {
+    font-size: 1.75rem;
+  }
+  
+  .documentSection h2 {
+    font-size: 1.5rem;
+  }
+  
+  .documentSection h3 {
+    font-size: 1.25rem;
+  }
+}

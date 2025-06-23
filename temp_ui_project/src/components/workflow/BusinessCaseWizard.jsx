@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import Step1_BasicInfo from './Step1_BasicInfo.tsx';
-import Step2_Quantification from './Step2_Quantification.tsx';
+import Step2_ModelBuilder from '../Step2_ModelBuilder.tsx';
 // Import other steps here as they are created
 import Step3_NarrativeGeneration from './Step3_NarrativeGeneration.tsx';
-import Step4_Review from './Step4_Review';
+import Step4_Composition from './Step4_Composition.tsx';
 
 const BusinessCaseWizard = () => {
     const [currentStep, setCurrentStep] = useState(1);
@@ -50,7 +50,7 @@ const BusinessCaseWizard = () => {
                 );
             case 2:
                 return (
-                    <Step2_Quantification 
+                    <Step2_ModelBuilder 
                         onNext={handleStep2Complete}
                         onNavigate={handleStepNavigation}
                         discoveryData={wizardData.discoveryData}
@@ -66,12 +66,25 @@ const BusinessCaseWizard = () => {
                     />
                 );
             case 4:
-                return (
-                    <Step4_Review 
-                        onNext={handleStep4Complete}
-                        onBack={() => handleStepNavigation(3)}
-                        allData={wizardData}
+                return (wizardData.discoveryData && wizardData.quantificationData && wizardData.narrativeData) ? (
+                    <Step4_Composition
+                        discoveryData={wizardData.discoveryData}
+                        quantificationData={wizardData.quantificationData}
+                        narrativeData={wizardData.narrativeData}
+                        userFeedback={wizardData.userFeedback}
+                        onNavigate={handleStepNavigation}
+                        onCompositionComplete={handleStep4Complete}
                     />
+                ) : (
+                    <div className="text-center py-8">
+                        <p className="text-gray-600">Previous step data not available. Please complete earlier steps first.</p>
+                        <button 
+                            onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
+                            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            Go Back
+                        </button>
+                    </div>
                 );
             default:
                 return (

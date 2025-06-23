@@ -36,6 +36,12 @@ const Step3_NarrativeGeneration = ({
     return 'Low Confidence';
   };
 
+  const getProgressBarClass = (score: number): string => {
+    const percentage = Math.round(score * 100);
+    const roundedPercentage = Math.round(percentage / 10) * 10; // Round to nearest 10
+    return `${styles.progressBar} ${styles['progress' + roundedPercentage]}`;
+  };
+
   // Generate narrative
   const handleGenerateNarrative = useCallback(async () => {
     if (!discoveryData || !quantificationData) {
@@ -202,8 +208,7 @@ const Step3_NarrativeGeneration = ({
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className={styles.progressBar}
-                    style={{ '--progress-width': `${narrative.ai_critique.confidence_score * 100}%` } as React.CSSProperties}
+                    className={getProgressBarClass(narrative.ai_critique.confidence_score)}
                   />
                 </div>
                 <p className={`text-xs mt-1 ${getConfidenceColor(narrative.ai_critique.confidence_score)}`}>

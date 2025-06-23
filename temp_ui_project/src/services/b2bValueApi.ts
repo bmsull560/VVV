@@ -193,6 +193,25 @@ This investment aligns with our digital transformation strategy while delivering
   ]
 };
 
+const MOCK_COMPOSITION_RESPONSE: ComposedBusinessCase = {
+  title: "AI-Powered Customer Service Chatbot Business Case",
+  executive_summary: "The implementation of an AI-powered customer service chatbot represents a strategic investment opportunity that will fundamentally transform our customer experience while delivering substantial operational efficiencies and cost savings.",
+  introduction: "In today's competitive landscape, customer expectations for instant, accurate support have never been higher.",
+  value_drivers_section: "Our analysis reveals that implementing an AI-powered customer service solution will address three critical business challenges: Operational Efficiency, Cost Optimization, and Scalability.",
+  financial_projections_section: "Our comprehensive ROI analysis demonstrates compelling financial returns: Total Annual Value: $450,000, Return on Investment: 180%, Payback Period: 14 months, 3-Year NPV: $1,050,000",
+  risk_assessment_section: "We recommend a phased implementation beginning with a pilot program targeting our most common inquiry types.",
+  implementation_roadmap: "The technology integration leverages our existing CRM infrastructure, ensuring seamless deployment without disrupting current operations.",
+  conclusion: "This investment aligns with our digital transformation strategy while delivering measurable improvements in customer satisfaction, operational efficiency, and financial performance.",
+  appendices: ["Appendix A: ROI Analysis", "Appendix B: Sensitivity Analysis"],
+  table_of_contents: ["Executive Summary", "Introduction", "Value Drivers", "Financial Projections", "Risk Assessment", "Implementation Roadmap", "Conclusion"],
+  metadata: {
+    created_date: "2023-02-20",
+    version: "1.0",
+    confidence_score: 0.85,
+    total_pages: 12
+  }
+};
+
 // API Client Setup
 class B2BValueAPIClient {
   private client: AxiosInstance;
@@ -288,6 +307,9 @@ class B2BValueAPIClient {
   // ==========================================
   
   async composeBusinessCase(data: CompositionRequest): Promise<ComposedBusinessCase> {
+    if (DEVELOPMENT_MODE) {
+      return MOCK_COMPOSITION_RESPONSE;
+    }
     try {
       const response = await this.client.post('/api/compose-business-case', data);
       return response.data;
@@ -429,6 +451,7 @@ interface CompositionRequest {
   narrative_data: NarrativeResponse;
   document_template?: string;
   export_format: 'pdf' | 'docx' | 'presentation';
+  user_feedback?: { approved: boolean; comments?: string };
 }
 
 interface ComposedBusinessCase {

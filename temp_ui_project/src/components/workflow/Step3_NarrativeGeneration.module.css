@@ -1,7 +1,36 @@
 .progressBar {
-  width: var(--progress-width, 0%);
   background-color: #2563eb; /* bg-blue-600 */
   height: 0.5rem; /* h-2 */
   border-radius: 9999px; /* rounded-full */
   transition: all 0.3s ease;
 }
+
+/* Confidence level classes */
+.progressLow {
+  width: 25%;
+}
+
+.progressModerate {
+  width: 50%;
+}
+
+.progressHigh {
+  width: 75%;
+}
+
+.progressExcellent {
+  width: 90%;
+}
+
+/* More granular percentage classes */
+.progress0 { width: 0%; }
+.progress10 { width: 10%; }
+.progress20 { width: 20%; }
+.progress30 { width: 30%; }
+.progress40 { width: 40%; }
+.progress50 { width: 50%; }
+.progress60 { width: 60%; }
+.progress70 { width: 70%; }
+.progress80 { width: 80%; }
+.progress90 { width: 90%; }
+.progress100 { width: 100%; }

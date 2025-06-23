@@ -23,7 +23,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "allowJs": true,
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client", "jest", "@testing-library/jest-dom"]
   },
   "include": [
     "src"
