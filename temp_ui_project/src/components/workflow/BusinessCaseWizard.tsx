@@ -9,12 +9,15 @@ import {
   DiscoveryResponse,
   QuantificationResponse,
   NarrativeResponse,
-  ComposedBusinessCase
+  ComposedBusinessCase,
+  type DiscoveryData as APIDiscoveryData
 } from '../../services/b2bValueApi';
+import { adaptDiscoveryResponseToData } from '../../utils/typeAdapters';
 import styles from './BusinessCaseWizard.module.css';
 
 // Re-export TemplateContext from Step1_BasicInfo
 import type { IndustryTemplate } from '../../types/industryTemplates';
+import type { DiscoveryData } from '../../services/modelBuilderApi';
 
 export interface TemplateContext {
   industry: string;
@@ -70,10 +73,19 @@ const BusinessCaseWizard: FC = () => {
     setCurrentStep(2);
   };
 
-  const handleStep2Complete = (quantificationData: QuantificationResponse) => {
-    setWizardData(prev => ({ 
-      ...prev, 
-      quantificationData 
+  const handleStep2Complete = (data: { 
+    modelBuilderData: any; 
+    quantificationResults?: QuantificationResponse;
+    localCalculations?: Record<string, any>;
+    validationResults?: any;
+  }) => {
+    if (!data.quantificationResults) {
+      console.error('Quantification results are required');
+      return;
+    }
+    setWizardData(prev => ({
+      ...prev,
+      quantificationData: data.quantificationResults,
     }));
     setCurrentStep(3);
   };
@@ -93,9 +105,9 @@ const BusinessCaseWizard: FC = () => {
     console.log('Business Case Complete:', { ...wizardData, compositionData });
   };
 
-  const handleStepNavigation = (targetStep: WizardStep) => {
-    if (targetStep >= 1 && targetStep <= 4) {
-      setCurrentStep(targetStep);
+  const handleStepNavigation = (step: number) => {
+    if (step >= 1 && step <= 4) {
+      setCurrentStep(step as WizardStep);
     }
   };
 
@@ -121,14 +133,19 @@ const BusinessCaseWizard: FC = () => {
         if (!wizardData.discoveryData || !wizardData.templateContext) {
           return <div>Error: Missing required data for this step</div>;
         }
-        return (
-          <Step2_ModelBuilder
-            onNext={handleStep2Complete}
-            discoveryData={wizardData.discoveryData}
-            templateContext={wizardData.templateContext}
-            onNavigate={handleStepNavigation}
-          />
-        );
+        try {
+          const discoveryData = adaptDiscoveryResponseToData(wizardData.discoveryData);
+          return (
+            <Step2_ModelBuilder
+              onNext={handleStep2Complete}
+              discoveryData={discoveryData}
+              onBack={() => handleStepNavigation(1)}
+            />
+          );
+        } catch (error) {
+          console.error('Error adapting discovery data:', error);
+          return <div>Error: Failed to prepare data for model builder</div>;
+        }
       case 3:
         if (!wizardData.discoveryData || !wizardData.quantificationData) {
           return <div>Error: Missing required data for this step</div>;
