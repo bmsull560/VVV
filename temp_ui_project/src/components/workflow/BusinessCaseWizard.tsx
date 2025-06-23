@@ -9,15 +9,14 @@ import {
   DiscoveryResponse,
   QuantificationResponse,
   NarrativeResponse,
-  ComposedBusinessCase,
-  type ValueDriverPillar
+  ComposedBusinessCase
 } from '../../services/b2bValueApi';
 import { adaptDiscoveryResponseToData } from '../../utils/typeAdapters';
 import styles from './BusinessCaseWizard.module.css';
 
 // Re-export TemplateContext from Step1_BasicInfo
 import type { IndustryTemplate } from '../../types/industryTemplates';
-import type { DiscoveryData, ModelBuilderData, ModelValidationResult, CalculationResult } from '../../services/modelBuilderApi';
+import type { DiscoveryData, ModelBuilderData, ModelValidationResult } from '../../services/modelBuilderApi';
 
 export interface TemplateContext {
   industry: string;
@@ -63,26 +62,26 @@ const BusinessCaseWizard: FC = () => {
 
   const handleStep1Complete = (data: { 
     discoveryData: DiscoveryResponse; 
-    templateContext: TemplateContext 
+    templateContext?: TemplateContext 
   }) => {
-    setWizardData({
-      ...wizardData,
+    if (!data.templateContext) {
+      console.error('Template context is required');
+      return;
+    }
+    setWizardData(prev => ({
+      ...prev,
       discoveryData: data.discoveryData,
       templateContext: data.templateContext,
-    });
+    }));
     setCurrentStep(2);
   };
 
-  const handleStep2Complete = (data: DiscoveryData & { 
+  const handleStep2Complete = (data: {
     modelBuilderData: ModelBuilderData;
-    quantificationResults?: QuantificationResponse;
-    localCalculations?: Record<string, CalculationResult>;
+    quantificationResults: QuantificationResponse;
+    localCalculations?: Record<string, unknown>;
     validationResults?: ModelValidationResult;
   }) => {
-    if (!data.quantificationResults) {
-      console.error('Quantification results are required');
-      return;
-    }
     setWizardData(prev => ({
       ...prev,
       quantificationData: data.quantificationResults,
@@ -152,7 +151,14 @@ const BusinessCaseWizard: FC = () => {
         }
         return (
           <Step3_NarrativeGeneration
-            onSubmit={handleStep3Complete}
+            onNext={(narrativeData, userFeedback) => {
+              setWizardData(prev => ({
+                ...prev,
+                narrativeData,
+                userFeedback: userFeedback || null
+              }));
+              setCurrentStep(4);
+            }}
             discoveryData={wizardData.discoveryData}
             quantificationData={wizardData.quantificationData}
             onBack={() => handleStepNavigation(2)}
@@ -164,7 +170,13 @@ const BusinessCaseWizard: FC = () => {
         }
         return (
           <Step4_Composition
-            onSubmit={handleStep4Complete}
+            onComplete={(compositionData) => {
+              setWizardData(prev => ({
+                ...prev,
+                compositionData
+              }));
+              handleStep4Complete(compositionData);
+            }}
             discoveryData={wizardData.discoveryData}
             quantificationData={wizardData.quantificationData}
             narrativeData={wizardData.narrativeData}
