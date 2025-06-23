@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import type { FC } from 'react';
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import Step1_BasicInfo from './Step1_BasicInfo';
 import Step2_ModelBuilder from '../Step2_ModelBuilder';
 import Step3_NarrativeGeneration from './Step3_NarrativeGeneration';
 import Step4_Composition from './Step4_Composition';
-import type { DiscoveryResponse, DiscoveryData } from '../../services/b2bValueApi';
+import { 
+  DiscoveryResponse,
+  QuantificationResponse,
+  NarrativeResponse,
+  ComposedBusinessCase
+} from '../../services/b2bValueApi';
 import styles from './BusinessCaseWizard.module.css';
 
 // Re-export TemplateContext from Step1_BasicInfo
@@ -17,13 +23,13 @@ export interface TemplateContext {
   template?: IndustryTemplate;
 }
 
-interface WizardData {
+export interface WizardData {
   discoveryData: DiscoveryResponse | null;
-  templateContext?: TemplateContext | null;
-  quantificationData: any;
-  narrativeData: any;
-  userFeedback: any;
-  compositionData: any;
+  templateContext: TemplateContext | null;
+  quantificationData: QuantificationResponse | null;
+  narrativeData: NarrativeResponse | null;
+  userFeedback: Record<string, unknown> | null;
+  compositionData: ComposedBusinessCase | null;
 }
 
 type WizardStep = 1 | 2 | 3 | 4;
@@ -45,34 +51,44 @@ const BusinessCaseWizard: FC = () => {
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [wizardData, setWizardData] = useState<WizardData>({
     discoveryData: null,
-    templateContext: undefined,
+    templateContext: null,
     quantificationData: null,
     narrativeData: null,
     userFeedback: null,
     compositionData: null,
   });
 
-  const handleStep1Complete = (data: { discoveryData: DiscoveryResponse; templateContext?: TemplateContext }) => {
-    setWizardData((prev) => ({
-      ...prev,
+  const handleStep1Complete = (data: { 
+    discoveryData: DiscoveryResponse; 
+    templateContext: TemplateContext 
+  }) => {
+    setWizardData({
+      ...wizardData,
       discoveryData: data.discoveryData,
       templateContext: data.templateContext,
-    }));
+    });
     setCurrentStep(2);
   };
 
-  const handleStep2Complete = (quantificationData: any) => {
-    setWizardData((prev) => ({ ...prev, quantificationData }));
+  const handleStep2Complete = (quantificationData: QuantificationResponse) => {
+    setWizardData(prev => ({ 
+      ...prev, 
+      quantificationData 
+    }));
     setCurrentStep(3);
   };
 
-  const handleStep3Complete = (narrativeData: any, userFeedback: any) => {
-    setWizardData((prev) => ({ ...prev, narrativeData, userFeedback }));
+  const handleStep3Complete = (narrativeData: NarrativeResponse, userFeedback: Record<string, unknown>) => {
+    setWizardData({
+      ...wizardData,
+      narrativeData,
+      userFeedback,
+    });
     setCurrentStep(4);
   };
 
-  const handleStep4Complete = (compositionData: any) => {
-    setWizardData((prev) => ({ ...prev, compositionData }));
+  const handleStep4Complete = (compositionData: ComposedBusinessCase) => {
+    setWizardData(prev => ({ ...prev, compositionData }));
     // Navigate to final results or completion
     console.log('Business Case Complete:', { ...wizardData, compositionData });
   };
@@ -83,11 +99,28 @@ const BusinessCaseWizard: FC = () => {
     }
   };
 
+  const isStepComplete = (step: WizardStep): boolean => {
+    switch (step) {
+      case 1: return !!(wizardData.discoveryData && wizardData.templateContext);
+      case 2: return !!wizardData.quantificationData;
+      case 3: return !!(wizardData.narrativeData && wizardData.userFeedback);
+      case 4: return !!wizardData.compositionData;
+      default: return false;
+    }
+  };
+
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <Step1_BasicInfo onNext={handleStep1Complete} />;
+        return (
+          <Step1_BasicInfo
+            onNext={handleStep1Complete}
+          />
+        );
       case 2:
+        if (!wizardData.discoveryData || !wizardData.templateContext) {
+          return <div>Error: Missing required data for this step</div>;
+        }
         return (
           <Step2_ModelBuilder
             onNext={handleStep2Complete}
@@ -97,21 +130,27 @@ const BusinessCaseWizard: FC = () => {
           />
         );
       case 3:
+        if (!wizardData.discoveryData || !wizardData.quantificationData) {
+          return <div>Error: Missing required data for this step</div>;
+        }
         return (
           <Step3_NarrativeGeneration
+            onNext={handleStep3Complete}
             discoveryData={wizardData.discoveryData}
             quantificationData={wizardData.quantificationData}
-            onNext={handleStep3Complete}
             onNavigate={handleStepNavigation}
           />
         );
       case 4:
+        if (!wizardData.discoveryData || !wizardData.quantificationData || !wizardData.narrativeData) {
+          return <div>Error: Missing required data for this step</div>;
+        }
         return (
           <Step4_Composition
+            onComplete={handleStep4Complete}
             discoveryData={wizardData.discoveryData}
             quantificationData={wizardData.quantificationData}
             narrativeData={wizardData.narrativeData}
-            onNext={handleStep4Complete}
             onNavigate={handleStepNavigation}
           />
         );
@@ -124,56 +163,103 @@ const BusinessCaseWizard: FC = () => {
   const progress = ((currentStep - 1) / (STEPS.length - 1)) * 100;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto py-8 px-4">
+    <div className={styles.wizardContainer}>
+      {/* Sidebar */}
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarHeader}>
+          <h1 className={styles.sidebarTitle}>Business Case Builder</h1>
+          <p className={styles.sidebarDescription}>
+            Complete all steps to finalize your business case
+          </p>
+        </div>
+        
+        <nav aria-label="Progress">
+          <ol className={styles.stepsList}>
+            {STEPS.map((step) => {
+              const isActive = step.id === currentStep;
+              const isComplete = isStepComplete(step.id);
+              const stepClass = [
+                styles.stepItem,
+                isActive ? styles.stepItemActive : '',
+                isComplete ? styles.stepItemCompleted : ''
+              ].filter(Boolean).join(' ');
+
+              return (
+                <li key={step.id} className={stepClass}>
+                  <button
+                    type="button"
+                    onClick={() => handleStepNavigation(step.id)}
+                    className="flex items-center w-full text-left"
+                    disabled={!isComplete && step.id > currentStep}
+                  >
+                    <span className={styles.stepNumber}>
+                      {isComplete ? <Check size={16} /> : step.id}
+                    </span>
+                    <div>
+                      <div className="font-medium">{step.name}</div>
+                      <div className="text-sm opacity-75">{step.description}</div>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <main className={styles.stepContent}>
         {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="mb-2 flex justify-between text-sm font-medium text-gray-700">
-            <span>Step {currentStep} of {STEPS.length}</span>
-            <span>{STEPS[currentStep - 1]?.name}</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
+        <div className={styles.progressContainer}>
+          <div className={styles.progressBar}>
             <div 
-              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
+              className={styles.progressIndicator} 
               style={{ width: `${progress}%` }}
+              aria-valuenow={progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              role="progressbar"
             />
+          </div>
+          <div className={styles.progressText}>
+            Step {currentStep} of {STEPS.length}: {STEPS[currentStep - 1]?.name}
           </div>
         </div>
         
-        {/* Main Content */}
-        <div className="bg-white rounded-lg shadow p-6">
+        {/* Current Step Content */}
+        <div className={styles.stepPanel}>
           {renderStep()}
         </div>
         
-        {/* Step Navigation */}
-        <div className="mt-6 flex justify-between">
+        {/* Navigation */}
+        <div className={styles.navigation}>
           <button
+            type="button"
             onClick={() => handleStepNavigation((currentStep - 1) as WizardStep)}
             disabled={currentStep === 1}
-            className={`px-4 py-2 rounded-md ${
-              currentStep === 1 
-                ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
+            className={`${styles.button} ${styles.buttonSecondary}`}
+            aria-label="Previous step"
           >
+            <ChevronLeft className={styles.buttonIcon} />
             Previous
           </button>
-          <div className="text-sm text-gray-600 flex items-center">
+          
+          <div className={styles.stepInfo}>
             {STEPS[currentStep - 1]?.description}
           </div>
+          
           <button
+            type="button"
             onClick={() => handleStepNavigation((currentStep + 1) as WizardStep)}
             disabled={currentStep === STEPS.length}
-            className={`px-4 py-2 rounded-md ${
-              currentStep === STEPS.length 
-                ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
+            className={`${styles.button} ${styles.buttonPrimary}`}
+            aria-label={currentStep === STEPS.length ? 'Complete' : 'Next step'}
           >
             {currentStep === STEPS.length ? 'Complete' : 'Next'}
+            <ChevronRight className={styles.buttonIcon} />
           </button>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
