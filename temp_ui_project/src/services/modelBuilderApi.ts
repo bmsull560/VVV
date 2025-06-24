@@ -220,6 +220,17 @@ class ModelBuilderAPIClient {
   }
 
   /**
+   * Calculate model outputs and update with results
+   */
+  async calculateModel(modelData: ModelData): Promise<ModelData> {
+    if (this.isDevelopment) {
+      // In development, return the model data as is, possibly with some mock calculations
+      return { ...modelData, summary: { netBenefit: 100000, roi: 20, paybackPeriod: 12, confidence: 0.8 } };
+    }
+    throw new Error('Model calculation with backend not yet implemented');
+  }
+
+  /**
    * Validate model structure and completeness
    */
   async validateModel(modelData: ModelData): Promise<ModelValidationResult> {

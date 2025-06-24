@@ -110,18 +110,16 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   }, [state.calculations]);
 
   const handleAutoSave = useCallback(async () => {
-    if (!state.hasUnsavedChanges || !state.model) return;
+    if (!state.hasUnsavedChanges) return;
     try {
-      await modelBuilderAPI.saveModel({
-        ...state.model,
-      });
-      setState(prev => ({ ...prev, hasUnsavedChanges: false }));
+      const updatedModel = await modelBuilderAPI.saveModel(state.model);
+      setState(prev => ({ ...prev, model: updatedModel, hasUnsavedChanges: false }));
       setAlert('success', 'Model saved automatically!');
     } catch (error) {
       console.error('Auto-save failed:', error);
-      setAlert('error', 'Auto-save failed. Please check your connection.');
+      setAlert('error', 'Auto-save failed. Please save manually.');
     }
-  }, [state.hasUnsavedChanges, state.model, state.calculations, setAlert]);
+  }, [state.hasUnsavedChanges, state.model, setAlert]);
 
   useEffect(() => {
     const interval = setInterval(handleAutoSave, 30000);
@@ -129,31 +127,23 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   }, [handleAutoSave]);
 
   const handleCalculate = useCallback(async () => {
-    if (!state.model) {
-      setAlert('warning', 'No model to calculate. Please add components.');
-      return;
-    }
-    setState(prev => ({ ...prev, isCalculating: true }));
+    setIsCalculating(true);
     try {
-      const response = await modelBuilderAPI.calculateModel(
-        state.model,
-      );
-      const newCalculations = performCalculations(response.components);
-
+      const calculatedModel = await modelBuilderAPI.calculateModel(state.model);
       setState(prev => ({
         ...prev,
-        calculations: newCalculations,
-        model: response,
-        isCalculating: false,
-        hasUnsavedChanges: true
+        model: calculatedModel,
+        calculations: performCalculations(calculatedModel.components),
+        validationResult: calculatedModel.validationResult || null,
       }));
-      setAlert('success', 'Model calculated successfully!');
+      setAlert('success', 'Calculations updated!');
     } catch (error) {
       console.error('Calculation failed:', error);
-      setAlert('error', 'Calculation failed. Please check the model components.');
-      setState(prev => ({ ...prev, isCalculating: false }));
+      setAlert('error', 'Calculation failed. Please check your model inputs.');
+    } finally {
+      setIsCalculating(false);
     }
-  }, [state.model, state.calculations, performCalculations, setAlert]);
+  }, [state.model, performCalculations, setAlert]);
 
   const handleExport = useCallback(async () => {
     if (!state.model) {
