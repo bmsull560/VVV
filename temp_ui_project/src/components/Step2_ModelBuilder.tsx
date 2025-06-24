@@ -144,7 +144,6 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
         ...prev,
         calculations: newCalculations,
         model: response,
-        validationResult: response.validationResult || null,
         isCalculating: false,
         hasUnsavedChanges: true
       }));
@@ -163,7 +162,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     }
     setState(prev => ({ ...prev, isExporting: true }));
     try {
-      const data = await modelBuilderAPI.exportModel(state.model.id!, state.exportFormat);
+      const data = await modelBuilderAPI.exportModel(state.model, state.exportFormat);
       const blob = new Blob([data], { type: 'application/json' }); // Adjust type based on format
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -184,27 +183,15 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
 
   const handleImport = useCallback(async (file: File) => {
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const content = e.target?.result as string;
-          const importedModel: ModelData = JSON.parse(content);
-          const response = await modelBuilderAPI.importModel(importedModel);
-          setState(prev => ({
-            ...prev,
-            model: response,
-            calculations: performCalculations(response.components),
-            validationResult: response.validationResult || null,
-            hasUnsavedChanges: true,
-            selectedComponent: null
-          }));
-          setAlert('success', 'Model imported successfully!');
-        } catch (parseError) {
-          console.error('Error parsing imported file:', parseError);
-          setAlert('error', 'Invalid file format. Please import a valid model file.');
-        }
-      };
-      reader.readAsText(file);
+      const importedModelData = await modelBuilderAPI.importModel(file);
+      setState(prev => ({
+        ...prev,
+        model: importedModelData,
+        calculations: performCalculations(importedModelData.components),
+        hasUnsavedChanges: true,
+        selectedComponent: null
+      }));
+      setAlert('success', 'Model imported successfully!');
     } catch (error) {
       console.error('Import failed:', error);
       setAlert('error', 'Import failed. Please try again.');
