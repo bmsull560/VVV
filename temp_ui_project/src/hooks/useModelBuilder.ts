@@ -1,14 +1,14 @@
 import { useState, useCallback } from 'react';
-import { ModelBuilderData, ModelComponent, ConnectionData } from '../services/modelBuilderApi';
-import { modelBuilderAPI } from '../services/modelBuilderApi';
+import { ModelData, ModelComponent, ModelConnection as ConnectionData } from '../api/types';
+import * as modelBuilderAPI from '../api/modelBuilderApi';
 
 interface UseModelBuilderReturn {
-  model: ModelBuilderData | null;
+  model: ModelData | null;
   isLoading: boolean;
   error: string | null;
   loadModel: (modelId: string) => Promise<void>;
-  createModel: (newModel: ModelBuilderData) => Promise<ModelBuilderData>;
-  updateModel: (updatedModel: ModelBuilderData) => Promise<ModelBuilderData>;
+  createModel: (newModel: ModelData) => Promise<ModelData>;
+  updateModel: (updatedModel: ModelData) => Promise<ModelData>;
   removeModel: (modelId: string) => Promise<void>;
   listUserModels: () => Promise<Array<{ id: string; name: string; updatedAt: string }>>;
   addComponent: (component: Omit<ModelComponent, 'id'>) => void;
@@ -20,7 +20,7 @@ interface UseModelBuilderReturn {
 }
 
 export const useModelBuilder = (): UseModelBuilderReturn => {
-  const [model, setModel] = useState<ModelBuilderData | null>(null);
+  const [model, setModel] = useState<ModelData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +34,7 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
     try {
       setIsLoading(true);
       clearError();
-      const loadedModel: ModelBuilderData = await modelBuilderAPI.loadModel(modelId);
+      const loadedModel: ModelData = await modelBuilderAPI.getModel(modelId);
       setModel(loadedModel);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load model');
@@ -45,13 +45,13 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
   }, [clearError]);
 
   // Create a new model
-  const createModel = useCallback(async (newModel: ModelBuilderData): Promise<ModelBuilderData> => {
+  const createModel = useCallback(async (newModel: ModelData): Promise<ModelData> => {
     try {
       setIsLoading(true);
       clearError();
-      await modelBuilderAPI.saveModel(newModel);
-      setModel(newModel);
-      return newModel;
+      const savedModel = await modelBuilderAPI.saveModel(newModel);
+      setModel({ ...newModel, id: savedModel.modelId });
+      return { ...newModel, id: savedModel.modelId };
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create model');
       throw err;
@@ -61,7 +61,7 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
   }, [clearError]);
 
   // Update an existing model
-  const updateModel = useCallback(async (updatedModel: ModelBuilderData): Promise<ModelBuilderData> => {
+  const updateModel = useCallback(async (updatedModel: ModelData): Promise<ModelData> => {
     try {
       setIsLoading(true);
       clearError();

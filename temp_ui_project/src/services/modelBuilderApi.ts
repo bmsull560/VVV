@@ -11,6 +11,7 @@ export type { ModelComponent, CalculationResult };
 
 // Extended interfaces for model builder integration
 export interface ModelBuilderData {
+  id: string;
   model: {
     components: ModelComponent[];
     connections: ConnectionData[];
