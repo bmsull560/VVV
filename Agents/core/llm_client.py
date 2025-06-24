@@ -25,8 +25,8 @@ class LLMProvider(Enum):
 class LLMClient:
     """Production-ready LLM client with security, retry logic, and synchronous calls"""
     
-    def __init__(self, config_path: Optional[str] = None):
-        self.config = self._load_config(config_path)
+    def __init__(self, config: Optional[Dict[str, Any]] = None, config_path: Optional[str] = None):
+        self.config = config if config is not None else self._load_config(config_path)
         self.provider = LLMProvider(self.config.get('provider', 'openai'))
         self.api_key = self._get_secure_api_key()
         self.model = self.config.get('model', 'gpt-4')

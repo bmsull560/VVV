@@ -10,7 +10,7 @@ from decimal import Decimal
 
 # Import our real MCP client
 from agents.core.mcp_client import MCPClient
-from agents.core.llm_client import OpenAIClient # Import the new LLM client
+from agents.core.llm_client import LLMClient # Import the new LLM client
 
 class CircuitBreakerOpen(Exception):
     pass
@@ -326,7 +326,7 @@ class LRUCache(dict):
 class LLMAgent(BaseAgent):
     def __init__(self, agent_id: str, mcp_client: MCPClient, config: Dict[str, Any]):
         super().__init__(agent_id, mcp_client, config)
-        self.llm_client = OpenAIClient(model=config.get('llm_model', 'gpt-4o')) # Initialize LLM client
+        self.llm_client = LLMClient(config=config.get('llm_config', {'provider': 'openai', 'model': 'gpt-4o'})) # Initialize LLM client
         self.prompt_cache = LRUCache(maxsize=config.get('prompt_cache_size', 100))
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
         start_time = time.time()

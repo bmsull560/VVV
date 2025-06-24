@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional
 from enum import Enum
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
-from memory.types import KnowledgeEntity
+from memory.memory_types import KnowledgeEntity
 
 logger = logging.getLogger(__name__)
 
