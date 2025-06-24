@@ -101,3 +101,122 @@ async def test_search_entity(episodic_memory: EpisodicMemory, sample_workflow_en
     search_results_wf_id = await episodic_memory.search({"workflow_id": sample_workflow_entity.workflow_id})
     assert len(search_results_wf_id) == 1
     assert search_results_wf_id[0].id == sample_workflow_entity.id
+
+@pytest.mark.asyncio
+async def test_retrieve_caching(episodic_memory: EpisodicMemory, sample_workflow_entity: WorkflowMemoryEntity):
+    """Test that retrieve operations are cached."""
+    await episodic_memory.store(sample_workflow_entity)
+
+    # First retrieve should be a miss (or not from cache)
+    retrieved_entity_1 = await episodic_memory.retrieve(sample_workflow_entity.id)
+    assert retrieved_entity_1 is not None
+
+    # Clear cache stats for retrieve to get accurate hit/miss count
+    episodic_memory._backend.retrieve.cache_clear()
+
+    # Second retrieve should be a hit
+    retrieved_entity_2 = await episodic_memory.retrieve(sample_workflow_entity.id)
+    assert retrieved_entity_2 is not None
+    assert episodic_memory._backend.retrieve.cache_info().hits == 1
+    assert episodic_memory._backend.retrieve.cache_info().misses == 0
+
+@pytest.mark.asyncio
+async def test_search_caching(episodic_memory: EpisodicMemory, sample_workflow_entity: WorkflowMemoryEntity):
+    """Test that search operations are cached."""
+    await episodic_memory.store(sample_workflow_entity)
+
+    # First search should be a miss
+    search_query = {"workflow_name": "Test Workflow"}
+    search_results_1 = await episodic_memory.search(search_query)
+    assert len(search_results_1) == 1
+    assert episodic_memory._backend._search_cache_hits == 0
+    assert episodic_memory._backend._search_cache_misses == 1
+
+    # Second search with same query should be a hit
+    search_results_2 = await episodic_memory.search(search_query)
+    assert len(search_results_2) == 1
+    assert episodic_memory._backend._search_cache_hits == 1
+    assert episodic_memory._backend._search_cache_misses == 1
+
+    # Search with different query should be a miss
+    search_results_3 = await episodic_memory.search({"workflow_name": "Another Workflow"})
+    assert len(search_results_3) == 0
+    assert episodic_memory._backend._search_cache_hits == 1
+    assert episodic_memory._backend._search_cache_misses == 2
+
+@pytest.mark.asyncio
+async def test_cache_invalidation_on_store(episodic_memory: EpisodicMemory, sample_workflow_entity: WorkflowMemoryEntity):
+    """Test that caches are invalidated when an entity is stored."""
+    # Populate caches
+    await episodic_memory.store(sample_workflow_entity)
+    await episodic_memory.retrieve(sample_workflow_entity.id)
+    await episodic_memory.search({"workflow_name": "Test Workflow"})
+
+    # Assert caches are populated
+    assert episodic_memory._backend.retrieve.cache_info().hits >= 0 # Can be 0 if first retrieve was only one
+    assert episodic_memory._backend._search_cache_hits >= 0
+    assert len(episodic_memory._backend._search_cache) > 0
+
+    # Store a new entity, which should invalidate caches
+    new_entity = WorkflowMemoryEntity(
+        id=str(uuid.uuid4()),
+        workflow_id=str(uuid.uuid4()),
+        workflow_name="New Workflow",
+        workflow_status="in_progress",
+        start_time=datetime.now(timezone.utc),
+        creator_id="test-user-2",
+        sensitivity=DataSensitivity.INTERNAL,
+        tier=MemoryTier.EPISODIC,
+        version=1
+    )
+    await episodic_memory.store(new_entity)
+
+    # Assert caches are cleared
+    assert episodic_memory._backend.retrieve.cache_info().currsize == 0
+    assert len(episodic_memory._backend._search_cache) == 0
+    assert episodic_memory._backend._search_cache_hits == 0
+    assert episodic_memory._backend._search_cache_misses == 0
+
+@pytest.mark.asyncio
+async def test_cache_invalidation_on_delete(episodic_memory: EpisodicMemory, sample_workflow_entity: WorkflowMemoryEntity):
+    """Test that caches are invalidated when an entity is deleted."""
+    # Populate caches
+    await episodic_memory.store(sample_workflow_entity)
+    await episodic_memory.retrieve(sample_workflow_entity.id)
+    await episodic_memory.search({"workflow_name": "Test Workflow"})
+
+    # Assert caches are populated
+    assert episodic_memory._backend.retrieve.cache_info().hits >= 0
+    assert episodic_memory._backend._search_cache_hits >= 0
+    assert len(episodic_memory._backend._search_cache) > 0
+
+    # Delete the entity, which should invalidate caches
+    await episodic_memory.delete(sample_workflow_entity.id)
+
+    # Assert caches are cleared
+    assert episodic_memory._backend.retrieve.cache_info().currsize == 0
+    assert len(episodic_memory._backend._search_cache) == 0
+    assert episodic_memory._backend._search_cache_hits == 0
+    assert episodic_memory._backend._search_cache_misses == 0
+
+@pytest.mark.asyncio
+async def test_clear_cache_method(episodic_memory: EpisodicMemory, sample_workflow_entity: WorkflowMemoryEntity):
+    """Test the explicit clear_cache method."""
+    # Populate caches
+    await episodic_memory.store(sample_workflow_entity)
+    await episodic_memory.retrieve(sample_workflow_entity.id)
+    await episodic_memory.search({"workflow_name": "Test Workflow"})
+
+    # Assert caches are populated
+    assert episodic_memory._backend.retrieve.cache_info().hits >= 0
+    assert episodic_memory._backend._search_cache_hits >= 0
+    assert len(episodic_memory._backend._search_cache) > 0
+
+    # Clear caches explicitly
+    episodic_memory._backend.clear_cache()
+
+    # Assert caches are cleared
+    assert episodic_memory._backend.retrieve.cache_info().currsize == 0
+    assert len(episodic_memory._backend._search_cache) == 0
+    assert episodic_memory._backend._search_cache_hits == 0
+    assert episodic_memory._backend._search_cache_misses == 0
