@@ -484,25 +484,12 @@ export class FinancialCalculationEngine {
     return `${value.toFixed(decimals)}%`;
   }
 
-  /**
-   * Format time periods
-   */
-  formatPeriod(months: number): string {
-    if (months < 1) {
-      return `${Math.round(months * 30)} days`;
-    } else if (months < 12) {
-      return `${Math.round(months)} months`;
-    } else {
-      const years = Math.floor(months / 12);
-      const remainingMonths = Math.round(months % 12);
-      return remainingMonths > 0 ? `${years}y ${remainingMonths}m` : `${years} years`;
-    }
-  }
+  // ...
 
   /**
    * Calculate all metrics and return summary
    */
-  calculateAll(inputs: Record<string, any>): { calculations: Record<string, CalculationResult>; summary: CalculationSummary } {
+  calculateAll(inputs: Record<string, ModelComponent>): { calculations: Record<string, CalculationResult>; summary: CalculationSummary } {
     const calculations: Record<string, CalculationResult> = {};
     
     // Register components from inputs
@@ -534,14 +521,16 @@ export class FinancialCalculationEngine {
     return { calculations, summary };
   }
 
+  // ...
+
   /**
    * Generate summary from calculations
    */
   private generateSummary(calculations: Record<string, CalculationResult>): CalculationSummary {
-    let totalRevenue = 0;
-    let totalCosts = 0;
-    let totalConfidence = 0;
-    let componentCount = 0;
+    let totalRevenue: number = 0;
+    let totalCosts: number = 0;
+    let totalConfidence: number = 0;
+    let componentCount: number = 0;
 
     // Aggregate values by component type
     for (const [id, result] of Object.entries(calculations)) {
@@ -563,9 +552,9 @@ export class FinancialCalculationEngine {
       }
     }
 
-    const netValue = totalRevenue - totalCosts;
-    const roi = totalCosts > 0 ? ((netValue / totalCosts) * 100) : 0;
-    const confidence = componentCount > 0 ? totalConfidence / componentCount : 0.5;
+    const netValue: number = totalRevenue - totalCosts;
+    const roi: number = totalCosts > 0 ? ((netValue / totalCosts) * 100) : 0;
+    const confidence: number = componentCount > 0 ? totalConfidence / componentCount : 0.5;
 
     return {
       totalRevenue,
@@ -586,6 +575,13 @@ export class FinancialUtils {
   /**
    * Calculate compound annual growth rate (CAGR)
    */
+  /**
+   * Calculate compound annual growth rate (CAGR).
+   * @param beginningValue Initial value
+   * @param endingValue Final value
+   * @param periods Number of periods
+   * @returns CAGR as a number
+   */
   static calculateCAGR(beginningValue: number, endingValue: number, periods: number): number {
     if (beginningValue <= 0 || periods <= 0) return 0;
     return (Math.pow(endingValue / beginningValue, 1 / periods) - 1) * 100;
@@ -594,12 +590,26 @@ export class FinancialUtils {
   /**
    * Calculate present value
    */
+  /**
+   * Calculate present value.
+   * @param futureValue Future value
+   * @param rate Interest rate
+   * @param periods Number of periods
+   * @returns Present value as a number
+   */
   static calculatePV(futureValue: number, rate: number, periods: number): number {
     return futureValue / Math.pow(1 + rate, periods);
   }
 
   /**
    * Calculate future value
+   */
+  /**
+   * Calculate future value.
+   * @param presentValue Present value
+   * @param rate Interest rate
+   * @param periods Number of periods
+   * @returns Future value as a number
    */
   static calculateFV(presentValue: number, rate: number, periods: number): number {
     return presentValue * Math.pow(1 + rate, periods);
@@ -608,25 +618,20 @@ export class FinancialUtils {
   /**
    * Calculate internal rate of return (IRR) using Newton-Raphson method
    */
+  /**
+   * Calculate internal rate of return (IRR) using Newton-Raphson method.
+   * @param cashFlows Array of cash flows (numbers)
+   * @param guess Initial guess for IRR (default 0.1)
+   * @returns Calculated IRR as a number
+   */
   static calculateIRR(cashFlows: number[], guess: number = 0.1): number {
-    const MAX_ITERATIONS = 100;
-    const TOLERANCE = 1e-6;
-    
-    let rate = guess;
-    
-    for (let i = 0; i < MAX_ITERATIONS; i++) {
-      const npv = cashFlows.reduce((sum, cf, period) => {
-        return sum + cf / Math.pow(1 + rate, period);
-      }, 0);
-      
-      const derivativeNPV = cashFlows.reduce((sum, cf, period) => {
-        return sum - (period * cf) / Math.pow(1 + rate, period + 1);
-      }, 0);
-      
-      if (Math.abs(derivativeNPV) < TOLERANCE) break;
-      
-      const newRate = rate - npv / derivativeNPV;
-      
+    let irr: number = guess;
+    for (let i = 0; i < 1000; i++) {
+      let npv: number = 0;
+      let d_npv: number = 0;
+      for (let t = 0; t < cashFlows.length; t++) {
+        npv += cashFlows[t] / Math.pow(1 + irr, t);
+        d_npv -= t * cashFlows[t] / Math.pow(1 + irr, t + 1);
       if (Math.abs(newRate - rate) < TOLERANCE) {
         return newRate * 100; // Return as percentage
       }
