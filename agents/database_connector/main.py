@@ -170,12 +170,6 @@ class DatabaseConnectorAgent(BaseAgent):
 
 
 
-
-
-
-
-
-            )
             
             # Test connection
             with engine.connect() as conn:
@@ -321,6 +315,7 @@ class DatabaseConnectorAgent(BaseAgent):
                     execution_time_ms=execution_time,
                     rows_affected=len(formatted_results) if isinstance(formatted_results, list) else None
                 )
+    
             
             return {
                 "status": "success",
@@ -337,6 +332,7 @@ class DatabaseConnectorAgent(BaseAgent):
                 parameters=parameters,
                 error=str(e)
             )
+
             return {
                 "status": "failed",
                 "error": str(e),
@@ -392,7 +388,7 @@ class DatabaseConnectorAgent(BaseAgent):
                     query=f"{len(operations)} operations",
                     execution_time_ms=execution_time,
                     rows_affected=sum(r.get('rows_affected', 0) for r in results)
-                )
+    
             
             return {
                 "status": "success",
@@ -407,7 +403,7 @@ class DatabaseConnectorAgent(BaseAgent):
                 operation_type="transaction",
                 query=f"{len(operations)} operations",
                 error=str(e)
-            )
+
             return {
                 "status": "failed",
                 "error": str(e),
@@ -482,7 +478,7 @@ class DatabaseConnectorAgent(BaseAgent):
                 },
                 content=f"Database operation: {operation_type}" +
                        (f" (error: {error})" if error else " (success)")
-            )
+
             
             await self.mcp_client.store_memory(audit_entry)
             
@@ -510,7 +506,7 @@ class DatabaseConnectorAgent(BaseAgent):
                     status=AgentStatus.COMPLETED,
                     data={"message": "Connection successful"},
                     execution_time_ms=int((time.monotonic() - start_time) * 1000),
-                )
+    
             elif action == 'run_query':
                 if not self.engine:
                     raise RuntimeError("No database engine configured")
@@ -524,19 +520,19 @@ class DatabaseConnectorAgent(BaseAgent):
                     status=AgentStatus.COMPLETED,
                     data={"result": result_list},
                     execution_time_ms=int((time.monotonic() - start_time) * 1000),
-                )
+    
             else:
                 return AgentResult(
                     status=AgentStatus.FAILED,
                     data={"error": f"Unsupported action '{action}'"},
                     execution_time_ms=int((time.monotonic() - start_time) * 1000),
-                )
+    
         except Exception as exc:
             return AgentResult(
                 status=AgentStatus.FAILED,
                 data={"error": str(exc)},
                 execution_time_ms=int((time.monotonic() - start_time) * 1000),
-            )
+
         """Execute database operations with comprehensive error handling and security."""
         start_time = time.monotonic()
         
@@ -550,7 +546,7 @@ class DatabaseConnectorAgent(BaseAgent):
                     status=AgentStatus.FAILED,
                     data={"error": f"Validation failed: {validation_result.errors[0]}"},
                     execution_time_ms=int((time.monotonic() - start_time) * 1000)
-                )
+    
             
             # Extract operation parameters
             operation_type = inputs['operation_type']
@@ -590,7 +586,7 @@ class DatabaseConnectorAgent(BaseAgent):
                     status=AgentStatus.FAILED,
                     data={"error": f"Unsupported operation type: {operation_type}"},
                     execution_time_ms=int((time.monotonic() - start_time) * 1000)
-                )
+    
             
             # Add execution metadata
             result_data['agent_id'] = self.agent_id
@@ -608,7 +604,7 @@ class DatabaseConnectorAgent(BaseAgent):
                 status=status,
                 data=result_data,
                 execution_time_ms=execution_time_ms
-            )
+
             
         except Exception as e:
             execution_time_ms = int((time.monotonic() - start_time) * 1000)
@@ -618,7 +614,7 @@ class DatabaseConnectorAgent(BaseAgent):
             await self._log_database_operation(
                 operation_type=inputs.get('operation_type', 'unknown'),
                 error=str(e)
-            )
+
             
             return AgentResult(
                 status=AgentStatus.FAILED,
@@ -626,9 +622,10 @@ class DatabaseConnectorAgent(BaseAgent):
                     "error": f"Database operation failed: {str(e)}",
                     "error_type": type(e).__name__,
                     "operation_type": inputs.get('operation_type')
+                )
                 },
                 execution_time_ms=execution_time_ms
-            )
+
 
     def __del__(self):
         """Clean up database connections on agent destruction."""
