@@ -410,60 +410,6 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     });
   }, []);
 
-  const handleModelCanvasUpdate = useCallback((update: { components: ModelComponent[]; connections?: ConnectionData[] }) => {
-    setState(prev => {
-      if (prev.model) {
-        return {
-          ...prev,
-
-<div className={styles.header}>
-  {/* Type-safe metrics display */}
-  <div className={styles.metrics}>
-    {state.model?.model.components.length ?? 0} components • 
-    {Object.keys(state.calculations ?? {}).length} calculations
-  </div>
-  {/* ... */}
-</div>
-
-// ...
-
-<CardContent className={styles.cardContent}>
-  <ModelCanvas
-    model={state.model ? { components: state.model.model.components, connections: state.model.model.connections } : null}
-    setModel={handleModelCanvasUpdate}
-    selectedComponent={state.selectedComponent}
-    setSelectedComponent={handleSelectComponent}
-    calculations={state.calculations}
-    getFormattedValue={getFormattedValue}
-  />
-</CardContent>
-
-// ...
-
-<CalculationPanel
-  model={state.model ? { components: state.model.model.components, connections: state.model.model.connections } : null}
-  calculations={state.calculations}
-  isCalculating={state.isCalculating}
-  isGenerating={state.isGenerating}
-  generateScenarios={handleGenerateScenarios}
-  getFormattedValue={getFormattedValue}
-  recalculate={handleCalculate}
-/>
-
-// ...
-
-<div className={styles.navigation}>
-  {/* ... */}
-  <div className={styles.actions}>
-    <div className={styles.metrics}>
-      {state.model?.model.components.length || 0} components • {Object.keys(state.calculations).length} calculations
-    </div>
-    <Button 
-      onClick={handleContinue}
-      disabled={!state.model || state.model.model.components.length === 0}
-    >
-      Continue to Narrative
-      <Zap className={styles.icon} />
     </Button>
   </div>
 </div>
