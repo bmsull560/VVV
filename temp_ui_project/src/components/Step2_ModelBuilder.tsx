@@ -405,16 +405,70 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           },
           hasUnsavedChanges: true
         };
-      }
-      return prev;
     });
-  }, []);
+    return;
+  }
 
-    </Button>
-  </div>
-</div>
+  setState(prev => ({ ...prev, isExporting: true }));
 
-// ...
+  try {
+    const modelData: ModelBuilderData = {
+      model: state.model ? state.model.model : { components: [], connections: [] },
+      calculations: state.calculations,
+      summary: {
+        totalRevenue: 0,
+        totalCosts: 0,
+        netValue: 0,
+        netBenefit: 0,
+        roi: 0,
+        confidence: 0
+      },
+      metadata: {
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    };
+
+    await modelBuilderAPI.exportModel(modelData, state.exportFormat);
+
+    setAlert({
+      type: 'success',
+      message: `Model exported successfully as ${state.exportFormat.toUpperCase()}`
+    });
+  } catch (error) {
+    console.error('Export failed:', error);
+    setAlert({
+      type: 'error',
+      message: `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    });
+  } finally {
+    setState(prev => ({ ...prev, isExporting: false }));
+  }
+}, [state.model, state.calculations, state.exportFormat]);
+
+const handleImport = useCallback(async (file: File) => {
+  try {
+    const importedData = await modelBuilderAPI.importModel(file);
+    setState(prev => ({
+      ...prev,
+      model: importedData.model,
+      calculations: importedData.calculations,
+      hasUnsavedChanges: true
+    }));
+
+    setAlert({
+      type: 'success',
+      message: 'Model imported successfully'
+    });
+  } catch (error) {
+    console.error('Import failed:', error);
+    setAlert({
+      type: 'error',
+      message: `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    });
+  }
+}, []);
 
 const handleGetAIAssistance = useCallback(async () => {
   if (!state.model) return;
