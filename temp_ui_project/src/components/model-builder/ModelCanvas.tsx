@@ -4,55 +4,27 @@ import { v4 as uuidv4 } from 'uuid';
 import { Button } from '../ui/button';
 import { ZoomIn, ZoomOut, Maximize, Grid, Link2 as Link, Trash2 } from 'lucide-react';
 import * as joint from '@joint/core';
-import { ModelComponent } from '../../../utils/calculationEngine';
+import * as shapes from '@joint/shapes';
+import { ModelComponent, CalculationResult } from '../../utils/calculationEngine';
+import { ConnectionData } from '../../services/modelBuilderApi';
 import styles from './ModelCanvas.module.css';
 
-// Extend JointJS types
-declare module '@joint/core' {
-  namespace shapes {
-    namespace standard {
-      interface RectangleAttributes extends joint.dia.Element.Attributes {
-        componentId?: string;
-        componentType?: string;
-      }
-    }
-  }
-  
-  namespace dia {
-    interface Element {
-      componentId?: string;
-      componentType?: string;
-      get(attr: 'componentId'): string | undefined;
-      get(attr: 'componentType'): string | undefined;
-    }
-    
-    interface Paper {
-      drawGrid(options: { name: string; args?: any }): void;
-      scaleContentToFit(options?: { padding?: number }): void;
-      zoomToFit(options?: { padding?: number }): void;
-    }
-  }
-}
 
-interface Connection {
-  source: string;
-  target: string;
-  sourcePort?: string;
-  targetPort?: string;
-}
 
 interface ModelCanvasProps {
   model: {
     components: ModelComponent[];
-    connections: Connection[];
+    connections: ConnectionData[];
   };
-  setModel?: (model: { components: ModelComponent[]; connections: Connection[] }) => void;
-  calculations: Record<string, number | string>;
+  setModel?: (model: { components: ModelComponent[]; connections: ConnectionData[] }) => void;
+  onModelChange: (modelData: { components: ModelComponent[]; connections: ConnectionData[]; }) => void;
+  calculations: Record<string, CalculationResult>;
   onAddComponent: (component: ModelComponent) => void;
   onDeleteComponent: (componentId: string) => void;
   onSelectComponent: (component: ModelComponent | null) => void;
   selectedComponent: ModelComponent | null;
-  getFormattedValue: (componentId: string, field: string) => string;
+  getFormattedValue: (value: any, propertyType: string) => string;
+  readOnly: boolean;
 }
 
 const DEFAULT_COMPONENT_PROPERTIES = {
@@ -84,7 +56,8 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
   onDeleteComponent,
   onSelectComponent,
   selectedComponent,
-  getFormattedValue
+  getFormattedValue,
+  readOnly
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const paperRef = useRef<joint.dia.Paper | null>(null);
@@ -112,15 +85,12 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
       defaultRouter: { name: 'manhattan' },
       defaultConnector: { name: 'rounded' },
       interactive: {
-        elementMove: true,
+        elementMove: !readOnly,
         linkMove: false,
-        arrowheadMove: false,
-        vertexMove: true,
-        vertexAdd: false,
-        vertexRemove: false,
-        useLinkTools: false,
+
         addLinkFromMagnet: true,
-        addLinkOnPointerDown: false
+
+
       },
       snapLinks: { radius: 20 },
       linkPinning: false,
@@ -143,15 +113,15 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
     });
 
     // Store references
-    graphRef.current = graph;
     paperRef.current = paper;
+    graphRef.current = graph;
 
     // Cleanup
     return () => {
       paper.remove();
       graph.clear();
     };
-  }, []);
+  }, [readOnly]);
 
   // Handle component selection
   const handleElementClick = useCallback((elementView: joint.dia.ElementView) => {
@@ -309,32 +279,26 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
     };
   }, [handleElementClick, handleConnectionCreate]);
 
-  // Set up canvas ref with drop target
-  const setCanvasRef = useCallback((node: HTMLDivElement | null) => {
-    if (node) {
-      canvasRef.current = node;
-      drop(node);
-    }
-  }, [drop]);
+
 
   return (
     <div className={styles.modelCanvasContainer}>
       <div className={styles.toolbar}>
         <div className={styles.zoomControls}>
-          <Button variant="outline" size="sm" onClick={zoomIn} title="Zoom In">
+          <Button variant="outline" size="sm" onClick={zoomIn} aria-label="Zoom In">
             <ZoomIn size={16} />
           </Button>
-          <Button variant="outline" size="sm" onClick={zoomOut} title="Zoom Out">
+          <Button variant="outline" size="sm" onClick={zoomOut} aria-label="Zoom Out">
             <ZoomOut size={16} />
           </Button>
-          <Button variant="outline" size="sm" onClick={fitToWindow} title="Fit to Window">
+          <Button variant="outline" size="sm" onClick={fitToWindow} aria-label="Fit to Content">
             <Maximize size={16} />
           </Button>
           <Button 
             variant={showGrid ? 'default' : 'outline'} 
             size="sm" 
             onClick={toggleGrid} 
-            title="Toggle Grid"
+            aria-label="Toggle Grid"
           >
             <Grid size={16} />
           </Button>
@@ -342,7 +306,7 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
             variant={isConnecting ? 'default' : 'outline'} 
             size="sm" 
             onClick={() => setIsConnecting(!isConnecting)}
-            title={isConnecting ? 'Cancel Connection' : 'Connect Components'}
+            aria-label={isConnecting ? 'Cancel Connection' : 'Connect Components'}
           >
             <Link size={16} />
           </Button>
@@ -351,7 +315,7 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
             size="sm" 
             onClick={deleteSelected} 
             disabled={!selectedComponent}
-            title="Delete Selected"
+            aria-label="Delete Selected"
           >
             <Trash2 size={16} />
           </Button>
@@ -360,7 +324,10 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
       </div>
       
       <div 
-        ref={setCanvasRef}
+        ref={(node: HTMLDivElement) => {
+          (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+          drop(node);
+        }}
         className={`${styles.canvas} ${isOver ? styles.canvasHover : ''}`}
       />
     </div>

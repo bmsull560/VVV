@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useDrag } from 'react-dnd';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -7,7 +7,7 @@ import {
   Calculator, 
   TrendingUp, 
   DollarSign, 
-  Percent, 
+ 
   Calendar,
   Hash,
   FormInput,
@@ -23,7 +23,7 @@ interface ComponentType {
   name: string;
   category: string;
   description: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   color: string;
   isPopular?: boolean;
   isPremium?: boolean;
@@ -31,11 +31,13 @@ interface ComponentType {
 
 interface DraggableComponentProps {
   component: ComponentType;
-  onAddComponent?: (type: string) => void;
+  onAddComponent?: (component: ModelComponent) => void;
 }
 
+import { ModelComponent } from '../../utils/calculationEngine';
+
 interface ComponentLibraryProps {
-  onAddComponent?: (type: string) => void;
+  onAddComponent?: (component: ModelComponent) => void;
 }
 
 const DraggableComponent: React.FC<DraggableComponentProps> = ({ 
@@ -52,6 +54,8 @@ const DraggableComponent: React.FC<DraggableComponentProps> = ({
 
   const Icon = component.icon;
 
+
+
   return (
     <div
       ref={drag}
@@ -60,7 +64,15 @@ const DraggableComponent: React.FC<DraggableComponentProps> = ({
         ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-md hover:scale-105'}
         ${component.isPremium ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200 bg-white'}
       `}
-      onClick={() => onAddComponent?.(component.id)}
+      onClick={() => {
+        const newComponent: ModelComponent = {
+          id: `component-${Date.now()}`,
+          type: component.id,
+          properties: {} as any,
+          position: { x: 0, y: 0 },
+        };
+        onAddComponent?.(newComponent);
+      }}
     >
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-lg ${component.color}`}>
@@ -192,6 +204,10 @@ const ComponentLibrary: React.FC<ComponentLibraryProps> = ({ onAddComponent }) =
     return groups;
   }, {} as Record<string, ComponentType[]>);
 
+  const handleAddComponent = useCallback((component: ModelComponent) => {
+    onAddComponent?.(component);
+  }, [onAddComponent]);
+
   return (
     <Card className="w-80 h-full">
       <CardHeader>
@@ -220,7 +236,7 @@ const ComponentLibrary: React.FC<ComponentLibraryProps> = ({ onAddComponent }) =
                   <DraggableComponent
                     key={component.id}
                     component={component}
-                    onAddComponent={onAddComponent}
+                    onAddComponent={handleAddComponent}
                   />
                 ))}
               </div>

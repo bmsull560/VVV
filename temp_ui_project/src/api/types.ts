@@ -1,5 +1,6 @@
 // Types for the model builder API
 import { CalculationSummary, ComponentProperties, ModelComponent } from '../utils/calculationEngine';
+import { ModelValidationResult } from '../services/modelBuilderApi';
 
 export interface ModelConnection {
   id: string;
@@ -22,6 +23,8 @@ export interface ModelData {
   updatedAt?: string;
   metadata?: Record<string, unknown>;
   summary?: CalculationSummary;
+  validationResult?: ModelValidationResult;
+  scenarios?: any[];
 }
 
 export interface SaveModelResponse {

@@ -225,7 +225,11 @@ class ModelBuilderAPIClient {
   async calculateModel(modelData: ModelData): Promise<ModelData> {
     if (this.isDevelopment) {
       // In development, return the model data as is, possibly with some mock calculations
-      return { ...modelData, summary: { netBenefit: 100000, roi: 20, paybackPeriod: 12, confidence: 0.8 } };
+      return { 
+        ...modelData, 
+        summary: { netBenefit: 100000, roi: 20, paybackPeriod: 12, confidence: 0.8, totalRevenue: 0, totalCosts: 0, netValue: 0, irr: 0, npv: 0 },
+        validationResult: { isValid: true, errors: [], warnings: [], completeness: 1 }
+      };
     }
     throw new Error('Model calculation with backend not yet implemented');
   }
@@ -306,6 +310,14 @@ class ModelBuilderAPIClient {
   /**
    * Export model data in various formats
    */
+  async generateScenarios(modelData: ModelData): Promise<ModelData> {
+    if (this.isDevelopment) {
+      console.log('Generating scenarios for model:', modelData);
+      return { ...modelData, scenarios: [] }; // Placeholder for scenarios
+    }
+    throw new Error('Scenario generation with backend not yet implemented');
+  }
+
   async exportModel(modelData: ModelData, format: 'json' | 'excel' | 'pdf' | 'csv'): Promise<Blob> {
     const exportData: ModelExportData = {
       format,
@@ -381,12 +393,12 @@ class ModelBuilderAPIClient {
   /**
    * Save model to backend (when available)
    */
-  async saveModel(modelData: ModelData, modelId?: string): Promise<{ id: string; success: boolean }> {
+  async saveModel(modelData: ModelData, modelId?: string): Promise<ModelData> {
     if (this.isDevelopment) {
       // In development, save to localStorage
       const id = modelId || `model_${Date.now()}`;
       localStorage.setItem(`model_${id}`, JSON.stringify(modelData));
-      return { id, success: true };
+      return { ...modelData, id: modelData.id || id };
     }
 
     // In production, this would call the backend API
@@ -396,7 +408,7 @@ class ModelBuilderAPIClient {
   /**
    * Load model from backend
    */
-  async loadModel(modelId: string): Promise<ModelBuilderData> {
+  async loadModel(modelId: string): Promise<ModelData> {
     if (this.isDevelopment) {
       const data = localStorage.getItem(`model_${modelId}`);
       if (!data) {
@@ -490,7 +502,7 @@ class ModelBuilderAPIClient {
   /**
    * Convert model data to CSV format
    */
-  private convertToCSV(modelData: ModelBuilderData): string {
+  private convertToCSV(modelData: ModelData): string {
     const headers = ['Component ID', 'Type', 'Label', 'Value', 'Formula'];
     const rows = [headers.join(',')];
 

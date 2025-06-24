@@ -15,6 +15,7 @@ interface PropertiesPanelProps {
   selectedComponent: string | null;
   calculations: Record<string, any>;
   getFormattedValue: (id: string) => string;
+  onUpdateComponent: (id: string, props: Record<string, unknown>) => void;
 }
 
 const PropertiesPanel: React.FC<PropertiesPanelProps> = ({

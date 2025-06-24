@@ -40,7 +40,7 @@ interface ModelBuilderState {
   model: ModelData | null;
   selectedComponent: string | null;
   calculations: Record<string, CalculationResult>;
-  isCalculating: boolean;
+
   isGenerating: boolean;
   hasUnsavedChanges: boolean;
   showAIAssistant: boolean;
@@ -60,11 +60,12 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   localCalculations: initialLocalCalculations,
   validationResults: initialValidationResults
 }) => {
+    const [isCalculating, setIsCalculating] = useState(false);
   const [state, setState] = useState<ModelBuilderState>({
     model: initialModelData || null,
     selectedComponent: null,
     calculations: initialLocalCalculations || {},
-    isCalculating: false,
+
     isGenerating: false,
     hasUnsavedChanges: false,
     showAIAssistant: false,
@@ -110,6 +111,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   }, [state.calculations]);
 
   const handleAutoSave = useCallback(async () => {
+    if (!state.model) return;
     if (!state.hasUnsavedChanges) return;
     try {
       const updatedModel = await modelBuilderAPI.saveModel(state.model);
@@ -127,6 +129,8 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   }, [handleAutoSave]);
 
   const handleCalculate = useCallback(async () => {
+    if (!state.model) return;
+    // No longer needed as isCalculating is a separate state variable
     setIsCalculating(true);
     try {
       const calculatedModel = await modelBuilderAPI.calculateModel(state.model);
@@ -208,7 +212,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     }
     setState(prev => ({ ...prev, isGenerating: true }));
     try {
-      const response = await modelBuilderAPI.generateScenarios(state.model.id!);
+      const response = await modelBuilderAPI.generateScenarios(state.model);
       setState(prev => ({
         ...prev,
         model: response, // Assuming response contains updated model with scenarios
@@ -231,7 +235,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     }
     setState(prev => ({ ...prev, showAIAssistant: true }));
     try {
-      const response = await modelBuilderAPI.getAIAssistance(state.model.id!);
+      const response = await modelBuilderAPI.getAIAssistance({ model_data: state.model, user_query: "Please provide assistance.", context: {} });
       setState(prev => ({ ...prev, aiSuggestions: response }));
       setAlert('success', 'AI assistance received!');
     } catch (error) {
@@ -281,9 +285,9 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           </CardHeader>
           <CardContent className={styles.cardContent}>
             <div className={styles.toolbar}>
-              <Button variant="default" onClick={handleCalculate} disabled={state.isCalculating} aria-label="Calculate Model">
+              <Button variant="default" onClick={handleCalculate} disabled={isCalculating} aria-label="Calculate Model">
                 <Zap className={styles.icon} />
-                {state.isCalculating ? 'Calculating...' : 'Calculate'}
+                {isCalculating ? 'Calculating...' : 'Calculate'}
               </Button>
               <Button variant="outline" onClick={handleExport} disabled={state.isExporting} aria-label="Export Model">
                 <Download className={styles.icon} /> Export
@@ -352,6 +356,8 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                   <PropertiesPanel
                     selectedComponent={state.selectedComponent}
                     model={state.model || { components: [], connections: [], name: '', description: '', metadata: { created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: '1.0.0' } }}
+                    calculations={state.calculations}
+                    getFormattedValue={getFormattedValue}
                     onUpdateComponent={(id: string, props: Record<string, unknown>) => {
                       if (!state.model) return;
                       setState(prev => ({
@@ -369,9 +375,11 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                 </TabsContent>
                 <TabsContent value="calculations">
                   <CalculationPanel
+                    model={state.model}
                     calculations={state.calculations}
                     getFormattedValue={getFormattedValue}
-                    isCalculating={state.isCalculating}
+                    recalculate={handleCalculate}
+                    isCalculating={isCalculating}
                   />
                 </TabsContent>
                 <TabsContent value="library">
