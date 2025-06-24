@@ -15,20 +15,21 @@ import {
   Zap,
   Cpu,
   ArrowLeft,
-  ArrowRight
+
 } from 'lucide-react';
 import PropertiesPanel from './model-builder/PropertiesPanel';
 import ModelCanvas from './model-builder/ModelCanvas';
 import CalculationPanel from './model-builder/CalculationPanel';
 import ComponentLibrary from './model-builder/ComponentLibrary';
-import { ModelComponent, CalculationResult, calculationEngine, ComponentProperties } from '../utils/calculationEngine';
-import { modelBuilderAPI, ModelBuilderData, ModelValidationResult, AIAssistantResponse, ConnectionData, DiscoveryData } from '../services/modelBuilderApi';
+import { ModelComponent, CalculationResult, calculationEngine } from '../utils/calculationEngine';
+import { modelBuilderAPI, ModelValidationResult, AIAssistantResponse, ConnectionData, DiscoveryData } from '../services/modelBuilderApi';
+import { ModelData } from '../api/types';
 import styles from './Step2_ModelBuilder.module.css';
 
 interface Step2ModelBuilderProps {
   discoveryData: DiscoveryData;
-  onNext: (data: DiscoveryData & { modelBuilderData: ModelBuilderData; quantificationResults?: unknown; localCalculations?: Record<string, CalculationResult>; validationResults?: ModelValidationResult; }) => void;
-  modelBuilderData?: ModelBuilderData;
+  onNext: (data: DiscoveryData & { modelData: ModelData; quantificationResults?: unknown; localCalculations?: Record<string, CalculationResult>; validationResults?: ModelValidationResult; }) => void;
+  modelData?: ModelData;
   quantificationResults?: unknown;
   localCalculations?: Record<string, CalculationResult>;
   validationResults?: ModelValidationResult;
@@ -36,7 +37,7 @@ interface Step2ModelBuilderProps {
 }
 
 interface ModelBuilderState {
-  model: ModelBuilderData | null;
+  model: ModelData | null;
   selectedComponent: string | null;
   calculations: Record<string, CalculationResult>;
   isCalculating: boolean;
@@ -55,12 +56,12 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   discoveryData,
   onNext,
   onBack,
-  modelBuilderData: initialModelBuilderData,
+  modelData: initialModelData,
   localCalculations: initialLocalCalculations,
   validationResults: initialValidationResults
 }) => {
   const [state, setState] = useState<ModelBuilderState>({
-    model: initialModelBuilderData || null,
+    model: initialModelData || null,
     selectedComponent: null,
     calculations: initialLocalCalculations || {},
     isCalculating: false,
@@ -112,10 +113,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     if (!state.hasUnsavedChanges || !state.model) return;
     try {
       await modelBuilderAPI.saveModel({
-        model: state.model.model,
-        calculations: state.calculations,
-        summary: state.model.summary,
-        metadata: state.model.metadata
+        ...state.model,
       });
       setState(prev => ({ ...prev, hasUnsavedChanges: false }));
       setAlert('success', 'Model saved automatically!');
@@ -137,15 +135,10 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     }
     setState(prev => ({ ...prev, isCalculating: true }));
     try {
-      const modelData: ModelBuilderData = {
-        model: state.model.model,
-        calculations: state.calculations,
-        summary: state.model.summary,
-        metadata: state.model.metadata
-      };
-      
-      const response = await modelBuilderAPI.calculateModel(modelData);
-      const newCalculations = performCalculations(response.model.components);
+      const response = await modelBuilderAPI.calculateModel(
+        state.model,
+      );
+      const newCalculations = performCalculations(response.components);
 
       setState(prev => ({
         ...prev,
@@ -170,7 +163,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     }
     setState(prev => ({ ...prev, isExporting: true }));
     try {
-      const data = await modelBuilderAPI.exportModel(state.model, state.exportFormat);
+      const data = await modelBuilderAPI.exportModel(state.model.id!, state.exportFormat);
       const blob = new Blob([data], { type: 'application/json' }); // Adjust type based on format
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -195,12 +188,12 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
       reader.onload = async (e) => {
         try {
           const content = e.target?.result as string;
-          const importedModel = JSON.parse(content);
+          const importedModel: ModelData = JSON.parse(content);
           const response = await modelBuilderAPI.importModel(importedModel);
           setState(prev => ({
             ...prev,
             model: response,
-            calculations: performCalculations(response.model.components),
+            calculations: performCalculations(response.components),
             validationResult: response.validationResult || null,
             hasUnsavedChanges: true,
             selectedComponent: null
@@ -220,16 +213,11 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
 
   const handleAddComponent = useCallback((component: ModelComponent) => {
     setState(prev => {
-      const newModel = prev.model ? { ...prev.model.model } : { components: [], connections: [] };
+      const newModel = prev.model ? { ...prev.model } : { components: [], connections: [], name: '', description: '', metadata: { created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: '1.0.0' } };
       newModel.components = [...newModel.components, component];
       return {
         ...prev,
-        model: {
-          ...prev.model!,
-          model: newModel,
-          summary: prev.model?.summary || { totalRevenue: 0, totalCosts: 0, netValue: 0, netBenefit: 0, roi: 0, confidence: 0 },
-          metadata: prev.model?.metadata || { created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: '1.0.0' }
-        },
+        model: newModel,
         hasUnsavedChanges: true,
         selectedComponent: component.id
       };
@@ -243,7 +231,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     }
     setState(prev => ({ ...prev, isGenerating: true }));
     try {
-      const response = await modelBuilderAPI.generateScenarios(state.model);
+      const response = await modelBuilderAPI.generateScenarios(state.model.id!);
       setState(prev => ({
         ...prev,
         model: response, // Assuming response contains updated model with scenarios
@@ -266,7 +254,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     }
     setState(prev => ({ ...prev, showAIAssistant: true }));
     try {
-      const response = await modelBuilderAPI.getAIAssistance(state.model);
+      const response = await modelBuilderAPI.getAIAssistance(state.model.id!);
       setState(prev => ({ ...prev, aiSuggestions: response }));
       setAlert('success', 'AI assistance received!');
     } catch (error) {
@@ -281,16 +269,13 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
       return;
     }
     
-    const modelBuilderData: ModelBuilderData = {
-      model: state.model.model,
-      calculations: state.calculations,
-      metadata: state.model.metadata,
-      summary: state.model.summary
+    const modelData: ModelData = {
+      ...state.model,
     };
     
     onNext({
       ...discoveryData,
-      modelBuilderData,
+      modelData,
       localCalculations: state.calculations,
       validationResults: state.validationResult || undefined
     });
@@ -365,7 +350,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                 </TabsList>
                 <TabsContent value="canvas">
                   <ModelCanvas
-                    model={state.model ? state.model.model : { components: [], connections: [] }}
+                    model={state.model || { components: [], connections: [], name: '', description: '', metadata: { created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: '1.0.0' } }}
                     selectedComponent={state.selectedComponent}
                     onSelectComponent={(id: string) => setState(prev => ({ ...prev, selectedComponent: id }))}
                     onModelChange={(modelData: {components: ModelComponent[]; connections: ConnectionData[]}) => {
@@ -374,8 +359,9 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                         ...prev, 
                         model: { 
                           ...prev.model!,
-                          model: modelData 
-                        } as ModelBuilderData, 
+                          components: modelData.components,
+                          connections: modelData.connections
+                        },
                         hasUnsavedChanges: true 
                       }));
                     }}
@@ -387,20 +373,17 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                 </TabsContent>
                 <TabsContent value="properties">
                   <PropertiesPanel
-                    selectedComponentId={state.selectedComponent}
-                    model={state.model ? state.model.model : { components: [], connections: [] }}
-                    onUpdateComponent={(id: string, props: Record<string, any>) => {
+                    selectedComponent={state.selectedComponent}
+                    model={state.model || { components: [], connections: [], name: '', description: '', metadata: { created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: '1.0.0' } }}
+                    onUpdateComponent={(id: string, props: Record<string, unknown>) => {
                       if (!state.model) return;
                       setState(prev => ({
                         ...prev,
                         model: {
                           ...prev.model!,
-                          model: {
-                            ...prev.model!.model,
-                            components: prev.model!.model.components.map(c =>
-                              c.id === id ? { ...c, properties: { ...c.properties, ...props } } : c
-                            )
-                          }
+                          components: prev.model!.components.map((c: ModelComponent) =>
+                            c.id === id ? { ...c, properties: { ...c.properties, ...props } } : c
+                          )
                         },
                         hasUnsavedChanges: true
                       }));

@@ -4,27 +4,10 @@
  */
 
 import { b2bValueAPI, QuantificationRequest, QuantificationResponse } from './b2bValueApi';
-import { ModelComponent, CalculationSummary, CalculationResult } from '../utils/calculationEngine';
+import { ModelComponent, CalculationResult } from '../utils/calculationEngine';
+import { ModelData } from '../api/types';
 
 export type { ModelComponent, CalculationResult };
-
-
-// Extended interfaces for model builder integration
-export interface ModelBuilderData {
-  id: string;
-  model: {
-    components: ModelComponent[];
-    connections: ConnectionData[];
-  };
-  calculations: Record<string, CalculationResult>;
-  summary: CalculationSummary;
-  metadata: {
-    created_at: string;
-    updated_at: string;
-    version: string;
-    collaboration_users?: string[];
-  };
-}
 
 export interface ConnectionData {
   id: string;
@@ -56,7 +39,7 @@ export interface ValidationWarning {
 
 export interface ModelExportData {
   format: 'json' | 'excel' | 'pdf' | 'csv';
-  data: ModelBuilderData;
+  data: ModelData;
   export_options?: {
     include_calculations?: boolean;
     include_visualizations?: boolean;
@@ -119,7 +102,7 @@ export interface AIContext {
 }
 
 export interface AIAssistantRequest {
-  model_data: ModelBuilderData;
+  model_data: ModelData;
   user_query: string;
   context: AIContext;
 }
@@ -161,11 +144,11 @@ class ModelBuilderAPIClient {
   /**
    * Convert model builder data to quantification request format
    */
-  private convertToQuantificationRequest(modelData: ModelBuilderData, investmentAmount: number): QuantificationRequest {
+  private convertToQuantificationRequest(modelData: ModelData, investmentAmount: number): QuantificationRequest {
     const metrics: { [key: string]: number } = {};
     
     // Extract metrics from model components
-    modelData.model.components.forEach(component => {
+    modelData.components.forEach(component => {
       if (component.type === 'input' && component.properties.value !== undefined) {
         metrics[component.properties.name || component.id] = component.properties.value;
       }
@@ -192,7 +175,7 @@ class ModelBuilderAPIClient {
   /**
    * Calculate ROI using backend quantification services
    */
-  async calculateROIWithBackend(modelData: ModelBuilderData, investmentAmount: number): Promise<QuantificationResponse> {
+  async calculateROIWithBackend(modelData: ModelData, investmentAmount: number): Promise<QuantificationResponse> {
     try {
       const quantificationRequest = this.convertToQuantificationRequest(modelData, investmentAmount);
       
@@ -200,10 +183,10 @@ class ModelBuilderAPIClient {
         // Return mock data in development mode
         return {
           roi_summary: {
-            total_annual_value: modelData.summary.netBenefit,
-            roi_percentage: modelData.summary.roi,
-            payback_period_months: modelData.summary.paybackPeriod || 18,
-            confidence_score: modelData.summary.confidence
+            total_annual_value: modelData.summary?.netBenefit || 0,
+            roi_percentage: modelData.summary?.roi || 0,
+            payback_period_months: modelData.summary?.paybackPeriod || 18,
+            confidence_score: modelData.summary?.confidence || 0
           },
           sensitivity_analysis: [
             {
@@ -239,14 +222,14 @@ class ModelBuilderAPIClient {
   /**
    * Validate model structure and completeness
    */
-  async validateModel(modelData: ModelBuilderData): Promise<ModelValidationResult> {
+  async validateModel(modelData: ModelData): Promise<ModelValidationResult> {
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
     
     // Check for required components
-    const hasInputs = modelData.model.components.some(c => c.type === 'input');
-    const hasCalculations = modelData.model.components.some(c => c.type === 'calculation');
-    const hasOutputs = modelData.model.components.some(c => c.type === 'output');
+    const hasInputs = modelData.components.some(c => c.type === 'input');
+    const hasCalculations = modelData.components.some(c => c.type === 'calculation');
+    const hasOutputs = modelData.components.some(c => c.type === 'output');
 
     if (!hasInputs) {
       errors.push({
@@ -273,11 +256,11 @@ class ModelBuilderAPIClient {
     }
 
     // Check component connections
-    const unconnectedComponents = modelData.model.components.filter(component => {
-      const isConnected = modelData.model.connections.some(conn => 
+    const unconnectedComponents = modelData.components.filter(component => {
+      const isConnected = modelData.connections.some(conn => 
         conn.source === component.id || conn.target === component.id
       );
-      return !isConnected && modelData.model.components.length > 1;
+      return !isConnected && modelData.components.length > 1;
     });
 
     unconnectedComponents.forEach(component => {
@@ -296,7 +279,7 @@ class ModelBuilderAPIClient {
     if (hasInputs) passedChecks++;
     if (hasCalculations) passedChecks++;
     if (hasOutputs) passedChecks++;
-    if (modelData.model.connections.length > 0) passedChecks++;
+    if (modelData.connections.length > 0) passedChecks++;
     if (Object.keys(modelData.calculations).length > 0) passedChecks++;
 
     const completeness = passedChecks / totalChecks;
@@ -312,7 +295,7 @@ class ModelBuilderAPIClient {
   /**
    * Export model data in various formats
    */
-  async exportModel(modelData: ModelBuilderData, format: 'json' | 'excel' | 'pdf' | 'csv'): Promise<Blob> {
+  async exportModel(modelData: ModelData, format: 'json' | 'excel' | 'pdf' | 'csv'): Promise<Blob> {
     const exportData: ModelExportData = {
       format,
       data: modelData,
@@ -345,7 +328,7 @@ class ModelBuilderAPIClient {
   /**
    * Import model data from file
    */
-  async importModel(file: File): Promise<ModelBuilderData> {
+  async importModel(file: File): Promise<ModelData> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       
@@ -354,10 +337,10 @@ class ModelBuilderAPIClient {
           const content = event.target?.result as string;
           
           if (file.type === 'application/json' || file.name.endsWith('.json')) {
-            const modelData = JSON.parse(content);
+            const modelData: ModelData = JSON.parse(content);
             
             // Validate imported data structure
-            if (!modelData.model || !modelData.model.components) {
+            if (!modelData.components) {
               throw new Error('Invalid model file format');
             }
             
@@ -387,7 +370,7 @@ class ModelBuilderAPIClient {
   /**
    * Save model to backend (when available)
    */
-  async saveModel(modelData: ModelBuilderData, modelId?: string): Promise<{ id: string; success: boolean }> {
+  async saveModel(modelData: ModelData, modelId?: string): Promise<{ id: string; success: boolean }> {
     if (this.isDevelopment) {
       // In development, save to localStorage
       const id = modelId || `model_${Date.now()}`;

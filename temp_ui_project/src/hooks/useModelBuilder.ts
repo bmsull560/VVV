@@ -117,10 +117,7 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
     };
     setModel({
       ...model,
-      model: {
-        ...model.model,
-        components: [...model.model.components, newComponent],
-      },
+      components: [...model.components, newComponent],
     });
   }, [model]);
 
@@ -129,12 +126,9 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
     if (!model) return;
     setModel({
       ...model,
-      model: {
-        ...model.model,
-        components: model.model.components.map((comp: ModelComponent) =>
+      components: model.components.map((comp: ModelComponent) =>
           comp.id === componentId ? { ...comp, ...updates } : comp
         ),
-      },
     });
   }, [model]);
 
@@ -143,11 +137,8 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
     if (!model) return;
     setModel({
       ...model,
-      model: {
-        ...model.model,
-        components: model.model.components.filter((comp: ModelComponent) => comp.id !== componentId),
-        connections: model.model.connections.filter((conn: ConnectionData) => conn.source !== componentId && conn.target !== componentId),
-      },
+      components: model.components.filter((comp: ModelComponent) => comp.id !== componentId),
+      connections: model.connections.filter((conn: ConnectionData) => conn.source !== componentId && conn.target !== componentId),
     });
   }, [model]);
 
@@ -160,10 +151,7 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
     };
     setModel({
       ...model,
-      model: {
-        ...model.model,
-        connections: [...model.model.connections, newConnection],
-      },
+      connections: [...model.connections, newConnection],
     });
   }, [model]);
 
@@ -172,10 +160,7 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
     if (!model) return;
     setModel({
       ...model,
-      model: {
-        ...model.model,
-        connections: model.model.connections.filter((conn: ConnectionData) => conn.id !== connectionId),
-      },
+      connections: model.connections.filter((conn: ConnectionData) => conn.id !== connectionId),
     });
   }, [model]);
 
