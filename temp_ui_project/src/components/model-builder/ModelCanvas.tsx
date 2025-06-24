@@ -4,11 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Button } from '../ui/button';
 import { ZoomIn, ZoomOut, Maximize, Grid, Link2 as Link, Trash2 } from 'lucide-react';
 import * as joint from '@joint/core';
-import { ModelComponent } from '../../utils/calculationEngine';
-import { ConnectionData } from '../../services/modelBuilderApi';
+import type { ModelComponent } from '../../utils/calculationEngine';
+import type { ConnectionData } from '../../services/modelBuilderApi';
 import styles from './ModelCanvas.module.css';
-
-
 
 interface ModelCanvasProps {
   model: {
@@ -16,29 +14,28 @@ interface ModelCanvasProps {
     connections: ConnectionData[];
   };
   setModel?: (model: { components: ModelComponent[]; connections: ConnectionData[] }) => void;
-  onModelChange: (modelData: { components: ModelComponent[]; connections: ConnectionData[]; }) => void;
-
+  onModelChange: (modelData: { components: ModelComponent[]; connections: ConnectionData[] }) => void;
   onAddComponent: (component: ModelComponent) => void;
   onDeleteComponent: (componentId: string) => void;
   onSelectComponent: (component: ModelComponent | null) => void;
   selectedComponent: ModelComponent | null;
-
   readOnly: boolean;
   className?: string;
 }
 
+// Consider moving these to a shared constants file if used elsewhere
 const DEFAULT_COMPONENT_PROPERTIES = {
   'revenue-stream': { unitPrice: 0, quantity: 0, growthRate: 0.05, periods: 12 },
   'cost-center': { monthlyCost: 0, periods: 12, escalationRate: 0.03 },
   'roi-calculator': { investment: 0, annualBenefit: 0, periods: 12 },
-  'npv-calculator': { cashFlows: [0], discountRate: 0.1 },
+  'npv-calculator': { cashFlows: [0] as number[], discountRate: 0.1 },
   'payback-calculator': { investment: 0, annualBenefit: 0 },
   'sensitivity-analysis': { baseValue: 0, rangeMin: 0, rangeMax: 0, variableName: '' },
   'variable': { value: 0 },
   'formula': { expression: '', variables: {} }
-};
+} as const;
 
-const COMPONENT_COLORS = {
+const COMPONENT_COLORS: Record<string, string> = {
   'revenue-stream': '#10b981',
   'cost-center': '#ef4444',
   'roi-calculator': '#3b82f6',
@@ -83,7 +80,12 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
       linkPinning: false,
       snapLinks: true,
       embedding: true,
-      validateConnection: (cellViewS: joint.dia.CellView, magnetS: SVGElement, cellViewT: joint.dia.CellView, magnetT: SVGElement) => {
+      validateConnection: (
+  cellViewS: joint.dia.CellView,
+  magnetS: SVGElement,
+  cellViewT: joint.dia.CellView,
+  magnetT: SVGElement
+) => {
         if (cellViewS === cellViewT) return false;
 
         if (magnetS && magnetS.getAttribute('port-group') === 'in' && magnetT && magnetT.getAttribute('port-group') === 'in') return false;

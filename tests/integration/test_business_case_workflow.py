@@ -182,7 +182,7 @@ class TestBusinessCaseWorkflow:
         # Step 1: Project Intake
         intake_result = await intake_agent.execute(sample_project_input)
         
-        assert intake_result.status == AgentStatus.SUCCESS
+        assert intake_result.status == AgentStatus.COMPLETED
         assert 'project_id' in intake_result.data
         assert intake_result.data['project_name'] == 'Customer Portal Modernization'
         assert intake_result.data['intake_quality']['overall_score'] > 0.7
@@ -190,7 +190,7 @@ class TestBusinessCaseWorkflow:
         # Step 2: Value Driver Analysis
         value_result = await value_driver_agent.execute(sample_value_driver_input)
         
-        assert value_result.status == AgentStatus.SUCCESS
+        assert value_result.status == AgentStatus.COMPLETED
         assert 'quantified_impact' in value_result.data
         assert value_result.data['quantified_impact']['total_annual_savings'] > 0
         assert value_result.data['confidence_level'] >= 0.7
@@ -198,7 +198,7 @@ class TestBusinessCaseWorkflow:
         # Step 3: ROI Calculation
         roi_result = await roi_agent.execute(sample_roi_input)
         
-        assert roi_result.status == AgentStatus.SUCCESS
+        assert roi_result.status == AgentStatus.COMPLETED
         assert 'roi_metrics' in roi_result.data
         assert roi_result.data['roi_metrics']['roi_percentage'] > 0
         assert roi_result.data['roi_metrics']['payback_period_years'] > 0
@@ -206,7 +206,7 @@ class TestBusinessCaseWorkflow:
         # Step 4: Risk Assessment
         risk_result = await risk_agent.execute(sample_risk_input)
         
-        assert risk_result.status == AgentStatus.SUCCESS
+        assert risk_result.status == AgentStatus.COMPLETED
         assert 'overall_risk_profile' in risk_result.data
         assert 'mitigation_strategies' in risk_result.data
         assert len(risk_result.data['individual_assessments']) == 3
@@ -260,7 +260,7 @@ class TestBusinessCaseWorkflow:
         execution_time = time.time() - start_time
         
         # Validate results
-        successful_results = [r for r in results if isinstance(r, AgentResult) and r.status == AgentStatus.SUCCESS]
+        successful_results = [r for r in results if isinstance(r, AgentResult) and r.status == AgentStatus.COMPLETED]
         
         assert len(successful_results) == 5
         assert execution_time < 10.0  # Should complete within 10 seconds
@@ -288,7 +288,7 @@ class TestBusinessCaseWorkflow:
         intake_agent = IntakeAssistantAgent('mcp_test', mock_mcp_client, base_config.copy())
         result = await intake_agent.execute(sample_project_input)
         
-        assert result.status == AgentStatus.SUCCESS
+        assert result.status == AgentStatus.COMPLETED
         
         # Validate MCP entity structure
         assert len(test_entities) > 0
@@ -326,7 +326,7 @@ class TestBusinessCaseWorkflow:
         intake_agent = IntakeAssistantAgent('persistence_test', mock_mcp_client, base_config.copy())
         result = await intake_agent.execute(sample_project_input)
         
-        assert result.status == AgentStatus.SUCCESS
+        assert result.status == AgentStatus.COMPLETED
         project_id = result.data['project_id']
         
         # Verify entity was stored
@@ -361,8 +361,8 @@ class TestBusinessCaseWorkflow:
         total_workflow_time = time.time() - workflow_start
         
         # Performance assertions
-        assert intake_result.status == AgentStatus.SUCCESS
-        assert value_result.status == AgentStatus.SUCCESS
+        assert intake_result.status == AgentStatus.COMPLETED
+        assert value_result.status == AgentStatus.COMPLETED
         
         # Timing assertions (reasonable performance expectations)
         assert intake_time < 5.0  # Intake should complete within 5 seconds
@@ -445,7 +445,7 @@ class TestCrossAgentDataFlow:
         
         # Execute with derived input
         result = await value_agent.execute(value_driver_input)
-        assert result.status == AgentStatus.SUCCESS
+        assert result.status == AgentStatus.COMPLETED
     
     @pytest.mark.asyncio
     async def test_value_driver_to_roi_data_flow(self, mock_mcp_client):
@@ -489,7 +489,7 @@ class TestCrossAgentDataFlow:
         roi_agent = ROICalculatorAgent('test_roi_flow', mock_mcp_client, config)
         
         result = await roi_agent.execute(roi_input)
-        assert result.status == AgentStatus.SUCCESS
+        assert result.status == AgentStatus.COMPLETED
         assert 'roi_metrics' in result.data
 
 

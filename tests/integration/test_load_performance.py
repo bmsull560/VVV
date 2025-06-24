@@ -110,7 +110,7 @@ class TestLoadPerformance:
                 'department': 'it',
                 'stakeholders': [
                     {'name': 'Test User', 'role': 'sponsor', 'influence_level': 'high'},
-                    {'name': 'Test Owner', 'role': 'owner', 'influence_level': 'high'}
+                    {'name': 'Test Owner', 'role': 'business_owner', 'influence_level': 'high'}
                 ],
                 'goals': ['Performance testing', 'Load validation'],
                 'success_criteria': ['Fast response times', 'System stability'],
@@ -213,13 +213,13 @@ class TestLoadPerformance:
             result = await agent.execute(test_input)
             execution_time = (time.time() - start_time) * 1000  # Convert to ms
             
-            metrics.record_execution(execution_time, result.status == AgentStatus.SUCCESS)
+            metrics.record_execution(execution_time, result.status == AgentStatus.COMPLETED)
             metrics.record_system_metrics()
             
             baseline_metrics[agent_name] = metrics.get_summary()
             
             # Baseline performance assertions
-            assert result.status == AgentStatus.SUCCESS, f"{agent_name} failed baseline test"
+            assert result.status == AgentStatus.COMPLETED, f"{agent_name} failed baseline test"
             assert execution_time < 5000, f"{agent_name} baseline execution too slow: {execution_time}ms"
         
         # Print baseline results for reference
@@ -258,7 +258,7 @@ class TestLoadPerformance:
             # Analyze results
             successful_results = [
                 r for r in results 
-                if isinstance(r, AgentResult) and r.status == AgentStatus.SUCCESS
+                if isinstance(r, AgentResult) and r.status == AgentStatus.COMPLETED
             ]
             
             # Record metrics
@@ -266,7 +266,7 @@ class TestLoadPerformance:
                 metrics.record_execution(result.execution_time_ms, True)
             
             for result in results:
-                if not isinstance(result, AgentResult) or result.status != AgentStatus.SUCCESS:
+                if not isinstance(result, AgentResult) or result.status != AgentStatus.COMPLETED:
                     metrics.record_execution(0, False)
             
             metrics.record_system_metrics()
@@ -309,7 +309,7 @@ class TestLoadPerformance:
                     agent = agent_class(f'workflow_{workflow_idx}_{workflow_id}', mock_mcp_client, base_config.copy())
                     result = await agent.execute(test_input.copy())
                     
-                    if result.status != AgentStatus.SUCCESS:
+                    if result.status != AgentStatus.COMPLETED:
                         return False, (time.time() - workflow_start) * 1000
                 
                 return True, (time.time() - workflow_start) * 1000
@@ -355,7 +355,7 @@ class TestLoadPerformance:
                 result = await agent.execute(sample_inputs['intake'].copy())
                 execution_time = (time.time() - start) * 1000
                 
-                metrics.record_execution(execution_time, result.status == AgentStatus.SUCCESS)
+                metrics.record_execution(execution_time, result.status == AgentStatus.COMPLETED)
                 metrics.record_system_metrics()
                 
                 # Wait before next request
@@ -394,7 +394,7 @@ class TestLoadPerformance:
             agent = IntakeAssistantAgent(f'memory_test_{i}', mock_mcp_client, base_config.copy())
             result = await agent.execute(sample_inputs['intake'].copy())
             
-            assert result.status == AgentStatus.SUCCESS
+            assert result.status == AgentStatus.COMPLETED
             
             # Measure memory after execution
             memory_after = process.memory_info().rss / 1024 / 1024  # MB
@@ -452,7 +452,7 @@ class TestLoadPerformance:
             result = await agent.execute(sample_inputs['intake'].copy())
             execution_time = (time.time() - start_time) * 1000
             
-            metrics.record_execution(execution_time, result.status == AgentStatus.SUCCESS)
+            metrics.record_execution(execution_time, result.status == AgentStatus.COMPLETED)
         
         summary = metrics.get_summary()
         
@@ -496,7 +496,7 @@ class TestLoadPerformance:
                 # Check results
                 successful_results = [
                     r for r in results 
-                    if isinstance(r, AgentResult) and r.status == AgentStatus.SUCCESS
+                    if isinstance(r, AgentResult) and r.status == AgentStatus.COMPLETED
                 ]
                 
                 success_rate = len(successful_results) / len(results)
@@ -557,7 +557,7 @@ class TestPerformanceRegression:
             result = await agent.execute(benchmark_input.copy())
             execution_time = (time.time() - start_time) * 1000
             
-            assert result.status == AgentStatus.SUCCESS
+            assert result.status == AgentStatus.COMPLETED
             execution_times.append(execution_time)
         
         # Calculate benchmark metrics

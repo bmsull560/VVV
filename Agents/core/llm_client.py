@@ -3,8 +3,9 @@ import openai
 import logging
 import time
 import yaml
-from typing import Dict, Any, Optional, List, Union
-from enum import Enum
+from openai import OpenAI, AzureOpenAI, RateLimitError, APIError
+from openai.types.chat import ChatCompletionMessageParam
+import anthropic
 from cryptography.fernet import Fernet
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -12,10 +13,14 @@ import threading
 
 logger = logging.getLogger(__name__)
 
+from enum import Enum
+from typing import Optional, Dict, Any, List, Tuple
+
 class LLMProvider(Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic" 
     AZURE_OPENAI = "azure_openai"
+    MOCK = "mock"
 
 class LLMClient:
     """Production-ready LLM client with security, retry logic, and synchronous calls"""
@@ -48,8 +53,13 @@ class LLMClient:
                 return config_data.get('globals', {}).get('llm', {})
         
         # Fallback to environment variables
+        provider_str = os.getenv('LLM_PROVIDER', 'openai').lower()
+        if provider_str == 'mock':
+            provider = LLMProvider.MOCK
+        else:
+            provider = LLMProvider(provider_str)
         return {
-            'provider': os.getenv('LLM_PROVIDER', 'openai'),
+            'provider': provider.value,
             'model': os.getenv('LLM_MODEL', 'gpt-4'),
             'temperature': float(os.getenv('LLM_TEMPERATURE', '0.1')),
             'max_tokens': int(os.getenv('LLM_MAX_TOKENS', '4096')),
@@ -85,68 +95,59 @@ class LLMClient:
                 timeout=self.timeout
             )
         elif self.provider == LLMProvider.AZURE_OPENAI:
-            self.client = openai.AzureOpenAI(
+            self.client = AzureOpenAI(
                 api_key=self.api_key,
                 azure_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT'),
                 api_version=os.getenv('AZURE_OPENAI_API_VERSION', '2024-02-01'),
                 timeout=self.timeout
             )
+        elif self.provider == LLMProvider.ANTHROPIC:
+            self.client = anthropic.Anthropic(api_key=self.api_key, timeout=self.timeout)
+        elif self.provider == LLMProvider.MOCK:
+            self.client = MockLLMClient(config_path=None) # Mock client doesn't need external API key
         else:
             raise ValueError(f"Unsupported provider: {self.provider.value}")
 
-    def generate_text_sync(self, prompt: str, **kwargs) -> Dict[str, Any]:
+    def generate_text_sync(self, prompt: str, system_message: Optional[str] = None, stop_sequences: Optional[List[str]] = None) -> Dict[str, Any]:
         """Synchronous text generation with retry logic"""
         with self._lock:
             for attempt in range(self.retry_attempts):
                 try:
                     start_time = time.time()
-                    
-                    # Prepare parameters
-                    params = {
-                        'model': kwargs.get('model', self.model),
-                        'messages': [{"role": "user", "content": prompt}],
-                        'temperature': kwargs.get('temperature', self.temperature),
-                        'max_tokens': kwargs.get('max_tokens', self.max_tokens),
-                        'timeout': kwargs.get('timeout', self.timeout)
-                    }
-                    
-                    # Make API call
-                    response = self.client.chat.completions.create(**params)
-                    
+                    generated_text, tokens_used, cost_usd = "", 0, 0.0
+
+                    if self.provider == LLMProvider.OPENAI or self.provider == LLMProvider.AZURE_OPENAI:
+                        generated_text, tokens_used, cost_usd = self._generate_text_openai_internal(prompt, system_message, stop_sequences)
+                    elif self.provider == LLMProvider.ANTHROPIC:
+                        generated_text, tokens_used, cost_usd = self._generate_text_anthropic_internal(prompt, system_message, stop_sequences)
+                    elif self.provider == LLMProvider.MOCK:
+                        result = self.client.generate_text_sync(prompt, system_message=system_message, stop_sequences=stop_sequences)
+                        generated_text = result["text"]
+                        tokens_used = result["tokens_used"]
+                        cost_usd = result["cost_usd"]
+                    else:
+                        raise ValueError(f"Unsupported provider: {self.provider.value}")
+
                     execution_time = time.time() - start_time
-                    
-                    # Extract response data
-                    text_content = response.choices[0].message.content
-                    tokens_used = response.usage.total_tokens if response.usage else 0
-                    cost_usd = self._calculate_cost(response.usage) if response.usage else 0.0
-                    
                     logger.info(f"LLM call successful - Tokens: {tokens_used}, Cost: ${cost_usd:.4f}, Time: {execution_time:.2f}s")
-                    
+
                     return {
-                        "text": text_content,
+                        "text": generated_text,
                         "tokens_used": tokens_used,
                         "cost_usd": cost_usd,
                         "execution_time_seconds": execution_time,
-                        "model": params['model'],
+                        "model": self.model,
                         "provider": self.provider.value
                     }
-                    
-                except openai.RateLimitError as e:
+
+                except (openai.RateLimitError, openai.APIError, anthropic.APIError) as e:
                     wait_time = self.retry_delay * (2 ** attempt)  # Exponential backoff
-                    logger.warning(f"Rate limit hit, attempt {attempt + 1}/{self.retry_attempts}, waiting {wait_time}s")
+                    logger.warning(f"API error ({type(e).__name__}) on attempt {attempt + 1}/{self.retry_attempts}, waiting {wait_time}s")
                     if attempt < self.retry_attempts - 1:
                         time.sleep(wait_time)
                     else:
-                        logger.error(f"Rate limit exceeded after {self.retry_attempts} attempts")
+                        logger.error(f"API error ({type(e).__name__}) after {self.retry_attempts} attempts")
                         raise
-                        
-                except openai.APIError as e:
-                    logger.error(f"OpenAI API error on attempt {attempt + 1}: {e}")
-                    if attempt < self.retry_attempts - 1:
-                        time.sleep(self.retry_delay)
-                    else:
-                        raise
-                        
                 except Exception as e:
                     logger.error(f"Unexpected error on attempt {attempt + 1}: {e}")
                     if attempt < self.retry_attempts - 1:
@@ -164,27 +165,62 @@ class LLMClient:
             **kwargs
         )
 
-    def _calculate_cost(self, usage: Any) -> float:
-        """Calculate cost based on token usage and model"""
-        if not usage:
-            return 0.0
-            
-        # Model-specific pricing (per 1K tokens)
-        pricing = {
-            'gpt-4': {'input': 0.03, 'output': 0.06},
-            'gpt-4-turbo': {'input': 0.01, 'output': 0.03},
-            'gpt-3.5-turbo': {'input': 0.0015, 'output': 0.002}
-        }
-        
-        model_pricing = pricing.get(self.model, pricing['gpt-4'])
-        
-        prompt_tokens = usage.prompt_tokens if hasattr(usage, 'prompt_tokens') else 0
-        completion_tokens = usage.completion_tokens if hasattr(usage, 'completion_tokens') else 0
-        
-        input_cost = (prompt_tokens / 1000) * model_pricing['input']
-        output_cost = (completion_tokens / 1000) * model_pricing['output']
-        
-        return input_cost + output_cost
+    def _generate_text_openai_internal(self, prompt: str, system_message: Optional[str] = None, stop_sequences: Optional[List[str]] = None) -> Tuple[str, int, float]:
+        messages = []
+        if system_message:
+            messages.append({"role": "system", "content": system_message})
+        messages.append({"role": "user", "content": prompt})
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            seed=self.seed,
+            stop=stop_sequences
+        )
+        generated_text = response.choices[0].message.content.strip()
+        tokens_used = response.usage.total_tokens
+        cost_usd = self._calculate_openai_cost(response.usage.prompt_tokens, response.usage.completion_tokens)
+        return generated_text, tokens_used, cost_usd
+
+    def _generate_text_anthropic_internal(self, prompt: str, system_message: Optional[str] = None, stop_sequences: Optional[List[str]] = None) -> Tuple[str, int, float]:
+        messages = []
+        if system_message:
+            messages.append({"role": "user", "content": system_message}) # Anthropic uses user role for system messages in some models
+        messages.append({"role": "user", "content": prompt})
+
+        response = self.client.messages.create(
+            model=self.model,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            messages=messages,
+            stop_sequences=stop_sequences
+        )
+        generated_text = response.content[0].text.strip()
+        tokens_used = response.usage.input_tokens + response.usage.output_tokens
+        cost_usd = self._calculate_anthropic_cost(response.usage.input_tokens, response.usage.output_tokens)
+        return generated_text, tokens_used, cost_usd
+
+    def _calculate_openai_cost(self, prompt_tokens: int, completion_tokens: int) -> float:
+        # Pricing as of 2024-05-15, for gpt-4o. Prices are per 1M tokens.
+        # This should be updated as models and pricing change.
+        input_cost_per_million = 5.00
+        output_cost_per_million = 15.00
+
+        cost = (prompt_tokens / 1_000_000) * input_cost_per_million + \
+               (completion_tokens / 1_000_000) * output_cost_per_million
+        return cost
+
+    def _calculate_anthropic_cost(self, input_tokens: int, output_tokens: int) -> float:
+        # Pricing for Claude 3 Opus as of 2024-05-15. Prices are per 1M tokens.
+        # This should be updated as models and pricing change.
+        input_cost_per_million = 15.00
+        output_cost_per_million = 75.00
+
+        cost = (input_tokens / 1_000_000) * input_cost_per_million + \
+               (output_tokens / 1_000_000) * output_cost_per_million
+        return cost
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about current model configuration"""
@@ -227,6 +263,38 @@ class LLMClient:
         self._executor.shutdown(wait=True)
 
 # Legacy support - maintains backward compatibility
+class MockLLMClient(LLMClient):
+    """Mock LLM client for testing and offline mode"""
+    def __init__(self, config_path: Optional[str] = None):
+        super().__init__(config_path)
+        logger.info("MockLLMClient initialized. Responses will be simulated.")
+
+    def generate_text_sync(self, prompt: str, **kwargs) -> Dict[str, Any]:
+        logger.info(f"MockLLMClient received prompt: {prompt[:50]}...")
+        # Simulate a response
+        simulated_text = f"Mock response for: {prompt}"
+        tokens_used = len(simulated_text.split()) # Basic token count
+        cost_usd = 0.0 # No cost for mock
+        execution_time = 0.1 # Simulate quick response
+
+        return {
+            "text": simulated_text,
+            "tokens_used": tokens_used,
+            "cost_usd": cost_usd,
+            "execution_time_seconds": execution_time,
+            "model": self.model,
+            "provider": self.provider.value
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        return {
+            "status": "healthy",
+            "response_time_seconds": 0.01,
+            "model": self.model,
+            "provider": self.provider.value
+        }
+
+
 class OpenAIClient(LLMClient):
     """Legacy OpenAI client - redirects to new LLMClient"""
     

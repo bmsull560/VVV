@@ -1,4 +1,4 @@
-import { ModelData, SaveModelResponse, ListModelsResponse, ApiError } from './types';
+import { ModelData, SaveModelResponse, ListModelsResponse, ApiError, QuantifyRoiRequest, QuantifyRoiResponse, ExportModelRequest, ExportModelResponse } from './types';
 
 const API_BASE_URL = '/api/models';
 
@@ -77,4 +77,50 @@ export const deleteModel = async (modelId: string): Promise<void> => {
     error.status = response.status;
     throw error;
   }
+};
+
+/**
+ * Calculates ROI and performs sensitivity analysis for a given model.
+ */
+export const calculateModel = async (request: QuantifyRoiRequest): Promise<QuantifyRoiResponse> => {
+  const response = await fetch('/api/quantify-roi', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json().catch(() => ({
+      message: 'Failed to calculate model',
+    }));
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
+};
+
+/**
+ * Exports a model in a specified format.
+ */
+export const exportModel = async (request: ExportModelRequest): Promise<ExportModelResponse> => {
+  const response = await fetch('/api/export-model', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json().catch(() => ({
+      message: 'Failed to export model',
+    }));
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
 };

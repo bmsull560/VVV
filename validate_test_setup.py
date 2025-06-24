@@ -21,7 +21,7 @@ def validate_imports():
     
     try:
         # Try importing from tests.integration package
-        from tests.integration.test_config import IntegrationTestConfig, TestConfigurationManager
+        from tests.integration.integration_config import IntegrationTestConfig, TestConfigurationManager
         print("✅ test_config imports successful")
         
         # Import test_runner from the module directly to avoid circular imports
@@ -42,7 +42,7 @@ def validate_config():
     print("\n🔍 Validating configuration...")
     
     try:
-        from tests.integration.test_config import TestConfigurationManager
+        from tests.integration.integration_config import TestConfigurationManager
         config = TestConfigurationManager.load_config()
         print(f"✅ Configuration loaded successfully")
         print(f"   - Test environment: {config.test_environment}")
@@ -59,7 +59,7 @@ def validate_test_data():
     print("\n🔍 Validating test data...")
     
     try:
-        from tests.integration.test_config import TestDataManager, TestConfigurationManager
+        from tests.integration.integration_config import TestDataManager, TestConfigurationManager
         config = TestConfigurationManager.load_config()
         data_manager = TestDataManager(config)
         

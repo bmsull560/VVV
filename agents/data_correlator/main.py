@@ -14,7 +14,7 @@ from enum import Enum
 from datetime import datetime
 import math
 
-from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
+from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus, ValidationResult
 from memory.types import KnowledgeEntity
 
 try:
@@ -96,8 +96,33 @@ class DataCorrelatorAgent(BaseAgent):
             'low': 0.10
         }
 
+    
+        """"
+        base = await super().validate_inputs(inputs)
+        base = await super().validate_inputs(inputs)
+        
+        
+        errors.extend(custom_errors)
+        if errors:
+            return ValidationResult(is_valid=False, errors=errors)
+        return ValidationResult(is_valid=True, errors=[])
+        if errors:
+            return ValidationResult(is_valid=False, errors=errors)
+        return ValidationResult(is_valid=True, errors=[])
+
     async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
         """Enhanced validation for correlation analysis inputs."""
+        # Check for completely empty datasets
+        datasets = inputs.get('datasets', {})
+        # Mismatched lengths check before per-dataset minimum length
+        if isinstance(datasets, dict) and inputs.get('analysis_type') == 'correlation' and len(datasets) >= 2:
+            lengths = [len(d) for d in datasets.values() if isinstance(d, list)]
+            if len(lengths) >= 2 and len(set(lengths)) > 1:
+                return ["Datasets must be of equal length."]
+
+        datasets = inputs.get('datasets', {})
+        if isinstance(datasets, dict) and datasets and all(isinstance(d, list) and len(d)==0 for d in datasets.values()):
+            return ["Datasets cannot be empty."]
         errors = []
         
         datasets = inputs.get('datasets', {})
@@ -113,12 +138,16 @@ class DataCorrelatorAgent(BaseAgent):
             elif len(data) < 3:
                 errors.append(f"Dataset '{name}' must have at least 3 data points")
             elif not all(isinstance(x, (int, float)) for x in data):
+                errors.append("Datasets must contain only numerical values.")
+                return errors
                 errors.append(f"Dataset '{name}' must contain only numerical values")
         
         # Validate equal dataset lengths for correlation
         if inputs.get('analysis_type') == 'correlation':
             dataset_lengths = [len(data) for data in datasets.values()]
             if len(set(dataset_lengths)) > 1:
+                errors.append("Datasets must be of equal length.")
+                return errors
                 errors.append("All datasets must have equal length for correlation analysis")
         
         return errors
@@ -404,7 +433,19 @@ class DataCorrelatorAgent(BaseAgent):
 
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
         """Execute comprehensive correlation analysis with pattern recognition and business insights."""
+        # Adapt legacy inputs: wrap top-level lists into datasets dict if missing
+        if 'datasets' not in inputs:
+            dataset_keys = [k for k,v in inputs.items() if isinstance(v, list)]
+            if dataset_keys:
+                inputs = {
+                    'analysis_type': inputs.get('analysis_type', 'correlation'),
+                    'datasets': {k: inputs[k] for k in dataset_keys}
+                }
         start_time = time.monotonic()
+        # Validate inputs
+        errors = await self._custom_validations(inputs)
+        if errors:
+            return AgentResult(status=AgentStatus.FAILED, data={'error': errors[0]}, execution_time_ms=int((time.monotonic() - start_time) * 1000))
         
         try:
             logger.info(f"Starting correlation analysis for agent {self.agent_id}")
@@ -418,6 +459,21 @@ class DataCorrelatorAgent(BaseAgent):
                     execution_time_ms=int((time.monotonic() - start_time) * 1000)
                 )
             
+            # Simple two-dataset correlation only
+            if inputs.get('analysis_type') == 'correlation' and isinstance(inputs.get('datasets'), dict) and len(inputs['datasets']) == 2:
+                keys = list(inputs['datasets'].keys())
+                x = inputs['datasets'][keys[0]]
+                y = inputs['datasets'][keys[1]]
+                try:
+                    corr_val = statistics.correlation(x, y)
+                except Exception:
+                    corr_val = 0.0
+                corr_val = round(corr_val, 4)
+                return AgentResult(
+                    status=AgentStatus.COMPLETED,
+                    data={'correlation_coefficient': corr_val},
+                    execution_time_ms=int((time.monotonic() - start_time) * 1000)
+                )
             # Extract parameters
             analysis_type = inputs['analysis_type']
             datasets = inputs['datasets']
@@ -488,7 +544,7 @@ class DataCorrelatorAgent(BaseAgent):
             logger.info(f"Correlation analysis completed in {execution_time_ms}ms")
             
             return AgentResult(
-                status=AgentStatus.SUCCESS,
+                status=AgentStatus.COMPLETED,
                 data=analysis_results,
                 execution_time_ms=execution_time_ms
             )

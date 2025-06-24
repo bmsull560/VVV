@@ -285,6 +285,38 @@ class IntakeAssistantAgent(BaseAgent):
         
         return errors
 
+    async def _check_existing_projects(self, project_name: str) -> List[str]:
+        """Check if a project with a similar name already exists in MCP memory."""
+        # This is a placeholder. In a real scenario, you'd use a more sophisticated
+        # search query with the MCP client to find similar project names.
+        # For now, we'll simulate a search.
+        # Assuming mcp_client has a search_entities method that can be queried.
+        # The actual implementation might involve fuzzy matching or semantic search.
+        try:
+            # Attempt to search for entities with the given project name
+            # This assumes a search_entities method exists and returns KnowledgeEntity objects
+            # with a 'name' attribute in their content or metadata.
+            # The query might need to be adjusted based on the actual MCPClient API.
+            # For a simple check, we'll look for exact matches or very close ones.
+            # A more robust solution would involve a semantic search or regex matching.
+            search_results = await self.mcp_client.search_entities(
+                query=project_name,
+                entity_type="project_intake", # Assuming this is the entity type for project intakes
+                limit=5 # Limit results to avoid excessive data
+            )
+
+            existing_names = []
+            for entity in search_results:
+                # Assuming the project name is stored in the 'name' field of the KnowledgeEntity
+                if hasattr(entity, 'name') and entity.name:
+                    # Simple case-insensitive check for similarity
+                    if project_name.lower() in entity.name.lower() or entity.name.lower() in project_name.lower():
+                        existing_names.append(entity.name)
+            return existing_names
+        except Exception as e:
+            logger.warning(f"Failed to check existing projects in MCP: {e}")
+            return [] # Return empty list on error to not block validation
+
     def _classify_project_type(self, inputs: Dict[str, Any]) -> List[str]:
         """Classify project type based on business objective and description."""
         classification_scores = {}
@@ -928,7 +960,7 @@ class IntakeAssistantAgent(BaseAgent):
             if not validation_result.is_valid:
                 logger.warning(f"Input validation failed: {validation_result.errors}")
                 return AgentResult(
-                    status=AgentStatus.ERROR,
+                    status=AgentStatus.FAILED,
                     data={'error': 'Input validation failed', 'details': validation_result.errors},
                     execution_time_ms=int((time.monotonic() - start_time) * 1000)
                 )
@@ -990,9 +1022,8 @@ class IntakeAssistantAgent(BaseAgent):
             
             # Create enhanced knowledge entity for MCP memory storage
             knowledge_entity = KnowledgeEntity(
-                entity_id=f"intake_{project_id}",
-                entity_type="project_intake",
-                name=f"Project Intake: {inputs.get('project_name', 'Unknown')}",
+                id=f"intake_{project_id}",
+                title=f"Project Intake: {inputs.get('project_name', 'Unknown')}",
                 content={
                     'project_data': project_data,
                     'input_validation': {
@@ -1075,7 +1106,7 @@ class IntakeAssistantAgent(BaseAgent):
             logger.error(error_msg, exc_info=True)
             
             return AgentResult(
-                status=AgentStatus.ERROR,
+                status=AgentStatus.FAILED,
                 data={'error': error_msg, 'execution_time_ms': execution_time_ms},
                 execution_time_ms=execution_time_ms
             )

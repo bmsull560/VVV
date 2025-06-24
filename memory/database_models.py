@@ -3,7 +3,17 @@ SQLAlchemy ORM models for the B2BValue application.
 """
 
 import uuid
-import orjson
+try:
+    import orjson
+except ImportError:
+    import json
+    class orjson:
+        @staticmethod
+        def dumps(v):
+            return json.dumps(v).encode("utf-8")
+        @staticmethod
+        def loads(v):
+            return json.loads(v)
 from sqlalchemy import (
     create_engine, Column, String, DateTime, ForeignKey, Integer, JSON, ARRAY, Text, CheckConstraint, TypeDecorator
 )
@@ -119,3 +129,43 @@ class EpisodicMemoryEntry(Base):
     user = relationship("User", back_populates="episodic_entries")
 
     __table_args__ = (CheckConstraint(tier == 'EPISODIC', name='check_tier_is_episodic'),)
+
+
+class Model(Base):
+    __tablename__ = 'models'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    description = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    metadata_ = Column(JsonAsText, name='metadata') # Renamed to avoid conflict with Python's metadata
+
+    components = relationship("ModelComponent", back_populates="model", cascade="all, delete-orphan")
+    connections = relationship("ModelConnection", back_populates="model", cascade="all, delete-orphan")
+
+
+class ModelComponent(Base):
+    __tablename__ = 'model_components'
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4())) # Use String for component ID as it might not be a UUID
+    model_id = Column(UUID(as_uuid=True), ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
+    type = Column(String, nullable=False)
+    properties = Column(JsonAsText, nullable=False)
+    position = Column(JsonAsText, nullable=False)
+    size = Column(JsonAsText)
+
+    model = relationship("Model", back_populates="components")
+
+
+class ModelConnection(Base):
+    __tablename__ = 'model_connections'
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4())) # Use String for connection ID
+    model_id = Column(UUID(as_uuid=True), ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
+    source = Column(String, nullable=False)
+    target = Column(String, nullable=False)
+    source_handle = Column(String, name='sourceHandle')
+    target_handle = Column(String, name='targetHandle')
+
+    model = relationship("Model", back_populates="connections")

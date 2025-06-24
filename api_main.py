@@ -173,6 +173,63 @@ class ComposeBusinessCaseResponse(BaseModel):
 # --- End Pydantic Models ---
 
 
+# --- Pydantic Models for /api/export-model ---
+
+class ExportModelRequest(BaseModel):
+    model_id: PydanticUUID # Assuming the model has been saved and has an ID
+    export_format: str # e.g., "excel", "pdf"
+    # Add any other parameters needed for export, e.g., specific sections, level of detail
+
+class ExportModelResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    file_content: Optional[str] = None # Base64 encoded file content
+    file_name: Optional[str] = None
+    content_type: Optional[str] = None
+
+# --- End Pydantic Models for /api/export-model ---
+
+
+
+@app.post("/api/export-model", response_model=ExportModelResponse, tags=["Export"])
+async def export_model(fastapi_request: ExportModelRequest, request_object: Request):
+    """
+    Exports a saved model in a specified format (e.g., Excel, PDF).
+    """
+    try:
+        # This will likely involve a new agent or a utility function
+        # For now, a placeholder implementation
+        if fastapi_request.export_format == "excel":
+            # Logic to generate Excel file (e.g., using pandas, openpyxl)
+            file_content = "Simulated Excel Content Base64"
+            file_name = f"model_{fastapi_request.model_id}.xlsx"
+            content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        elif fastapi_request.export_format == "pdf":
+            # Logic to generate PDF file (e.g., using ReportLab, FPDF)
+            file_content = "Simulated PDF Content Base64"
+            file_name = f"model_{fastapi_request.model_id}.pdf"
+            content_type = "application/pdf"
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported export format")
+
+        return ExportModelResponse(
+            success=True,
+            message=f"Model {fastapi_request.model_id} exported as {fastapi_request.export_format}",
+            file_content=file_content,
+            file_name=file_name,
+            content_type=content_type
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in export_model endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+
+
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Initialize MemoryManager, MCPClient, and Agents
@@ -201,6 +258,16 @@ async def lifespan(app: FastAPI):
             logger.warning("MemoryManager has no initialize() method.")
     else:
         logger.error("MemoryManager is None at startup!")
+
+    # Initialize database tables
+    try:
+        from memory.database import init_db
+        init_db()
+        logger.info("Database initialized successfully.")
+    except Exception as e_db:
+        logger.error(f"Failed to initialize database: {e_db}")
+        # Depending on criticality, you might want to raise the exception or exit
+
 
     app.state.mcp_client = MCPClient(app.state.memory_manager)
     # Removed setup_default_access_controls() call (not present on MCPClient)

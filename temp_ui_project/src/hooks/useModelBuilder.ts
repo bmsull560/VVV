@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
-import { ModelData, ModelComponent, ModelConnection as ConnectionData } from '../api/types';
+import { ModelData, ModelConnection as ConnectionData, QuantifyRoiRequest, QuantifyRoiResponse, ExportModelRequest, ExportModelResponse, RoiSummary } from '../api/types';
 import * as modelBuilderAPI from '../api/modelBuilderApi';
+import { ModelComponent } from '../utils/calculationEngine';
 
 interface UseModelBuilderReturn {
   model: ModelData | null;
@@ -11,6 +12,8 @@ interface UseModelBuilderReturn {
   updateModel: (updatedModel: ModelData) => Promise<ModelData>;
   removeModel: (modelId: string) => Promise<void>;
   listUserModels: () => Promise<Array<{ id: string; name: string; updatedAt: string }>>;
+  calculateModel: (request: QuantifyRoiRequest) => Promise<QuantifyRoiResponse>;
+  exportModel: (request: ExportModelRequest) => Promise<ExportModelResponse>;
   addComponent: (component: Omit<ModelComponent, 'id'>) => void;
   updateComponent: (componentId: string, updates: Partial<ModelComponent>) => void;
   removeComponent: (componentId: string) => void;
@@ -108,6 +111,40 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
     }
   }, [clearError]);
 
+  // Calculate model ROI and sensitivity
+  const calculateModel = useCallback(async (request: QuantifyRoiRequest): Promise<QuantifyRoiResponse> => {
+    try {
+      setIsLoading(true);
+      clearError();
+      const response = await modelBuilderAPI.calculateModel(request);
+      // Optionally update model state with calculation results if needed
+      if (model) {
+        setModel({ ...model, summary: response.quantification.roi_summary });
+      }
+      return response;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to calculate model');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [clearError, model]);
+
+  // Export model
+  const exportModel = useCallback(async (request: ExportModelRequest): Promise<ExportModelResponse> => {
+    try {
+      setIsLoading(true);
+      clearError();
+      const response = await modelBuilderAPI.exportModel(request);
+      return response;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export model');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [clearError]);
+
   // Add a component to the current model
   const addComponent = useCallback((component: Omit<ModelComponent, 'id'>): void => {
     if (!model) return;
@@ -178,6 +215,8 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
     removeComponent,
     addConnection,
     removeConnection,
+    calculateModel,
+    exportModel,
     clearError,
   };
 };

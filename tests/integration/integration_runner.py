@@ -24,7 +24,7 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir.parent.parent))  # Add project root
 sys.path.insert(0, str(current_dir.parent))  # Add tests directory
 
-from tests.integration.test_config import (
+from tests.integration.integration_config import (
     IntegrationTestConfig, TestConfigurationManager, TestDataManager,
     TEST_RESULTS_DIR, cleanup_test_environment, create_test_directories
 )
@@ -198,7 +198,7 @@ class SystemMonitor:
         }
 
 
-class TestRunner:
+class IntegrationTestRunner:
     """Main test runner for integration tests."""
     
     def __init__(self, config: IntegrationTestConfig):
@@ -632,7 +632,7 @@ async def main():
     create_test_directories()
     
     # Create and run test runner
-    runner = TestRunner(config)
+    runner = IntegrationTestRunner(config)
     report = await runner.run_all_tests()
     
     # Print summary

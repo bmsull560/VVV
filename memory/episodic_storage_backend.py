@@ -3,7 +3,17 @@ Specialized PostgreSQL storage backend for Episodic Memory using SQLAlchemy.
 """
 
 import logging
-import orjson
+try:
+    import orjson
+except ImportError:
+    import json
+    class orjson:
+        @staticmethod
+        def dumps(v):
+            return json.dumps(v).encode("utf-8")
+        @staticmethod
+        def loads(v):
+            return json.loads(v)
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession

@@ -1,0 +1,36 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.4, pytest-8.4.1, pluggy-1.6.0
+benchmark: 5.1.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+rootdir: C:\Users\bmsul\Documents\VVV
+configfile: pytest.ini
+plugins: anyio-4.9.0, Faker-37.4.0, asyncio-1.0.0, benchmark-5.1.0, cov-6.2.1, html-4.1.1, json-report-1.5.0, metadata-3.1.1, xdist-3.7.0
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 0 items / 1 error
+
+=================================== ERRORS ====================================
+_________ ERROR collecting tests/integration/test_load_performance.py _________
+ImportError while importing test module 'C:\Users\bmsul\Documents\VVV\tests\integration\test_load_performance.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\integration\test_load_performance.py:18: in <module>
+    from agents.intake_assistant.main import IntakeAssistantAgent
+agents\intake_assistant\main.py:17: in <module>
+    from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
+agents\core\agent_base.py:12: in <module>
+    from agents.core.mcp_client import MCPClient
+agents\core\mcp_client.py:14: in <module>
+    from memory import (
+memory\__init__.py:17: in <module>
+    from memory.episodic import EpisodicMemory
+memory\episodic.py:14: in <module>
+    from memory.episodic_storage_backend import EpisodicStorageBackend
+memory\episodic_storage_backend.py:6: in <module>
+    import orjson
+E   ModuleNotFoundError: No module named 'orjson'
+=========================== short test summary info ===========================
+ERROR tests/integration/test_load_performance.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+============================== 1 error in 0.24s ===============================

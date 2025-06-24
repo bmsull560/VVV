@@ -124,7 +124,7 @@ class TestMCPCompliance:
             result = await agent.execute(test_case['input'])
             
             # Validate successful execution
-            assert result.status == AgentStatus.SUCCESS, f"Agent {test_case['agent_class'].__name__} failed execution"
+            assert result.status == AgentStatus.COMPLETED, f"Agent {test_case['agent_class'].__name__} failed execution"
             
             # Validate MCP storage was called
             assert mock_mcp_client.store_entity.called, f"Agent {test_case['agent_class'].__name__} did not store entity"
@@ -162,7 +162,7 @@ class TestMCPCompliance:
         }
         
         result = await agent.execute(test_input)
-        assert result.status == AgentStatus.SUCCESS
+        assert result.status == AgentStatus.COMPLETED
         assert len(stored_entities) > 0
         
         # Validate entity structure
@@ -225,7 +225,7 @@ class TestMCPCompliance:
         }
         
         intake_result = await intake_agent.execute(intake_input)
-        assert intake_result.status == AgentStatus.SUCCESS
+        assert intake_result.status == AgentStatus.COMPLETED
         
         project_id = intake_result.data['project_id']
         
@@ -272,7 +272,7 @@ class TestMCPCompliance:
         for agent_class, test_input in agents_and_inputs:
             agent = agent_class('logging_test', mock_mcp_client, base_config.copy())
             result = await agent.execute(test_input)
-            assert result.status == AgentStatus.SUCCESS
+            assert result.status == AgentStatus.COMPLETED
         
         # Validate operations were logged
         assert len(mock_mcp_client.operations_log) > 0
@@ -318,7 +318,7 @@ class TestMCPCompliance:
         }
         
         result = await agent.execute(initial_input)
-        assert result.status == AgentStatus.SUCCESS
+        assert result.status == AgentStatus.COMPLETED
         assert len(stored_entities) > 0
         
         # Validate versioning metadata
@@ -355,7 +355,7 @@ class TestMCPCompliance:
         # Agent should handle MCP errors gracefully
         # Implementation may vary - either continue with local processing
         # or fail with appropriate error status
-        assert result.status in [AgentStatus.SUCCESS, AgentStatus.ERROR]
+        assert result.status in [AgentStatus.COMPLETED, AgentStatus.FAILED]
         
         # If error, should have meaningful error information
         if result.status == AgentStatus.ERROR:
@@ -404,7 +404,7 @@ class TestMCPCompliance:
         for agent_class, test_input in agents:
             agent = agent_class('consistency_test', mock_mcp_client, base_config.copy())
             result = await agent.execute(test_input)
-            assert result.status == AgentStatus.SUCCESS
+            assert result.status == AgentStatus.COMPLETED
         
         # Validate entity operations consistency
         assert len(entity_operations) > 0
@@ -469,7 +469,7 @@ class TestMCPPerformance:
         
         # Execute agent
         result = await agent.execute(test_input)
-        assert result.status == AgentStatus.SUCCESS
+        assert result.status == AgentStatus.COMPLETED
         
         # Validate performance metrics
         assert len(mock_mcp_client.operation_times) > 0
@@ -517,7 +517,7 @@ class TestMCPPerformance:
         # Validate all executions succeeded
         successful_results = [
             r for r in results 
-            if isinstance(r, AgentResult) and r.status == AgentStatus.SUCCESS
+            if isinstance(r, AgentResult) and r.status == AgentStatus.COMPLETED
         ]
         
         assert len(successful_results) == 3

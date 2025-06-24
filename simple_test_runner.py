@@ -19,7 +19,7 @@ def run_simple_tests():
     print("\n📋 Testing Configuration Loading...")
     try:
         sys.path.insert(0, str(Path(__file__).parent))
-        from tests.integration.test_config import TestConfigurationManager
+        from tests.integration.integration_config import TestConfigurationManager
         config = TestConfigurationManager.load_config()
         print(f"✅ Configuration loaded: {config.test_environment}")
         print(f"   - Agents configured: {len(config.agents) if config.agents else 0}")

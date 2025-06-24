@@ -1,0 +1,48 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.4, pytest-8.4.1, pluggy-1.6.0 -- c:\Users\bmsul\Documents\VVV\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\bmsul\Documents\VVV
+configfile: pytest.ini
+plugins: anyio-4.9.0, langsmith-0.3.45, asyncio-1.0.0, dotenv-0.5.2
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 65 items
+
+tests/agents/data_correlator/test_data_correlator.py::TestDataCorrelatorAgent::test_empty_datasets FAILED [  1%]
+
+================================== FAILURES ===================================
+_________________ TestDataCorrelatorAgent.test_empty_datasets _________________
+
+self = <test_data_correlator.TestDataCorrelatorAgent testMethod=test_empty_datasets>
+
+    def test_empty_datasets(self):
+        """Test that empty datasets fail."""
+        async def run_test():
+            inputs = {'dataset1': [], 'dataset2': []}
+            result = await self.agent.execute(inputs)
+            self.assertEqual(result.status, AgentStatus.FAILED)
+            self.assertEqual(result.data['error'], 'Datasets cannot be empty.')
+    
+>       asyncio.run(run_test())
+
+tests\agents\data_correlator\test_data_correlator.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests\agents\data_correlator\test_data_correlator.py:58: in run_test
+    self.assertEqual(result.data['error'], 'Datasets cannot be empty.')
+E   AssertionError: "Validation failed: Required field 'analysis_type' is missing or null" != 'Datasets cannot be empty.'
+E   - Validation failed: Required field 'analysis_type' is missing or null
+E   + Datasets cannot be empty.
+=========================== short test summary info ===========================
+FAILED tests/agents/data_correlator/test_data_correlator.py::TestDataCorrelatorAgent::test_empty_datasets - AssertionError: "Validation failed: Required field 'analysis_type' is missing or null" != 'Datasets cannot be empty.'
+- Validation failed: Required field 'analysis_type' is missing or null
++ Datasets cannot be empty.
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+============================== 1 failed in 6.94s ==============================
