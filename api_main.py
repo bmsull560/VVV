@@ -203,7 +203,7 @@ async def lifespan(app: FastAPI):
         logger.error("MemoryManager is None at startup!")
 
     app.state.mcp_client = MCPClient(app.state.memory_manager)
-    app.state.mcp_client.setup_default_access_controls()
+    # Removed setup_default_access_controls() call (not present on MCPClient)
     logger.info("MemoryManager and MCPClient initialized.")
 
     # Load agent configurations from workflow.yaml
