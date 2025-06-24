@@ -4,8 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Button } from '../ui/button';
 import { ZoomIn, ZoomOut, Maximize, Grid, Link2 as Link, Trash2 } from 'lucide-react';
 import * as joint from '@joint/core';
+import { dia } from '@joint/core';
 import * as shapes from '@joint/shapes';
-import { ModelComponent, CalculationResult } from '../../utils/calculationEngine';
+import { ModelComponent } from '../../utils/calculationEngine';
 import { ConnectionData } from '../../services/modelBuilderApi';
 import styles from './ModelCanvas.module.css';
 
@@ -18,12 +19,12 @@ interface ModelCanvasProps {
   };
   setModel?: (model: { components: ModelComponent[]; connections: ConnectionData[] }) => void;
   onModelChange: (modelData: { components: ModelComponent[]; connections: ConnectionData[]; }) => void;
-  calculations: Record<string, CalculationResult>;
+
   onAddComponent: (component: ModelComponent) => void;
   onDeleteComponent: (componentId: string) => void;
   onSelectComponent: (component: ModelComponent | null) => void;
   selectedComponent: ModelComponent | null;
-  getFormattedValue: (value: any, propertyType: string) => string;
+
   readOnly: boolean;
 }
 
@@ -51,80 +52,71 @@ const COMPONENT_COLORS = {
 
 const ModelCanvas: React.FC<ModelCanvasProps> = ({
   model,
-  calculations,
+
   onAddComponent,
   onDeleteComponent,
   onSelectComponent,
   selectedComponent,
-  getFormattedValue,
+
   readOnly
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const paperRef = useRef<joint.dia.Paper | null>(null);
-  const graphRef = useRef<joint.dia.Graph | null>(null);
+  const paperRef = useRef<dia.Paper | null>(null);
+  const graphRef = useRef<dia.Graph | null>(null);
   const [zoom, setZoom] = useState<number>(100);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
 
-  // Initialize JointJS graph and paper
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    const graph = new joint.dia.Graph();
+    const graph = new joint.dia.Graph({}, { cellNamespace: shapes });
     const paper = new joint.dia.Paper({
       el: canvasRef.current,
       model: graph,
       width: '100%',
       height: '100%',
       gridSize: 10,
-      drawGrid: true,
+      drawGrid: { name: 'mesh' },
       background: {
-        color: '#f8fafc'
+        color: '#F8F8F8',
       },
-      defaultConnectionPoint: { name: 'boundary', args: { offset: 10 } },
-      defaultRouter: { name: 'manhattan' },
-      defaultConnector: { name: 'rounded' },
-      interactive: {
-        elementMove: !readOnly,
-        linkMove: false,
-
-        addLinkFromMagnet: true,
-
-
-      },
-      snapLinks: { radius: 20 },
       linkPinning: false,
-      markAvailable: true,
-      clickThreshold: 5,
-      highlighting: {
-        'default': { name: 'stroke', options: { padding: 4 } },
-        'connecting': { name: 'stroke', options: { padding: 4, rx: 5, ry: 5 } }
-      },
-      validateConnection: function(cellViewS, magnetS, cellViewT, magnetT, end, linkView) {
-        // Prevent connecting to self
+      snapLinks: true,
+      embedding: true,
+      validateConnection: function(cellViewS: dia.CellView, magnetS: SVGElement, cellViewT: dia.CellView, magnetT: SVGElement) {
         if (cellViewS === cellViewT) return false;
-        
-        // Only allow connecting from output to input
-        if (magnetS && magnetS.getAttribute('port') === 'in') return false;
-        if (magnetT && magnetT.getAttribute('port') === 'out') return false;
-        
+
+        if (magnetS && magnetS.getAttribute('port-group') === 'in' && magnetT && magnetT.getAttribute('port-group') === 'in') return false;
+        if (magnetS && magnetS.getAttribute('port-group') === 'out' && magnetT && magnetT.getAttribute('port-group') === 'out') return false;
+
+        if (magnetS && magnetS.getAttribute('port-group') === 'in') return false;
+        if (magnetT && magnetT.getAttribute('port-group') === 'out') return false;
+
         return true;
-      }
+      },
+      defaultLink: new shapes.standard.Link({
+        attrs: {
+          line: {
+            stroke: '#8f8f8f',
+            strokeWidth: 3,
+            targetMarker: { 'type': 'path', 'd': 'M 10 -5 0 0 10 5 Z' }
+          }
+        }
+      }),
+      interactive: { linkMove: false, elementMove: !readOnly }
     });
 
-    // Store references
     paperRef.current = paper;
     graphRef.current = graph;
 
-    // Cleanup
     return () => {
-      paper.remove();
+      paper.scale(1, 1);
       graph.clear();
     };
   }, [readOnly]);
 
-  // Handle component selection
-  const handleElementClick = useCallback((elementView: joint.dia.ElementView) => {
+  const handleElementClick = useCallback((elementView: dia.ElementView) => {
     const element = elementView.model;
     const componentId = element.get('componentId');
     if (componentId) {
@@ -133,8 +125,7 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
     }
   }, [model.components, onSelectComponent]);
 
-  // Handle connection creation
-  const handleConnectionCreate = useCallback((linkView: joint.dia.LinkView) => {
+  const handleConnectionCreate = useCallback((linkView: dia.LinkView) => {
     const sourceElement = linkView.model.getSourceElement();
     const targetElement = linkView.model.getTargetElement();
     
@@ -143,14 +134,11 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
       const targetId = targetElement.get('componentId');
       
       if (sourceId && targetId) {
-        // Update model with new connection
         console.log(`Connection created from ${sourceId} to ${targetId}`);
-        // TODO: Update the model with the new connection
       }
     }
   }, []);
 
-  // Add component to the model and canvas
   const addComponent = useCallback((type: string, position: { x: number; y: number }) => {
     if (!graphRef.current) return;
 
@@ -162,11 +150,9 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
       properties: { ...(DEFAULT_COMPONENT_PROPERTIES[type as keyof typeof DEFAULT_COMPONENT_PROPERTIES] || {}) }
     };
 
-    // Add to model
     onAddComponent(component);
 
-    // Add to canvas
-    const element = new joint.shapes.standard.Rectangle({
+    const element = new shapes.standard.Rectangle({
       position: { x: position.x, y: position.y },
       size: { width: 120, height: 60 },
       attrs: {
@@ -197,7 +183,6 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
     onSelectComponent(component);
   }, [onAddComponent, onSelectComponent]);
 
-  // Handle drop from component library
   const [{ isOver }, drop] = useDrop<{ componentType: string }, void, { isOver: boolean }>({
     accept: 'MODEL_COMPONENT',
     drop: (item, monitor) => {
@@ -217,18 +202,17 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
     })
   });
 
-  // Zoom functions
   const zoomIn = useCallback(() => {
     if (!paperRef.current) return;
     const currentScale = paperRef.current.scale().sx;
-    paperRef.current.scale(currentScale * 1.2);
+    paperRef.current.scale(currentScale * 1.2, currentScale * 1.2);
     setZoom(Math.round(currentScale * 1.2 * 100));
   }, []);
 
   const zoomOut = useCallback(() => {
     if (!paperRef.current) return;
     const currentScale = paperRef.current.scale().sx;
-    paperRef.current.scale(currentScale / 1.2);
+    paperRef.current.scale(currentScale / 1.2, currentScale / 1.2);
     setZoom(Math.round((currentScale / 1.2) * 100));
   }, []);
 
@@ -238,7 +222,6 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
     setZoom(100);
   }, []);
 
-  // Toggle grid visibility
   const toggleGrid = useCallback(() => {
     if (!paperRef.current) return;
     const newShowGrid = !showGrid;
@@ -249,37 +232,33 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
     });
   }, [showGrid]);
 
-  // Delete selected component
   const deleteSelected = useCallback(() => {
     if (!selectedComponent || !graphRef.current) return;
     
-    // Remove from canvas
     const elements = graphRef.current.getElements();
     const elementToRemove = elements.find(el => el.get('componentId') === selectedComponent.id);
     if (elementToRemove) {
-      elementToRemove.remove();
+      graphRef.current.removeCells([elementToRemove]);
     }
     
-    // Remove from model
     onDeleteComponent(selectedComponent.id);
     onSelectComponent(null);
   }, [selectedComponent, onDeleteComponent, onSelectComponent]);
 
-  // Set up event listeners
   useEffect(() => {
     const paper = paperRef.current;
     if (!paper) return;
 
-    paper.on('element:pointerclick', handleElementClick);
-    paper.on('link:add', handleConnectionCreate);
+    paper.on('element:pointerdblclick', handleElementClick);
+    paper.on('link:pointerdblclick', handleConnectionCreate);
+    paper.on('blank:pointerdown', () => {});
 
     return () => {
-      paper.off('element:pointerclick', handleElementClick);
-      paper.off('link:add', handleConnectionCreate);
+      paper.off('element:pointerdblclick');
+      paper.off('link:pointerdblclick');
+      paper.off('blank:pointerdown');
     };
   }, [handleElementClick, handleConnectionCreate]);
-
-
 
   return (
     <div className={styles.modelCanvasContainer}>
