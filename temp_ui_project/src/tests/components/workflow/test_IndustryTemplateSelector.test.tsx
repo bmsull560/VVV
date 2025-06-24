@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { IndustryTemplateSelector } from '@/components/workflow/IndustryTemplateSelector';
+import { IndustryTemplateSelector } from '@/components/discovery/IndustryTemplateSelector';
 import { industryTemplates } from '../../../types/industryTemplates';
 
 describe('IndustryTemplateSelector', () => {

@@ -1,37 +1,25 @@
-export default {
-  preset: 'ts-jest',
+/** @type {import('jest').Config} */
+const config = {
   testEnvironment: 'jsdom',
-  extensionsToTreatAsEsm: ['.ts', '.tsx'],
-
-  globals: {
-    'import.meta.env.VITE_API_BASE_URL': 'http://localhost:8000',
-  },
-  roots: ['<rootDir>/src'],
-  testMatch: [
-    '**/__tests__/**/*.{js,jsx,ts,tsx}',
-    '**/*.(test|spec).{js,jsx,ts,tsx}'
-  ],
+  setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   transform: {
-    '^.+\.(ts|tsx)?$': ['ts-jest', { useESM: true, tsconfig: 'tsconfig.app.json' }],
-    '^.+\.(js|jsx)$': 'babel-jest',
+    '^.+\.(ts|tsx)$': ['ts-jest', { tsconfig: 'tsconfig.app.json' }]
   },
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  moduleDirectories: ['node_modules', 'src'],
-  modulePaths: ['<rootDir>/src'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\.(css|less|scss|sass)$': 'identity-obj-proxy'
   },
-  setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
-  collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/main.tsx',
-    '!src/vite-env.d.ts'
-  ],
-  transformIgnorePatterns: [
-    'node_modules/(?!(.*\.mjs$))'
-  ],
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html']
+  modulePaths: ['<rootDir>/src'],
+  moduleDirectories: ['node_modules', 'src'],
+  testPathIgnorePatterns: ['/node_modules/'],
+  globals: {
+    'ts-jest': {
+      diagnostics: true
+    },
+    'import.meta.env.VITE_API_BASE_URL': 'http://localhost:8000'
+  },
+  verbose: true
 };
+
+export default config;
