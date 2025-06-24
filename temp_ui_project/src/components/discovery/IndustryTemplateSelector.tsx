@@ -1,33 +1,35 @@
 import React, { useState, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Select } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { IndustryTemplate, getIndustryTemplate, getIndustryTemplateOptions } from '../../types/industryTemplates';
 import { Check, ChevronDown, Info } from 'lucide-react';
 
+import type { IndustryVertical } from '../../types/industryTemplates';
+
 interface IndustryTemplateSelectorProps {
   onSelectTemplate: (template: IndustryTemplate) => void;
   onCancel: () => void;
-  initialIndustry?: string;
+  initialIndustry?: IndustryVertical;
 }
 
 const IndustryTemplateSelector: React.FC<IndustryTemplateSelectorProps> = ({
   onSelectTemplate,
   onCancel,
-  initialIndustry = 'technology'
+  initialIndustry = 'technology',
 }) => {
-  const [selectedIndustry, setSelectedIndustry] = useState<keyof typeof industryOptions>(initialIndustry as keyof typeof industryOptions);
+  const industryOptions = getIndustryTemplateOptions();
+  const [selectedIndustry, setSelectedIndustry] = useState<IndustryVertical>(initialIndustry);
   const [selectedTemplate, setSelectedTemplate] = useState<IndustryTemplate>(
-    getIndustryTemplate(initialIndustry as keyof typeof industryOptions)
+    getIndustryTemplate(initialIndustry)
   );
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
-  const industryOptions = getIndustryTemplateOptions();
-
   const handleIndustryChange = useCallback((value: string) => {
-    const template = getIndustryTemplate(value as keyof typeof industryOptions);
-    setSelectedIndustry(value as keyof typeof industryOptions);
+    const industry = value as IndustryVertical;
+    const template = getIndustryTemplate(industry);
+    setSelectedIndustry(industry);
     setSelectedTemplate(template);
   }, []);
 

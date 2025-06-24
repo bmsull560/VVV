@@ -1,115 +1,51 @@
-import React, { useState, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-import { Button } from '../ui/button';
+import React from 'react';
+import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Progress } from '../ui/progress';
-import {
-  Calculator,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle,
-  Info,
-  RefreshCw,
-  Zap,
-  BarChart3
-} from 'lucide-react';
-import { ModelComponent, CalculationResult } from '../../utils/calculationEngine';
+import { Calculator } from 'lucide-react';
+import type { CalculationResult } from '../../utils/calculationEngine';
 
 interface CalculationPanelProps {
-  model: { components: ModelComponent[]; connections: any[] } | null;
   calculations: Record<string, CalculationResult>;
-  getFormattedValue: (id: string) => string;
-  recalculate: () => void;
-  isCalculating: boolean;
-  isGenerating?: boolean;
-  generateScenarios?: () => void;
+  model: { components: { id: string }[] } | null;
 }
 
-const CalculationPanel: React.FC<CalculationPanelProps> = ({
-  model,
-  calculations,
-  getFormattedValue,
-  recalculate,
-  isCalculating,
-  isGenerating,
-  generateScenarios
-}) => {
-  const [showDetails, setShowDetails] = useState(false);
-  const [selectedTab, setSelectedTab] = useState('results');
+const CalculationPanel: React.FC<CalculationPanelProps> = ({ model, calculations }) => {
+  const results: CalculationResult[] = model ? model.components.map(c => calculations[c.id]).filter((r): r is CalculationResult => Boolean(r)) : [];
 
-  // Process calculations into structured results
-  const getCalculationResults = (): CalculationResult[] => {
-    if (!model || !calculations) return [];
+  return (
+    <Card className="w-80 h-full flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b">
+        <span className="text-lg flex items-center gap-2 font-semibold">
+          <Calculator className="h-5 w-5" />
+          Calculations
+        </span>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4">
+        {results.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            <Calculator className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <p>No components to calculate</p>
+          </div>
+        ) : (
+          results.map((result, idx) => (
+            <Card key={idx} className="p-3 mb-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium text-sm truncate">{result.formatted}</span>
+                <Badge variant="outline" className="text-xs">{result.type}</Badge>
+              </div>
+              <div className="text-xs text-gray-500">
+                Value: {result.value} | Confidence: {result.confidence}%
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+};
 
-    return model.components.map(component => {
-      const calc = calculations[component.id] || {};
-      const value = calc.result || 0;
-      const formattedValue = getFormattedValue(component.id);
-      
-      // Determine status based on calculation validity
-      let status: 'valid' | 'warning' | 'error' = 'valid';
-      if (calc.error) status = 'error';
-      else if (calc.warning || value === 0) status = 'warning';
+export default CalculationPanel;
 
-      // Calculate confidence based on component type and data quality
-      const confidence = calculateConfidence(component, calc);
-
-      return {
-        id: component.id,
-        name: component.properties.name || component.type.replace('-', ' ').toUpperCase(),
-        value,
-        formattedValue,
-        type: component.type,
-        status,
-        confidence,
-        dependencies: component.connections || []
-      };
-    });
-  };
-
-  // Calculate confidence score for a component
-  const calculateConfidence = (component: ModelComponent, calc: any): number => {
-    let confidence = 100;
-
-    // Reduce confidence for missing required properties
-    const requiredProps = getRequiredProperties(component.type);
-    const missingProps = requiredProps.filter(prop => !component.properties[prop]);
-    confidence -= missingProps.length * 15;
-
-    // Reduce confidence for calculation errors
-    if (calc.error) confidence = Math.min(confidence, 30);
-    else if (calc.warning) confidence -= 20;
-
-    // Reduce confidence for zero values (might indicate missing data)
-    if (calc.result === 0) confidence -= 10;
-
-    // Reduce confidence for components with many dependencies
-    const depCount = component.connections?.length || 0;
-    if (depCount > 3) confidence -= depCount * 5;
-
-    return Math.max(confidence, 0);
-  };
-
-  // Get required properties for component type
-  const getRequiredProperties = (type: string): string[] => {
-    const required: Record<string, string[]> = {
-      'revenue-stream': ['unitPrice', 'quantity'],
-      'cost-center': ['monthlyCost'],
-      'roi-calculator': ['investment', 'annualBenefit'],
-      'npv-calculator': ['discountRate', 'cashFlows'],
-      'payback-calculator': ['investment', 'annualCashFlow'],
-      'sensitivity-analysis': ['baseCase'],
-      'variable': ['value'],
-      'formula': ['formula']
-    };
-    return required[type] || [];
-  };
-
-  // Get summary statistics
-  const getSummaryStats = () => {
-    const results = getCalculationResults();
-    const total = results.length;
     const valid = results.filter(r => r.status === 'valid').length;
     const warnings = results.filter(r => r.status === 'warning').length;
     const errors = results.filter(r => r.status === 'error').length;
@@ -225,19 +161,25 @@ const CalculationPanel: React.FC<CalculationPanelProps> = ({
                 <p>No components to calculate</p>
               </div>
             ) : (
-              results.map(result => (
-                <Card key={result.id} className="p-3">
+              results.map((result, idx) => (
+                <Card key={idx} className="p-3">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      {getStatusIcon(result.status)}
                       <span className="font-medium text-sm truncate">
-                        {result.name}
+                        {result.formatted}
                       </span>
                     </div>
                     <Badge variant="outline" className="text-xs">
                       {result.type}
                     </Badge>
                   </div>
+                  <div className="text-xs text-gray-500">
+                    Value: {result.value} | Confidence: {result.confidence}%
+                  </div>
+                </Card>
+              ))
+            )}
+          </TabsContent>
                   
                   <div className="text-lg font-semibold text-gray-900">
                     {result.formattedValue}

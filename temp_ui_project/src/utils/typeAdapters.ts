@@ -1,4 +1,4 @@
-import { DiscoveryResponse, ValueDriverPillar } from '../services/b2bValueApi';
+import { DiscoveryResponse } from '../services/b2bValueApi';
 import { DiscoveryData } from '../services/modelBuilderApi';
 
 /**
