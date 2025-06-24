@@ -331,15 +331,16 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                 <Download className={styles.icon} /> Export
               </Button>
               <label htmlFor="import-model" className={styles.visuallyHidden}>
-                <input
-                  id="import-model"
-                  type="file"
-                  accept=".json,.csv,.xlsx,.xls,.pdf"
-                  className={styles.hiddenInput}
-                  onChange={e => {
-                    if (e.target.files && e.target.files[0]) handleImport(e.target.files[0]);
-                  }}
-                />
+                  <input
+                    aria-label="Import Model"
+                    id="import-model"
+                    type="file"
+                    accept=".json,.csv,.xlsx,.xls,.pdf"
+                    className={styles.hiddenInput}
+                    onChange={e => {
+                      if (e.target.files && e.target.files[0]) handleImport(e.target.files[0]);
+                    }}
+                  />
               </label>
               <Button variant="outline" onClick={() => document.getElementById('import-model')?.click()} aria-label="Import Model">
                 <Upload className={styles.icon} /> Import

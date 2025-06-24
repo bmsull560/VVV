@@ -57,9 +57,7 @@
   -moz-border-radius: 4px;
   border-radius: 4px;
   
-  /* Standard SVG properties with fallbacks */
-  rx: 4px;
-  ry: 4px;
+  /* Standard border-radius for modern browsers */
   /* Standard border-radius for modern browsers */
   border-radius: 4px;
   
@@ -70,7 +68,6 @@
 
 .hiddenInput {
   display: none;
-}
 }
 
 .joint-element .label {
