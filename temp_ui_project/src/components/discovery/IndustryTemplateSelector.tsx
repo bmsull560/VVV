@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
@@ -17,17 +17,17 @@ const IndustryTemplateSelector: React.FC<IndustryTemplateSelectorProps> = ({
   onCancel,
   initialIndustry = 'technology'
 }) => {
-  const [selectedIndustry, setSelectedIndustry] = useState<string>(initialIndustry);
+  const [selectedIndustry, setSelectedIndustry] = useState<keyof typeof industryOptions>(initialIndustry as keyof typeof industryOptions);
   const [selectedTemplate, setSelectedTemplate] = useState<IndustryTemplate>(
-    getIndustryTemplate(initialIndustry as any)
+    getIndustryTemplate(initialIndustry as keyof typeof industryOptions)
   );
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   const industryOptions = getIndustryTemplateOptions();
 
   const handleIndustryChange = useCallback((value: string) => {
-    const template = getIndustryTemplate(value as any);
-    setSelectedIndustry(value);
+    const template = getIndustryTemplate(value as keyof typeof industryOptions);
+    setSelectedIndustry(value as keyof typeof industryOptions);
     setSelectedTemplate(template);
   }, []);
 
@@ -58,9 +58,9 @@ const IndustryTemplateSelector: React.FC<IndustryTemplateSelectorProps> = ({
         <div className="flex justify-between items-start">
           <div>
             <CardTitle>Select Industry Template</CardTitle>
-            <CardDescription className="mt-1">
+            <div className="mt-1 text-muted-foreground text-sm">
               Choose an industry template to pre-populate common value drivers and metrics.
-            </CardDescription>
+            </div>
           </div>
           <Button
             variant="ghost"
@@ -79,23 +79,15 @@ const IndustryTemplateSelector: React.FC<IndustryTemplateSelectorProps> = ({
             <label htmlFor="industry-select" className="text-sm font-medium leading-none">
               Industry
             </label>
-            <Select value={selectedIndustry} onValueChange={handleIndustryChange}>
-              <SelectTrigger id="industry-select" className="w-full">
-                <SelectValue placeholder="Select an industry" />
-              </SelectTrigger>
-              <SelectContent>
-                {industryOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    <div className="flex items-center gap-2">
-                      <span>{option.label}</span>
-                      <span className="text-muted-foreground text-xs">
-                        {option.description}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Select
+              id="industry-select"
+              label="Industry"
+              value={selectedIndustry}
+              options={industryOptions.map(option => ({ value: option.value, label: option.label }))}
+              onChange={e => handleIndustryChange(e.target.value)}
+              className="w-full"
+              data-testid="industry-select-trigger"
+            />
           </div>
 
           <div className="border rounded-lg overflow-hidden">
@@ -190,14 +182,14 @@ const IndustryTemplateSelector: React.FC<IndustryTemplateSelectorProps> = ({
         </div>
       </CardContent>
 
-      <CardFooter className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 p-6 border-t">
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
         <Button onClick={handleApplyTemplate}>
           Apply Template
         </Button>
-      </CardFooter>
+      </div>
     </Card>
   );
 };

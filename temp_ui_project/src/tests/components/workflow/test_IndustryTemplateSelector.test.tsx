@@ -5,7 +5,7 @@ import { industryTemplates } from '../../../types/industryTemplates';
 // Helper to get the Select dropdown and select an industry
 const selectIndustry = async (industryValue: string) => {
   // Open the dropdown
-  const trigger = screen.getByRole('button', { name: /industry/i });
+  const trigger = screen.getByTestId('industry-select-trigger');
   fireEvent.mouseDown(trigger);
 
   // Select the desired industry option
@@ -27,6 +27,7 @@ describe('IndustryTemplateSelector', () => {
 
   it('renders correctly with default state', () => {
     render(<IndustryTemplateSelector onSelectTemplate={mockOnSelect} onCancel={mockOnCancel} />);
+
     expect(screen.getByText('Select Industry Template')).toBeInTheDocument();
     expect(screen.getByText('Choose an industry template to pre-populate common value drivers and metrics.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /skip template/i })).toBeInTheDocument();
@@ -34,12 +35,14 @@ describe('IndustryTemplateSelector', () => {
 
   it('calls onCancel when Skip Template is clicked', () => {
     render(<IndustryTemplateSelector onSelectTemplate={mockOnSelect} onCancel={mockOnCancel} />);
+
     fireEvent.click(screen.getByRole('button', { name: /skip template/i }));
     expect(mockOnCancel).toHaveBeenCalledTimes(1);
   });
 
   it('shows the correct default template details', () => {
     render(<IndustryTemplateSelector onSelectTemplate={mockOnSelect} onCancel={mockOnCancel} />);
+
     const defaultTemplate = industryTemplates.technology;
     expect(screen.getByText(`${defaultTemplate.name} Template`)).toBeInTheDocument();
     expect(screen.getByText(defaultTemplate.description)).toBeInTheDocument();
@@ -47,15 +50,19 @@ describe('IndustryTemplateSelector', () => {
 
   it('changes template details when a new industry is selected', async () => {
     render(<IndustryTemplateSelector onSelectTemplate={mockOnSelect} onCancel={mockOnCancel} />);
+
     // Pick a different industry
     await selectIndustry('healthcare');
+
     expect(screen.getByText('Healthcare Template')).toBeInTheDocument();
     expect(screen.getByText(industryTemplates.healthcare.description)).toBeInTheDocument();
   });
 
   it('calls onSelectTemplate with the correct template after selection', async () => {
     render(<IndustryTemplateSelector onSelectTemplate={mockOnSelect} onCancel={mockOnCancel} />);
+
     await selectIndustry('manufacturing');
+
     // Simulate clicking the "Apply" button if present, or call the handler directly
     // This assumes an "Apply" or similar button is present in the UI
     const applyButton = screen.queryByRole('button', { name: /apply/i }) || screen.queryByRole('button', { name: /continue/i });
