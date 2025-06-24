@@ -72,7 +72,7 @@ class RoiSummary(BaseModel):
     total_annual_value: float
     roi_percentage: float
     payback_period_months: float
-    # Add other relevant fields from RoiCalculatorAgent output as needed
+    # Add other relevant fields from ROICalculatorAgent output as needed
     # e.g., detailed_breakdown: Optional[List[Dict[str, Any]]] = None
 
 class SensitivityVariationInput(BaseModel):
@@ -244,14 +244,14 @@ async def lifespan(app: FastAPI):
     )
     logger.info("PersonaAgent initialized.")
 
-    # Instantiate RoiCalculatorAgent
+    # Instantiate ROICalculatorAgent
     roi_config = agent_configs_from_yaml.get('roi_calculator', {})
-    app.state.roi_calculator_agent = RoiCalculatorAgent(
+    app.state.roi_calculator_agent = ROICalculatorAgent(
         agent_id='roi_calculator_api',
         mcp_client=app.state.mcp_client,
         config=roi_config
     )
-    logger.info("RoiCalculatorAgent initialized.")
+    logger.info("ROICalculatorAgent initialized.")
 
     # Instantiate SensitivityAnalysisAgent
     sa_config = agent_configs_from_yaml.get('sensitivity_analysis', {})
@@ -395,10 +395,10 @@ async def quantify_roi(fastapi_request: QuantifyRoiRequest, request_object: Requ
     Calculates ROI based on selected value drivers and performs sensitivity analysis.
     """
     try:
-        roi_calculator_agent: RoiCalculatorAgent = request_object.app.state.roi_calculator_agent
+        roi_calculator_agent: ROICalculatorAgent = request_object.app.state.roi_calculator_agent
         sensitivity_analysis_agent: SensitivityAnalysisAgent = request_object.app.state.sensitivity_analysis_agent
 
-        # --- Execute RoiCalculatorAgent ---
+        # --- Execute ROICalculatorAgent ---
         # The ValueDriverPillar model in the request needs to be converted to the dict format expected by the agent.
         # Agents typically expect a list of dictionaries for 'drivers'.
         drivers_for_agent = [pillar.model_dump() for pillar in fastapi_request.value_drivers]
@@ -411,17 +411,17 @@ async def quantify_roi(fastapi_request: QuantifyRoiRequest, request_object: Requ
         roi_agent_result = await roi_calculator_agent.execute(roi_agent_input)
 
         if isinstance(roi_agent_result, Exception):
-            logger.error(f"RoiCalculatorAgent execution failed: {roi_agent_result}")
-            raise HTTPException(status_code=500, detail=f"RoiCalculatorAgent error: {str(roi_agent_result)}")
+            logger.error(f"ROICalculatorAgent execution failed: {roi_agent_result}")
+            raise HTTPException(status_code=500, detail=f"ROICalculatorAgent error: {str(roi_agent_result)}")
         if roi_agent_result.status == AgentStatus.FAILED:
-            logger.error(f"RoiCalculatorAgent failed: {roi_agent_result.data}")
-            raise HTTPException(status_code=500, detail=f"RoiCalculatorAgent failed: {roi_agent_result.data.get('error', 'Unknown error')}")
+            logger.error(f"ROICalculatorAgent failed: {roi_agent_result.data}")
+            raise HTTPException(status_code=500, detail=f"ROICalculatorAgent failed: {roi_agent_result.data.get('error', 'Unknown error')}")
 
         try:
             # Assuming roi_agent_result.data directly matches RoiSummary fields or is a dict that can be unpacked
             roi_summary = RoiSummary(**roi_agent_result.data)
         except Exception as e_pydantic_roi:
-            logger.error(f"Error parsing RoiCalculatorAgent output: {e_pydantic_roi}. Data: {roi_agent_result.data}")
+            logger.error(f"Error parsing ROICalculatorAgent output: {e_pydantic_roi}. Data: {roi_agent_result.data}")
             raise HTTPException(status_code=500, detail="Internal server error processing ROI data.")
 
         # --- Execute SensitivityAnalysisAgent (if variations provided) ---
