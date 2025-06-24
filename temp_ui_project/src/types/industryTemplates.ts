@@ -25,7 +25,7 @@ export interface IndustryTemplate {
   timeToValue: string;
   commonRisks: string[];
   successFactors: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   caseStudy?: {
     title: string;
     description: string;
@@ -118,10 +118,10 @@ export const industryTemplates: Record<IndustryVertical, IndustryTemplate> = {
       'Labor productivity'
     ],
     [
-      'Overall Equipment Effectiveness (OEE)',
-      'Production yield',
-      'Cycle time',
+      'Production efficiency',
+      'Supply chain lead time',
       'Inventory turnover',
+      'Defect rate',
       'On-time delivery'
     ],
     [
@@ -182,28 +182,26 @@ export const industryTemplates: Record<IndustryVertical, IndustryTemplate> = {
     ]
   ),
   financial_services: createIndustryTemplate(
-    'fin',
+    'financial_services',
     'Financial Services',
-    'Enhance financial operations and customer experience',
+    'Enhance financial performance and regulatory compliance',
     'financial_services',
     [
-      'Reduced operational costs',
-      'Improved compliance',
-      'Enhanced customer experience',
-      'Risk mitigation',
-      'Revenue growth'
+      'Cost reduction in operations',
+      'Revenue growth from new services',
+      'Improved risk management',
+      'Enhanced customer experience'
     ],
     [
       'Customer acquisition cost',
       'Customer lifetime value',
-      'Fraud detection rates',
-      'Regulatory compliance scores',
-      'Transaction processing time'
+      'Risk exposure',
+      'Regulatory compliance rate'
     ],
     [
-      'How can we reduce fraud in financial transactions?',
-      'What are best practices for financial data security?',
-      'How to improve customer onboarding experience?'
+      'How to improve fraud detection?',
+      'What are strategies for digital customer engagement?',
+      'How to optimize investment portfolio performance?'
     ],
     { min: 25, max: 70, average: 45 },
     'high',
@@ -334,7 +332,7 @@ export const industryTemplates: Record<IndustryVertical, IndustryTemplate> = {
     ]
   ),
   education: createIndustryTemplate(
-    'edu',
+    'education',
     'Education',
     'Enhance learning outcomes and institutional efficiency',
     'education',
@@ -368,327 +366,13 @@ export const industryTemplates: Record<IndustryVertical, IndustryTemplate> = {
     [
       'Faculty and staff buy-in',
       'Student-centered design',
-      'Measurable learning outcomes'
-    ],
-    [
+      'Measurable learning outcomes',
       'Strong executive sponsorship',
       'Cross-functional collaboration',
       'Clear success metrics and KPIs',
       'Ongoing training and support'
     ]
-  ),
-  manufacturing: createIndustryTemplate(
-    'mfg',
-    'Manufacturing',
-    'Optimize production and supply chain operations',
-    'manufacturing',
-    [
-      'Increased production efficiency',
-      'Reduced equipment downtime',
-      'Improved quality control',
-      'Supply chain optimization',
-      'Reduced waste and scrap'
-    ],
-    [
-      'Overall equipment effectiveness (OEE)',
-      'Production cycle time',
-      'First-pass yield',
-      'Inventory turnover',
-      'On-time delivery'
-    ],
-    [
-      'How can we reduce production downtime?',
-      'What are the best practices for predictive maintenance?',
-      'How can we optimize our supply chain for just-in-time delivery?'
-    ],
-    { min: 30, max: 80, average: 55 },
-    'high',
-    '6-12 months',
-    [
-      'High upfront capital investment',
-      'Workforce training requirements',
-      'Integration with legacy systems'
-    ],
-    [
-      'Strong change management',
-      'Employee engagement and training',
-      'Clear ROI metrics',
-      'Vendor support and partnership'
-    ]
   )
-    ],
-    typicalROIRange: {
-      min: 2.5,
-      max: 5.0,
-      average: 3.8
-    },
-    implementationComplexity: 'medium',
-    timeToValue: '3-6 months',
-    commonRisks: [
-      'Integration challenges with legacy systems',
-      'Skill gaps in new technologies',
-      'Resistance to DevOps culture change'
-    ],
-    successFactors: [
-      'Executive sponsorship',
-      'Cross-functional collaboration',
-      'Iterative implementation approach'
-    ]
-  },
-  // Additional industry templates will be added here
-  manufacturing: {
-    id: 'mfg',
-    name: 'Manufacturing',
-    description: 'Enhance production efficiency and supply chain operations',
-    commonValueDrivers: [
-      'Reduced equipment downtime',
-      'Improved production yield',
-      'Optimized inventory levels',
-      'Enhanced quality control',
-      'Supply chain visibility'
-    ],
-    keyMetrics: [
-      'Overall Equipment Effectiveness (OEE)',
-      'First-pass yield',
-      'Inventory turnover',
-      'On-time delivery',
-      'Manufacturing cycle time'
-    ],
-    typicalROIRange: {
-      min: 3.0,
-      max: 6.0,
-      average: 4.2
-    },
-    implementationComplexity: 'high',
-    timeToValue: '6-12 months',
-    commonRisks: [
-      'Integration with legacy MES/ERP systems',
-      'Workforce training requirements',
-      'Supply chain disruptions'
-    ],
-    successFactors: [
-      'Clear operational metrics',
-      'Stakeholder alignment',
-      'Pilot program validation'
-    ]
-  },
-  healthcare: {
-    id: 'health',
-    name: 'Healthcare',
-    description: 'Improve patient outcomes and operational efficiency',
-    commonValueDrivers: [
-      'Improved patient throughput',
-      'Reduced clinical variation',
-      'Enhanced care coordination',
-      'Regulatory compliance',
-      'Staff productivity'
-    ],
-    keyMetrics: [
-      'Average length of stay',
-      'Readmission rates',
-      'Patient satisfaction scores',
-      'Revenue cycle metrics',
-      'Clinical outcome measures'
-    ],
-    typicalROIRange: {
-      min: 2.0,
-      max: 4.5,
-      average: 3.2
-    },
-    implementationComplexity: 'high',
-    timeToValue: '6-12 months',
-    commonRisks: [
-      'Data privacy and security concerns',
-      'Clinical workflow disruption',
-      'Staff resistance to technology adoption'
-    ],
-    successFactors: [
-      'Clinical leadership engagement',
-      'Change management program',
-      'Pilot program with clear metrics'
-    ]
-  },
-  financial_services: {
-    id: 'fin',
-    name: 'Financial Services',
-    description: 'Enhance financial operations and customer experience',
-    commonValueDrivers: [
-      'Reduced operational risk',
-      'Improved regulatory compliance',
-      'Enhanced customer experience',
-      'Operational efficiency gains',
-      'Fraud detection and prevention'
-    ],
-    keyMetrics: [
-      'Cost-income ratio',
-      'Customer acquisition cost',
-      'Net Promoter Score (NPS)',
-      'Time to onboard new customers',
-      'Fraud detection rate'
-    ],
-    typicalROIRange: {
-      min: 2.8,
-      max: 5.5,
-      average: 4.0
-    },
-    implementationComplexity: 'high',
-    timeToValue: '6-9 months',
-    commonRisks: [
-      'Regulatory compliance requirements',
-      'Data security and privacy concerns',
-      'Integration with legacy core banking systems'
-    ],
-    successFactors: [
-      'Strong governance framework',
-      'Regulatory compliance focus',
-      'Phased implementation approach'
-    ]
-  },
-  retail: {
-    id: 'retail',
-    name: 'Retail',
-    description: 'Optimize retail operations and customer engagement',
-    commonValueDrivers: [
-      'Increased same-store sales',
-      'Improved inventory turnover',
-      'Enhanced customer experience',
-      'Reduced operational costs',
-      'Omnichannel integration'
-    ],
-    keyMetrics: [
-      'Sales per square foot',
-      'Conversion rate',
-      'Average transaction value',
-      'Inventory turnover',
-      'Customer lifetime value'
-    ],
-    typicalROIRange: {
-      min: 3.5,
-      max: 7.0,
-      average: 5.0
-    },
-    implementationComplexity: 'medium',
-    timeToValue: '3-6 months',
-    commonRisks: [
-      'Integration with existing POS systems',
-      'Data quality and consistency',
-      'Seasonal demand fluctuations'
-    ],
-    successFactors: [
-      'Clear customer journey mapping',
-      'Data-driven decision making',
-      'Cross-functional collaboration'
-    ]
-  },
-  // Additional industry templates can be added here
-  telecom: {
-    id: 'telco',
-    name: 'Telecommunications',
-    description: 'Optimize network operations and customer experience',
-    commonValueDrivers: [
-      'Network performance improvements',
-      'Customer churn reduction',
-      'Operational efficiency gains',
-      'New revenue streams',
-      'Regulatory compliance'
-    ],
-    keyMetrics: [
-      'Network uptime',
-      'Customer churn rate',
-      'Average revenue per user (ARPU)',
-      'Network latency',
-      'First call resolution'
-    ],
-    typicalROIRange: {
-      min: 2.0,
-      max: 4.5,
-      average: 3.2
-    },
-    implementationComplexity: 'high',
-    timeToValue: '6-12 months',
-    commonRisks: [
-      'Network integration complexity',
-      'Regulatory compliance requirements',
-      'Legacy system limitations'
-    ],
-    successFactors: [
-      'Strong executive sponsorship',
-      'Cross-functional team alignment',
-      'Clear success metrics'
-    ]
-  },
-  energy: {
-    id: 'energy',
-    name: 'Energy',
-    description: 'Optimize energy production and distribution',
-    commonValueDrivers: [
-      'Operational efficiency improvements',
-      'Reduced energy waste',
-      'Predictive maintenance',
-      'Regulatory compliance',
-      'Asset performance optimization'
-    ],
-    keyMetrics: [
-      'Energy production efficiency',
-      'Unplanned downtime',
-      'Maintenance costs',
-      'Regulatory compliance status',
-      'Asset utilization rates'
-    ],
-    typicalROIRange: {
-      min: 2.5,
-      max: 5.5,
-      average: 4.0
-    },
-    implementationComplexity: 'high',
-    timeToValue: '6-12 months',
-    commonRisks: [
-      'Integration with legacy SCADA systems',
-      'Cybersecurity vulnerabilities',
-      'Regulatory compliance requirements'
-    ],
-    successFactors: [
-      'Clear business case',
-      'Stakeholder alignment',
-      'Phased implementation approach'
-    ]
-  },
-  education: {
-    id: 'edu',
-    name: 'Education',
-    description: 'Enhance learning outcomes and institutional efficiency',
-    commonValueDrivers: [
-      'Improved student outcomes',
-      'Operational efficiency gains',
-      'Enhanced learning experience',
-      'Data-driven decision making',
-      'Resource optimization'
-    ],
-    keyMetrics: [
-      'Student retention rates',
-      'Graduation rates',
-      'Learning outcomes assessment',
-      'Operational efficiency metrics',
-      'Student satisfaction scores'
-    ],
-    typicalROIRange: {
-      min: 2.0,
-      max: 4.0,
-      average: 3.0
-    },
-    implementationComplexity: 'medium',
-    timeToValue: '6-9 months',
-    commonRisks: [
-      'Faculty and staff adoption',
-      'Data privacy concerns',
-      'Integration with existing SIS/LMS systems'
-    ],
-    successFactors: [
-      'Stakeholder engagement',
-      'Change management program',
-      'Clear success metrics'
-    ]
-  }
 };
 
 export const getIndustryTemplate = (industry: IndustryVertical): IndustryTemplate => {
