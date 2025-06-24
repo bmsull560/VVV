@@ -1,38 +1,40 @@
 import { useState, useCallback } from 'react';
-import { ModelData, ModelComponent, Connection } from '../types/model';
-import { getModel, saveModel, listModels, deleteModel } from '../api/modelBuilderApi';
+import { ModelBuilderData, ModelComponent, ConnectionData } from '../services/modelBuilderApi';
+import { modelBuilderAPI } from '../services/modelBuilderApi';
 
 interface UseModelBuilderReturn {
-  model: ModelData | null;
+  model: ModelBuilderData | null;
   isLoading: boolean;
   error: string | null;
   loadModel: (modelId: string) => Promise<void>;
-  createModel: (model: Omit<ModelData, 'id'>) => Promise<ModelData>;
-  updateModel: (model: ModelData) => Promise<ModelData>;
+  createModel: (newModel: ModelBuilderData) => Promise<ModelBuilderData>;
+  updateModel: (updatedModel: ModelBuilderData) => Promise<ModelBuilderData>;
   removeModel: (modelId: string) => Promise<void>;
   listUserModels: () => Promise<Array<{ id: string; name: string; updatedAt: string }>>;
   addComponent: (component: Omit<ModelComponent, 'id'>) => void;
   updateComponent: (componentId: string, updates: Partial<ModelComponent>) => void;
   removeComponent: (componentId: string) => void;
-  addConnection: (connection: Omit<Connection, 'id'>) => void;
+  addConnection: (connection: Omit<ConnectionData, 'id'>) => void;
   removeConnection: (connectionId: string) => void;
   clearError: () => void;
 }
 
 export const useModelBuilder = (): UseModelBuilderReturn => {
-  const [model, setModel] = useState<ModelData | null>(null);
+  const [model, setModel] = useState<ModelBuilderData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Clear any error state
-  const clearError = useCallback(() => setError(null), []);
+  const clearError = useCallback((): void => {
+    setError(null);
+  }, []);
 
   // Load a model by ID
-  const loadModel = useCallback(async (modelId: string) => {
+  const loadModel = useCallback(async (modelId: string): Promise<void> => {
     try {
       setIsLoading(true);
       clearError();
-      const loadedModel = await getModel(modelId);
+      const loadedModel: ModelBuilderData = await modelBuilderAPI.loadModel(modelId);
       setModel(loadedModel);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load model');
@@ -43,13 +45,13 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
   }, [clearError]);
 
   // Create a new model
-  const createModel = useCallback(async (newModel: Omit<ModelData, 'id'>) => {
+  const createModel = useCallback(async (newModel: ModelBuilderData): Promise<ModelBuilderData> => {
     try {
       setIsLoading(true);
       clearError();
-      const createdModel = await saveModel(newModel);
-      setModel(createdModel);
-      return createdModel;
+      await modelBuilderAPI.saveModel(newModel);
+      setModel(newModel);
+      return newModel;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create model');
       throw err;
@@ -59,17 +61,13 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
   }, [clearError]);
 
   // Update an existing model
-  const updateModel = useCallback(async (updatedModel: ModelData) => {
-    if (!updatedModel.id) {
-      throw new Error('Cannot update a model without an ID');
-    }
-    
+  const updateModel = useCallback(async (updatedModel: ModelBuilderData): Promise<ModelBuilderData> => {
     try {
       setIsLoading(true);
       clearError();
-      const savedModel = await saveModel(updatedModel);
-      setModel(savedModel);
-      return savedModel;
+      await modelBuilderAPI.saveModel(updatedModel);
+      setModel(updatedModel);
+      return updatedModel;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update model');
       throw err;
@@ -83,7 +81,7 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
     try {
       setIsLoading(true);
       clearError();
-      await deleteModel(modelId);
+      await modelBuilderAPI.deleteModel(modelId);
       if (model?.id === modelId) {
         setModel(null);
       }
@@ -100,7 +98,7 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
     try {
       setIsLoading(true);
       clearError();
-      const response = await listModels();
+      const response = await modelBuilderAPI.listModels();
       return response.models;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to list models');
@@ -111,67 +109,73 @@ export const useModelBuilder = (): UseModelBuilderReturn => {
   }, [clearError]);
 
   // Add a component to the current model
-  const addComponent = useCallback((component: Omit<ModelComponent, 'id'>) => {
+  const addComponent = useCallback((component: Omit<ModelComponent, 'id'>): void => {
     if (!model) return;
-    
     const newComponent: ModelComponent = {
       ...component,
       id: `comp-${Date.now()}`,
     };
-    
     setModel({
       ...model,
-      components: [...model.components, newComponent],
+      model: {
+        ...model.model,
+        components: [...model.model.components, newComponent],
+      },
     });
   }, [model]);
 
   // Update a component in the current model
-  const updateComponent = useCallback((componentId: string, updates: Partial<ModelComponent>) => {
+  const updateComponent = useCallback((componentId: string, updates: Partial<ModelComponent>): void => {
     if (!model) return;
-    
     setModel({
       ...model,
-      components: model.components.map(comp => 
-        comp.id === componentId ? { ...comp, ...updates } : comp
-      ),
+      model: {
+        ...model.model,
+        components: model.model.components.map((comp: ModelComponent) =>
+          comp.id === componentId ? { ...comp, ...updates } : comp
+        ),
+      },
     });
   }, [model]);
 
   // Remove a component from the current model
-  const removeComponent = useCallback((componentId: string) => {
+  const removeComponent = useCallback((componentId: string): void => {
     if (!model) return;
-    
     setModel({
       ...model,
-      components: model.components.filter(comp => comp.id !== componentId),
-      connections: model.connections.filter(
-        conn => conn.source !== componentId && conn.target !== componentId
-      ),
+      model: {
+        ...model.model,
+        components: model.model.components.filter((comp: ModelComponent) => comp.id !== componentId),
+        connections: model.model.connections.filter((conn: ConnectionData) => conn.source !== componentId && conn.target !== componentId),
+      },
     });
   }, [model]);
 
   // Add a connection between components
-  const addConnection = useCallback((connection: Omit<Connection, 'id'>) => {
+  const addConnection = useCallback((connection: Omit<ConnectionData, 'id'>): void => {
     if (!model) return;
-    
-    const newConnection: Connection = {
+    const newConnection: ConnectionData = {
       ...connection,
       id: `conn-${Date.now()}`,
     };
-    
     setModel({
       ...model,
-      connections: [...model.connections, newConnection],
+      model: {
+        ...model.model,
+        connections: [...model.model.connections, newConnection],
+      },
     });
   }, [model]);
 
   // Remove a connection between components
-  const removeConnection = useCallback((connectionId: string) => {
+  const removeConnection = useCallback((connectionId: string): void => {
     if (!model) return;
-    
     setModel({
       ...model,
-      connections: model.connections.filter(conn => conn.id !== connectionId),
+      model: {
+        ...model.model,
+        connections: model.model.connections.filter((conn: ConnectionData) => conn.id !== connectionId),
+      },
     });
   }, [model]);
 

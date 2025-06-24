@@ -6,6 +6,9 @@
 import { b2bValueAPI, QuantificationRequest, QuantificationResponse } from './b2bValueApi';
 import { ModelComponent, CalculationSummary, CalculationResult } from '../utils/calculationEngine';
 
+export type { ModelComponent, CalculationResult };
+
+
 // Extended interfaces for model builder integration
 export interface ModelBuilderData {
   model: {
@@ -409,6 +412,43 @@ class ModelBuilderAPIClient {
 
     // In production, this would call the backend API
     throw new Error('Model loading from backend not yet implemented');
+  }
+
+  /**
+   * Delete a model by ID
+   */
+  async deleteModel(modelId: string): Promise<void> {
+    if (this.isDevelopment) {
+      localStorage.removeItem(`model_${modelId}`);
+      return;
+    }
+    throw new Error('Model deletion from backend not yet implemented');
+  }
+
+  /**
+   * List all models (IDs, names, updatedAt)
+   */
+  async listModels(): Promise<{ models: Array<{ id: string; name: string; updatedAt: string }> }> {
+    if (this.isDevelopment) {
+      const models: Array<{ id: string; name: string; updatedAt: string }> = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('model_')) {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '{}');
+            models.push({
+              id: key.replace('model_', ''),
+              name: data.metadata?.name || key.replace('model_', 'Untitled '),
+              updatedAt: data.metadata?.updated_at || ''
+            });
+          } catch {
+            // skip invalid entries
+          }
+        }
+      }
+      return { models };
+    }
+    throw new Error('Model listing from backend not yet implemented');
   }
 
   /**

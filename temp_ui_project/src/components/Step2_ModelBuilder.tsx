@@ -33,7 +33,7 @@ interface Step2ModelBuilderProps {
 }
 
 interface ModelBuilderState {
-  model: { components: ModelComponent[]; connections: ConnectionData[] } | null;
+  model: ModelBuilderData | null;
   selectedComponent: string | null;
   calculations: Record<string, CalculationResult>;
   isCalculating: boolean;
@@ -108,9 +108,9 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
 
     try {
       await modelBuilderAPI.saveModel({
-        model: state.model,
+        model: state.model ? state.model.model : { components: [], connections: [] },
         calculations: state.calculations,
-        summary: {
+        summary: state.model ? state.model.summary : {
           totalRevenue: 0,
           totalCosts: 0,
           netValue: 0,
@@ -118,7 +118,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           roi: 0,
           confidence: 0
         },
-        metadata: {
+        metadata: state.model ? state.model.metadata : {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           version: '1.0.0'
@@ -335,14 +335,14 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
 
     try {
       const modelData: ModelBuilderData = {
-        model: state.model,
+        model: state.model ? state.model.model : { components: [], connections: [] },
         calculations: state.calculations,
-        metadata: {
+        metadata: state.model ? state.model.metadata : {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          version: '1.0'
+          version: '1.0.0'
         },
-        summary: {
+        summary: state.model ? state.model.summary : {
           totalRevenue: 0,
           totalCosts: 0,
           netValue: Object.values(state.calculations).reduce((sum, calc) => sum + calc.value, 0),
@@ -393,26 +393,20 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
       position: { x: 100, y: 100 }
     };
 
-    setState(prev => ({
-      ...prev,
-      model: prev.model ? {
-        ...prev.model,
-        components: [...prev.model.components, newComponent]
-      } : {
-        components: [newComponent],
-        connections: []
-      },
-      hasUnsavedChanges: true
-    }));
-  }, []);
-
-  const handlePropertiesPanelUpdate = useCallback((model: { components: ModelComponent[] }) => {
-    setState(prev => ({
-      ...prev,
-      model: prev.model ? {
-        ...prev.model,
-        components: model.components
-      } : prev.model,
+    setState(prev => {
+      if (prev.model) {
+        return {
+          ...prev,
+          model: {
+      model: prev.model
+        ? {
+            ...prev.model,
+            model: {
+              ...prev.model.model,
+              components: model.components
+            }
+          }
+        : prev.model,
       hasUnsavedChanges: true
     }));
   }, []);
@@ -420,10 +414,16 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   const handleModelCanvasUpdate = useCallback((model: { components: ModelComponent[] }) => {
     setState(prev => ({
       ...prev,
-      model: model.components.length > 0 ? { 
-        components: model.components, 
-        connections: prev.model?.connections || [] 
-      } : null,
+      model:
+        model.components.length > 0 && prev.model
+          ? {
+              ...prev.model,
+              model: {
+                ...prev.model.model,
+                components: model.components
+              }
+            }
+          : null,
       hasUnsavedChanges: true
     }));
   }, []);
@@ -439,21 +439,8 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     if (!state.model) return;
 
     const modelBuilderData: ModelBuilderData = {
-      model: state.model,
-      calculations: state.calculations,
-      summary: {
-        totalRevenue: 0,
-        totalCosts: 0,
-        netValue: 0,
-        netBenefit: 0,
-        roi: 0,
-        confidence: 0
-      },
-      metadata: {
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        version: '1.0.0'
-      }
+      ...state.model,
+      calculations: state.calculations
     };
 
     onNext({
@@ -470,11 +457,31 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     <DndProvider backend={HTML5Backend}>
       <div className={styles.container}>
         {alert && (
-          <Alert className={`${styles.alert} ${styles[alert.type]}`}>
-            <AlertDescription>{alert.message}</AlertDescription>
-          </Alert>
+          <div
+            role={alert.type === 'error' ? 'alert' : 'status'}
+            aria-live={alert.type === 'error' ? 'assertive' : 'polite'}
+          >
+            <Alert
+              className={`${styles.alert} ${styles[alert.type]}`}
+              variant={alert.type === 'error' ? 'destructive' : 'default'}
+            >
+              <AlertDescription>{alert.message}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        {/* Loading spinner overlay for async actions */}
+        {(state.isCalculating || state.isGenerating || state.isExporting || state.showAIAssistant) && (
+          <div className={styles.loadingOverlay} role="status" aria-live="polite">
+            <div className={styles.spinner} aria-label="Loading" />
+          </div>
         )}
         <div className={styles.header}>
+          {/* Type-safe metrics display */}
+          <div className={styles.metrics}>
+            {state.model?.model.components.length ?? 0} components • 
+            {Object.keys(state.calculations ?? {}).length} calculations
+          </div>
           <div>
             <h2 className={styles.title}>Visual Model Builder</h2>
             <p className={styles.description}>
@@ -493,13 +500,14 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
               size="sm"
               onClick={handleGetAIAssistance}
               disabled={state.showAIAssistant}
+              aria-busy={state.showAIAssistant}
             >
               {state.showAIAssistant ? (
                 <Brain className={styles.icon} />
               ) : (
                 <Sparkles className={styles.icon} />
               )}
-              AI Assist
+              {state.showAIAssistant ? 'Loading...' : 'AI Assist'}
             </Button>
           </div>
         </div>
@@ -535,7 +543,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
               
               <TabsContent value="properties" className={styles.content}>
                 <PropertiesPanel
-                  model={state.model}
+                  model={state.model ? { components: state.model.model.components } : null}
                   setModel={handlePropertiesPanelUpdate}
                   selectedComponent={state.selectedComponent}
                   calculations={state.calculations}
@@ -553,16 +561,30 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                   Financial Model Canvas
                 </div>
                 <div className={styles.cardActions}>
-                  <Button variant="outline" size="sm" onClick={handleCalculate}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleCalculate} 
+                    disabled={state.isCalculating}
+                    aria-busy={state.isCalculating}
+                  >
                     <Play className={styles.icon} />
-                    Calculate
+                    {state.isCalculating ? 'Calculating...' : 'Calculate'}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleExport} 
+                    disabled={state.isExporting}
+                    aria-busy={state.isExporting}
+                  >
                     <Download className={styles.icon} />
+                    {state.isExporting ? 'Exporting...' : ''}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
+                    disabled={state.isExporting}
                   >
                     <label htmlFor="model-import-file" className="cursor-pointer flex items-center">
                       <Upload className="h-4 w-4 mr-2" />
@@ -576,13 +598,14 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                       className="hidden"
                       aria-label="Import financial model file"
                       ref={fileInputRef}
+                      disabled={state.isExporting}
                     />
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className={styles.cardContent}>
                 <ModelCanvas
-                  model={state.model}
+                  model={state.model ? { components: state.model.model.components, connections: state.model.model.connections } : null}
                   setModel={handleModelCanvasUpdate}
                   selectedComponent={state.selectedComponent}
                   setSelectedComponent={handleSelectComponent}
@@ -595,7 +618,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
 
           <div className={styles.calculations}>
             <CalculationPanel
-              model={state.model}
+              model={state.model ? { components: state.model.model.components } : null}
               calculations={state.calculations}
               isCalculating={state.isCalculating}
               isGenerating={state.isGenerating}
