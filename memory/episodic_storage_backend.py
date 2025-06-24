@@ -97,6 +97,8 @@ class EpisodicStorageBackend(StorageBackend):
         # Invalidate cache for this entity and any search results
         self.retrieve.cache_clear() # Clear retrieve cache for simplicity, or target specific ID
         EpisodicStorageBackend._search_cache.clear() # Clear search cache on any store operation
+        EpisodicStorageBackend._search_cache_hits = 0
+        EpisodicStorageBackend._search_cache_misses = 0
 
         entity_dict = global_to_dict(entity) # Use global to_dict to include entity_type
         # SQLAlchemy model expects python objects, not serialized strings
@@ -118,7 +120,6 @@ class EpisodicStorageBackend(StorageBackend):
         logger.info(f"Stored episodic memory entry {entity.id} for workflow {entity.workflow_id}")
         return entity.id
 
-    @functools.lru_cache(maxsize=128) # Cache up to 128 retrieved entities
     async def retrieve(self, entity_id: str) -> Optional[WorkflowMemoryEntity]:
         """Retrieves a workflow entity by its ID."""
         async with self._async_session() as session:
@@ -138,6 +139,8 @@ class EpisodicStorageBackend(StorageBackend):
         # Invalidate cache for this entity and any search results
         self.retrieve.cache_clear() # Clear retrieve cache for simplicity, or target specific ID
         EpisodicStorageBackend._search_cache.clear() # Clear search cache on any delete operation
+        EpisodicStorageBackend._search_cache_hits = 0
+        EpisodicStorageBackend._search_cache_misses = 0
 
         async with self._async_session() as session:
             stmt = sqlalchemy_delete(EpisodicMemoryModel).where(EpisodicMemoryModel.id == entity_id)
