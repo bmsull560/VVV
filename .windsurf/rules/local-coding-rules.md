@@ -24,3 +24,5 @@ Self-Correction: The coding agent SHOULD attempt to self-verify its code (e.g., 
 
 Robust Exception Handling: Code MUST implement appropriate exception handling to prevent crashes and ensure graceful degradation.
 Logging: Generated code SHOULD incorporate appropriate logging to track its execution flow, providing insights for debugging and monitoring.
+
+Do not checkin for most items instead continue to resolution or completion, then move on to the next items in the plan.md
