@@ -5,7 +5,7 @@ from memory.core import MemoryManager
 from agents.core.mcp_client import MCPClient
 from agents.value_driver.main import ValueDriverAgent
 from agents.persona.main import PersonaAgent
-from agents.roi_calculator.main import RoiCalculatorAgent
+from agents.roi_calculator.main import ROICalculatorAgent
 from agents.sensitivity_analysis.main import SensitivityAnalysisAgent
 from agents.narrative_generator.main import NarrativeGeneratorAgent
 from agents.critique.main import CritiqueAgent
@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO) # Basic logging for now
 
 from fastapi import Request # To access app.state
 from pydantic import BaseModel
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 
 # --- Pydantic Models for /api/discover-value --- 
 
@@ -184,18 +184,23 @@ async def lifespan(app: FastAPI):
     #          await app.state.memory_manager.semantic_memory.initialize()
     #          await app.state.memory_manager.knowledge_graph.initialize()
     # Explicitly initialize memory tiers
-    try:
-        await app.state.memory_manager.initialize() # Assuming initialize is async
-        logger.info("MemoryManager tiers initialized.")
-    except AttributeError:
-        # Fallback if MemoryManager.initialize is not async or does not exist
-        # This might happen if the class structure was changed or if it's not an async method
-        try:
-            app.state.memory_manager.initialize() # Try synchronous version
-            logger.info("MemoryManager tiers initialized (sync).")
-        except Exception as e_init:
-            logger.error(f"Failed to initialize MemoryManager tiers: {e_init}")
-            # Depending on severity, might want to raise an error and stop app startup
+    mm = app.state.memory_manager
+    if mm is not None:
+        init_method = getattr(mm, "initialize", None)
+        if callable(init_method):
+            try:
+                if hasattr(init_method, "__await__"):
+                    await init_method()
+                    logger.info("MemoryManager tiers initialized (async).")
+                else:
+                    init_method()
+                    logger.info("MemoryManager tiers initialized (sync).")
+            except Exception as e_init:
+                logger.error(f"Failed to initialize MemoryManager tiers: {e_init}")
+        else:
+            logger.warning("MemoryManager has no initialize() method.")
+    else:
+        logger.error("MemoryManager is None at startup!")
 
     app.state.mcp_client = MCPClient(app.state.memory_manager)
     app.state.mcp_client.setup_default_access_controls()
@@ -302,6 +307,10 @@ async def read_root():
     return {"message": "Welcome to the B2BValue API!"}
 
 # Future endpoints will be added here
+
+# --- Model Builder Endpoints ---
+from models_api import router as models_router
+app.include_router(models_router)
 
 @app.post("/api/discover-value", response_model=DiscoverValueResponse, tags=["Discovery"])
 async def discover_value(fastapi_request: DiscoverValueRequest, request_object: Request):  # Renamed 'request' to 'fastapi_request' to avoid conflict with 'request_object' for app.state
