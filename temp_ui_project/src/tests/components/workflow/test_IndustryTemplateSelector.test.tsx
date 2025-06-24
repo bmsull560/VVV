@@ -2,19 +2,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import IndustryTemplateSelector from '@/components/discovery/IndustryTemplateSelector';
 import { industryTemplates } from '../../../types/industryTemplates';
 
-// Helper to get the Select dropdown and select an industry
+// Helper to select an industry via the native <select>
 const selectIndustry = async (industryValue: string) => {
-  // Open the dropdown
-  const trigger = screen.getByTestId('industry-select-trigger');
-  fireEvent.mouseDown(trigger);
-
-  // Select the desired industry option
-  const option = await screen.findByText(
-    Object.values(industryTemplates).find(t => t.industry === industryValue)?.name || industryValue,
-    undefined,
-    { timeout: 1000 }
-  );
-  fireEvent.click(option);
+  const select = screen.getByTestId('industry-select-trigger') as HTMLSelectElement;
+  fireEvent.change(select, { target: { value: industryValue } });
 };
 describe('IndustryTemplateSelector', () => {
   const mockOnSelect = jest.fn();
@@ -54,7 +45,8 @@ describe('IndustryTemplateSelector', () => {
     // Pick a different industry
     await selectIndustry('healthcare');
 
-    expect(screen.getByText('Healthcare Template')).toBeInTheDocument();
+    // Wait for the template header to update
+    expect(screen.getByText(/Healthcare\s*Template/)).toBeInTheDocument();
     expect(screen.getByText(industryTemplates.healthcare.description)).toBeInTheDocument();
   });
 
@@ -63,16 +55,10 @@ describe('IndustryTemplateSelector', () => {
 
     await selectIndustry('manufacturing');
 
-    // Simulate clicking the "Apply" button if present, or call the handler directly
-    // This assumes an "Apply" or similar button is present in the UI
-    const applyButton = screen.queryByRole('button', { name: /apply/i }) || screen.queryByRole('button', { name: /continue/i });
-    if (applyButton) {
-      fireEvent.click(applyButton);
-    } else {
-      // If no explicit apply button, call the handler (simulate selection)
-      // This fallback may need adjustment if the UI changes
-      fireEvent.click(screen.getByText('Manufacturing Template'));
-    }
+    // Click the Apply Template button
+    const applyButton = screen.getByRole('button', { name: /apply template/i });
+    fireEvent.click(applyButton);
+
     expect(mockOnSelect).toHaveBeenCalledTimes(1);
     expect(mockOnSelect).toHaveBeenCalledWith(expect.objectContaining({ industry: 'manufacturing' }));
   });
