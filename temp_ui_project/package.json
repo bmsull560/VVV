@@ -52,6 +52,7 @@
     "globals": "^15.9.0",
     "jest": "^30.0.2",
     "jest-environment-jsdom": "^30.0.2",
+    "jest-environment-jsdom-sixteen": "^1.0.3",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "ts-jest": "^29.4.0",
