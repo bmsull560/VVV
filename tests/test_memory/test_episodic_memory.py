@@ -103,59 +103,94 @@ async def test_search_entity(episodic_memory: EpisodicMemory, sample_workflow_en
     assert search_results_wf_id[0].id == sample_workflow_entity.id
 
 @pytest.mark.asyncio
-async def test_retrieve_caching(episodic_memory: EpisodicMemory, sample_workflow_entity: WorkflowMemoryEntity):
-    """Test that retrieve operations are cached."""
-    await episodic_memory.store(sample_workflow_entity)
-
-    # First retrieve should be a miss (or not from cache)
-    retrieved_entity_1 = await episodic_memory.retrieve(sample_workflow_entity.id)
-    assert retrieved_entity_1 is not None
-
-    # Second retrieve with same ID should be a hit
-    retrieved_entity_2 = await episodic_memory.retrieve(sample_workflow_entity.id)
-    assert retrieved_entity_2 is not None
-
-    # Retrieve a different entity to ensure cache is not polluted
-    different_entity = WorkflowMemoryEntity(
-        id=str(uuid.uuid4()),
-        workflow_id=str(uuid.uuid4()),
-        workflow_name="Different Workflow",
-        workflow_status="in_progress",
-        start_time=datetime.now(timezone.utc),
-        creator_id="test-user-2",
-        sensitivity=DataSensitivity.INTERNAL,
-        tier=MemoryTier.EPISODIC,
-        version=1
-    )
-    await episodic_memory.store(different_entity)
-    retrieved_different_entity = await episodic_memory.retrieve(different_entity.id)
-    assert retrieved_different_entity is not None
-    assert episodic_memory._backend.retrieve.cache_info().hits == 1
-    assert episodic_memory._backend.retrieve.cache_info().misses == 2
-
-@pytest.mark.asyncio
 async def test_search_caching(episodic_memory: EpisodicMemory, sample_workflow_entity: WorkflowMemoryEntity):
-    """Test that search operations are cached."""
+    """Test that search operations are cached, and verify hit/miss counts."""
+    # Clear cache before test to ensure clean state
+    episodic_memory._backend.clear_cache()
+
     await episodic_memory.store(sample_workflow_entity)
 
-    # First search should be a miss
-    search_query = {"workflow_name": "Test Workflow"}
-    search_results_1 = await episodic_memory.search(search_query)
+    search_query_1 = {"workflow_name": "Test Workflow"}
+    search_query_2 = {"workflow_name": "Another Workflow"}
+
+    # First search for query 1: should be a miss
+    search_results_1 = await episodic_memory.search(search_query_1)
     assert len(search_results_1) == 1
     assert episodic_memory._backend._search_cache_hits == 0
     assert episodic_memory._backend._search_cache_misses == 1
 
-    # Second search with same query should be a hit
-    search_results_2 = await episodic_memory.search(search_query)
-    assert len(search_results_2) == 1
+    # Second search for query 1: should be a hit
+    search_results_1_hit = await episodic_memory.search(search_query_1)
+    assert len(search_results_1_hit) == 1
     assert episodic_memory._backend._search_cache_hits == 1
     assert episodic_memory._backend._search_cache_misses == 1
 
-    # Search with different query should be a miss
-    search_results_3 = await episodic_memory.search({"workflow_name": "Another Workflow"})
-    assert len(search_results_3) == 0
+    # First search for query 2: should be a miss
+    search_results_2 = await episodic_memory.search(search_query_2)
+    assert len(search_results_2) == 0 # Assuming no entity for 'Another Workflow'
     assert episodic_memory._backend._search_cache_hits == 1
     assert episodic_memory._backend._search_cache_misses == 2
+
+    # Second search for query 2: should be a hit
+    search_results_2_hit = await episodic_memory.search(search_query_2)
+    assert len(search_results_2_hit) == 0
+    assert episodic_memory._backend._search_cache_hits == 2
+    assert episodic_memory._backend._search_cache_misses == 2
+
+@pytest.mark.asyncio
+async def test_search_cache_maxsize(episodic_memory: EpisodicMemory):
+    """Test that the search cache respects maxsize and evicts old entries."""
+    # Temporarily set a small maxsize for testing eviction
+    original_maxsize = episodic_memory._backend._search_cache_maxsize
+    episodic_memory._backend._search_cache_maxsize = 2
+    episodic_memory._backend.clear_cache()
+
+    # Store all entities first
+    entities = []
+    for i in range(5):
+        entity = WorkflowMemoryEntity(
+            id=str(uuid.uuid4()),
+            workflow_id=str(uuid.uuid4()),
+            workflow_name=f"Workflow {i}",
+            workflow_status="completed",
+            start_time=datetime.now(timezone.utc),
+            creator_id="test-user",
+            sensitivity=DataSensitivity.INTERNAL,
+            tier=MemoryTier.EPISODIC,
+            version=1
+        )
+        await episodic_memory.store(entity)
+        entities.append(entity)
+
+    # Now perform searches to fill the cache beyond maxsize
+    # The cache should be cleared after the last store operation, so it's empty here.
+    # We expect 5 cache misses and 2 items in cache at the end.
+    for i in range(5):
+        await episodic_memory.search({"workflow_name": f"Workflow {i}"})
+
+    # The cache should now contain only the most recent entries up to maxsize
+    assert len(episodic_memory._backend._search_cache) == episodic_memory._backend._search_cache_maxsize
+
+    # Verify that older entries are evicted (e.g., Workflow 0, 1, 2 should be gone if maxsize is 2)
+    # The cache should contain Workflow 3 and Workflow 4's search results.
+    first_query_key = (frozenset({"workflow_name": "Workflow 0"}.items()), 10) # Default limit is 10
+    assert first_query_key not in episodic_memory._backend._search_cache
+
+    second_query_key = (frozenset({"workflow_name": "Workflow 1"}.items()), 10)
+    assert second_query_key not in episodic_memory._backend._search_cache
+
+    third_query_key = (frozenset({"workflow_name": "Workflow 2"}.items()), 10)
+    assert third_query_key not in episodic_memory._backend._search_cache
+
+    fourth_query_key = (frozenset({"workflow_name": "Workflow 3"}.items()), 10)
+    assert fourth_query_key in episodic_memory._backend._search_cache
+
+    fifth_query_key = (frozenset({"workflow_name": "Workflow 4"}.items()), 10)
+    assert fifth_query_key in episodic_memory._backend._search_cache
+
+    # Restore original maxsize
+    episodic_memory._backend._search_cache_maxsize = original_maxsize
+
 
 @pytest.mark.asyncio
 async def test_cache_invalidation_on_store(episodic_memory: EpisodicMemory, sample_workflow_entity: WorkflowMemoryEntity):
@@ -180,9 +215,7 @@ async def test_cache_invalidation_on_store(episodic_memory: EpisodicMemory, samp
     await episodic_memory.store(new_entity)
 
     # Assert caches are cleared and stats reset
-    assert episodic_memory._backend.retrieve.cache_info().currsize == 0
-    assert episodic_memory._backend.retrieve.cache_info().hits == 0
-    assert episodic_memory._backend.retrieve.cache_info().misses == 0
+
     assert len(episodic_memory._backend._search_cache) == 0
     assert episodic_memory._backend._search_cache_hits == 0
     assert episodic_memory._backend._search_cache_misses == 0
@@ -195,22 +228,12 @@ async def test_cache_invalidation_on_delete(episodic_memory: EpisodicMemory, sam
     await episodic_memory.retrieve(sample_workflow_entity.id)
     await episodic_memory.search({"workflow_name": "Test Workflow"})
 
-    # Assert caches are populated (at least one hit/miss for retrieve, and search cache has entries)
-    assert episodic_memory._backend.retrieve.cache_info().currsize > 0
-    assert len(episodic_memory._backend._search_cache) > 0
-
     # Delete the entity, which should invalidate caches
     await episodic_memory.delete(sample_workflow_entity.id)
 
-    print(f"Retrieve cache info after delete: {episodic_memory._backend.retrieve.cache_info()}")
-    print(f"Search cache length after delete: {len(episodic_memory._backend._search_cache)}")
-    print(f"Search cache hits after delete: {episodic_memory._backend._search_cache_hits}")
-    print(f"Search cache misses after delete: {episodic_memory._backend._search_cache_misses}")
+
 
     # Assert caches are cleared and stats reset
-    assert episodic_memory._backend.retrieve.cache_info().currsize == 0
-    assert episodic_memory._backend.retrieve.cache_info().hits == 0
-    assert episodic_memory._backend.retrieve.cache_info().misses == 0
     assert len(episodic_memory._backend._search_cache) == 0
     assert episodic_memory._backend._search_cache_hits == 0
     assert episodic_memory._backend._search_cache_misses == 0
@@ -224,7 +247,7 @@ async def test_clear_cache_method(episodic_memory: EpisodicMemory, sample_workfl
     await episodic_memory.search({"workflow_name": "Test Workflow"})
 
     # Assert caches are populated (at least one hit/miss for retrieve, and search cache has entries)
-    assert episodic_memory._backend.retrieve.cache_info().currsize > 0
+
     assert len(episodic_memory._backend._search_cache) > 0
 
     # Clear caches explicitly

@@ -4,6 +4,7 @@ Specialized PostgreSQL storage backend for Episodic Memory using SQLAlchemy.
 
 import logging
 import functools # New import
+from collections import OrderedDict # New import for LRU cache
 try:
     import orjson
 except ImportError:
@@ -34,10 +35,7 @@ class EpisodicStorageBackend(StorageBackend):
     to a structured PostgreSQL table.
     """
     # Cache for search results (query: frozenset, limit: int -> List[WorkflowMemoryEntity])
-    _search_cache: Dict[Any, List[WorkflowMemoryEntity]] = {}
-    _search_cache_maxsize = 100 # Max items in search cache
-    _search_cache_hits = 0
-    _search_cache_misses = 0
+
 
     def __init__(self, dsn: str):
         """
@@ -60,14 +58,18 @@ class EpisodicStorageBackend(StorageBackend):
         self._async_session = sessionmaker(
             self._engine, expire_on_commit=False, class_=AsyncSession
         )
+        self._search_cache: OrderedDict[Any, List[WorkflowMemoryEntity]] = OrderedDict()
+        self._search_cache_maxsize = 100 # Max items in search cache
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
         # Clear caches on initialization
         self.clear_cache()
 
     def clear_cache(self):
         """Clears all internal caches."""
-        EpisodicStorageBackend._search_cache.clear()
-        EpisodicStorageBackend._search_cache_hits = 0
-        EpisodicStorageBackend._search_cache_misses = 0
+        self._search_cache.clear()
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
         logger.info("EpisodicStorageBackend caches cleared.")
 
     async def initialize_schema(self):
@@ -94,9 +96,9 @@ class EpisodicStorageBackend(StorageBackend):
             raise TypeError("EpisodicStorageBackend can only store WorkflowMemoryEntity objects")
 
         # Invalidate cache for this entity and any search results
-        EpisodicStorageBackend._search_cache.clear() # Clear search cache on any store operation
-        EpisodicStorageBackend._search_cache_hits = 0
-        EpisodicStorageBackend._search_cache_misses = 0
+        self._search_cache.clear() # Clear search cache on any store operation
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
 
         entity_dict = global_to_dict(entity) # Use global to_dict to include entity_type
         # SQLAlchemy model expects python objects, not serialized strings
@@ -135,9 +137,9 @@ class EpisodicStorageBackend(StorageBackend):
     async def delete(self, entity_id: str) -> bool:
         """Deletes a workflow entity by its ID."""
         # Invalidate cache for this entity and any search results
-        EpisodicStorageBackend._search_cache.clear() # Clear search cache on any delete operation
-        EpisodicStorageBackend._search_cache_hits = 0
-        EpisodicStorageBackend._search_cache_misses = 0
+        self._search_cache.clear() # Clear search cache on any delete operation
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
 
         async with self._async_session() as session:
             stmt = sqlalchemy_delete(EpisodicMemoryModel).where(EpisodicMemoryModel.id == entity_id)
@@ -156,12 +158,14 @@ class EpisodicStorageBackend(StorageBackend):
         # Convert query dict to a hashable key for caching
         cache_key = (frozenset(query.items()), limit)
 
-        if cache_key in EpisodicStorageBackend._search_cache:
-            EpisodicStorageBackend._search_cache_hits += 1
+        if cache_key in self._search_cache:
+            self._search_cache_hits += 1
             logger.info(f"Search cache hit for query: {query}")
-            return EpisodicStorageBackend._search_cache[cache_key]
+            # Move the accessed item to the end to mark as recently used
+            self._search_cache.move_to_end(cache_key)
+            return self._search_cache[cache_key]
 
-        EpisodicStorageBackend._search_cache_misses += 1
+        self._search_cache_misses += 1
         logger.info(f"Search cache miss for query: {query}")
 
         async with self._async_session() as session:
@@ -178,9 +182,9 @@ class EpisodicStorageBackend(StorageBackend):
         entities = [self._model_to_entity(inst) for inst in model_instances]
 
         # Store in cache, managing max size
-        if len(EpisodicStorageBackend._search_cache) >= EpisodicStorageBackend._search_cache_maxsize:
-            # Simple eviction: remove the oldest (arbitrary) item
-            EpisodicStorageBackend._search_cache.pop(next(iter(EpisodicStorageBackend._search_cache)))
-        EpisodicStorageBackend._search_cache[cache_key] = entities
+        # Evict the least recently used item if cache is full
+        if len(self._search_cache) >= self._search_cache_maxsize:
+            self._search_cache.popitem(last=False) # Pop the first (LRU) item
+        self._search_cache[cache_key] = entities
 
         return entities
