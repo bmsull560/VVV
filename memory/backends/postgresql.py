@@ -79,14 +79,12 @@ class PostgreSQLStorageBackend(StorageBackend):
             # Example of a simple key-value search on the JSON data
             where_clauses = []
             params = {}
-            for i, (key, value) in enumerate(query.items()):
-                param_name = f"value{i}"
-                where_clauses.append(f"data->>'{key}' = :{param_name}")
-                params[param_name] = str(value)
-            
-            where_sql = " AND ".join(where_clauses)
-            stmt_str = f"SELECT data FROM entities WHERE {where_sql} LIMIT :limit"
-            params['limit'] = limit
+            # For more efficient JSONB querying, use the @> operator with a JSONB query.
+            # Consider adding a GIN index on the 'data' column for optimal performance:
+            # CREATE INDEX idx_entities_data_gin ON entities USING GIN (data jsonb_path_ops);
+            query_jsonb = json.dumps(query)
+            stmt_str = f"SELECT data FROM entities WHERE data @> :query_jsonb LIMIT :limit"
+            params = {"query_jsonb": query_jsonb, "limit": limit}
 
             stmt = text(stmt_str)
             result = await session.execute(stmt, params)
