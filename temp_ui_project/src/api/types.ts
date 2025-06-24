@@ -1,8 +1,12 @@
 // Types for the model builder API
-export interface ModelComponent {
+/**
+ * Represents a model component with typed properties.
+ * @template T Properties type for the component
+ */
+export interface ModelComponent<T = Record<string, unknown>> {
   id: string;
   type: string;
-  properties: Record<string, any>;
+  properties: T;
   position: {
     x: number;
     y: number;
@@ -21,15 +25,20 @@ export interface ModelConnection {
   targetHandle?: string;
 }
 
-export interface ModelData {
+/**
+ * Represents the data structure for a model, including components and connections.
+ * @template T Properties type for components
+ * @template M Metadata type
+ */
+export interface ModelData<T = Record<string, unknown>, M = Record<string, unknown>> {
   id?: string;
   name: string;
   description?: string;
-  components: ModelComponent[];
+  components: ModelComponent<T>[];
   connections: ModelConnection[];
   createdAt?: string;
   updatedAt?: string;
-  metadata?: Record<string, any>;
+  metadata?: M;
 }
 
 export interface SaveModelResponse {
@@ -47,8 +56,11 @@ export interface ListModelsResponse {
   }>;
 }
 
+/**
+ * Represents an API error response.
+ */
 export interface ApiError {
   message: string;
   status?: number;
-  details?: any;
+  details?: unknown;
 }

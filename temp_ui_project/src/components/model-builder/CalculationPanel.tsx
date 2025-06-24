@@ -17,7 +17,7 @@ import {
 import { ModelComponent, CalculationResult } from '../../utils/calculationEngine';
 
 interface CalculationPanelProps {
-  model: { components: ModelComponent[] } | null;
+  model: { components: ModelComponent[]; connections: any[] } | null;
   calculations: Record<string, CalculationResult>;
   getFormattedValue: (id: string) => string;
   recalculate: () => void;

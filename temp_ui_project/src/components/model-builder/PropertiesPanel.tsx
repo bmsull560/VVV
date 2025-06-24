@@ -12,7 +12,6 @@ import { ModelComponent } from '../../utils/calculationEngine';
 
 interface PropertiesPanelProps {
   model: { components: ModelComponent[] } | null;
-  setModel: (model: { components: ModelComponent[] }) => void;
   selectedComponent: string | null;
   calculations: Record<string, any>;
   getFormattedValue: (id: string) => string;
@@ -20,7 +19,6 @@ interface PropertiesPanelProps {
 
 const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   model,
-  setModel,
   selectedComponent,
   calculations,
   getFormattedValue

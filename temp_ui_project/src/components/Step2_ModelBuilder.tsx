@@ -143,7 +143,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     
     try {
       const modelData: ModelBuilderData = {
-        model: state.model,
+        model: state.model ? state.model.model : { components: [], connections: [] },
         calculations: state.calculations,
         summary: {
           totalRevenue: 0,
@@ -165,7 +165,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
       
       await modelBuilderAPI.calculateROIWithBackend(modelData, investmentAmount);
       
-      const localCalculations = performCalculations(state.model.components);
+      const localCalculations = performCalculations(state.model.model.components);
       
       setState(prev => ({
         ...prev,
@@ -182,7 +182,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
       console.error('Calculation error:', error);
       
       try {
-        const localCalculations = performCalculations(state.model.components);
+        const localCalculations = performCalculations(state.model.model.components);
         setState(prev => ({
           ...prev,
           calculations: localCalculations,
@@ -212,7 +212,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     try {
       // Get AI suggestions for scenario generation
       const modelData: ModelBuilderData = {
-        model: state.model,
+        model: state.model ? state.model.model : { components: [], connections: [] },
         calculations: state.calculations,
         summary: {
           totalRevenue: 0,
@@ -271,7 +271,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
 
     try {
       const modelData: ModelBuilderData = {
-        model: state.model,
+        model: state.model ? state.model.model : { components: [], connections: [] },
         calculations: state.calculations,
         summary: {
           totalRevenue: 0,
@@ -383,272 +383,187 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   }, [state.model, state.calculations, discoveryData]);
 
   const handleAddComponent = useCallback((type: string) => {
-    const newComponent: ModelComponent = {
-      id: `component-${Date.now()}`,
-      type,
-      properties: {
-        label: `New ${type}`,
-        value: 0
-      },
-      position: { x: 100, y: 100 }
-    };
+    setState(prev => {
+      if (prev.model) {
+        const newComponent: ModelComponent = {
+          id: `component-${Date.now()}`,
+          type,
+          properties: {
+            label: `New ${type}`,
+            value: 0
+          },
+          position: { x: 100, y: 100 }
+        };
+        return {
+          ...prev,
+          model: {
+            ...prev.model,
+            model: {
+              ...prev.model.model,
+              components: [...prev.model.model.components, newComponent]
+            }
+          },
+          hasUnsavedChanges: true
+        };
+      }
+      return prev;
+    });
+  }, []);
 
+  const handleModelCanvasUpdate = useCallback((update: { components: ModelComponent[]; connections?: ConnectionData[] }) => {
     setState(prev => {
       if (prev.model) {
         return {
           ...prev,
-          model: {
-      model: prev.model
-        ? {
-            ...prev.model,
-            model: {
-              ...prev.model.model,
-              components: model.components
-            }
-          }
-        : prev.model,
-      hasUnsavedChanges: true
-    }));
-  }, []);
 
-  const handleModelCanvasUpdate = useCallback((model: { components: ModelComponent[] }) => {
-    setState(prev => ({
-      ...prev,
-      model:
-        model.components.length > 0 && prev.model
-          ? {
-              ...prev.model,
-              model: {
-                ...prev.model.model,
-                components: model.components
-              }
-            }
-          : null,
-      hasUnsavedChanges: true
-    }));
-  }, []);
+<div className={styles.header}>
+  {/* Type-safe metrics display */}
+  <div className={styles.metrics}>
+    {state.model?.model.components.length ?? 0} components • 
+    {Object.keys(state.calculations ?? {}).length} calculations
+  </div>
+  {/* ... */}
+</div>
 
-  const handleSelectComponent = useCallback((componentId: string | null) => {
-    setState(prev => ({
-      ...prev,
-      selectedComponent: componentId
-    }));
-  }, []);
+// ...
 
-  const handleContinue = useCallback(() => {
-    if (!state.model) return;
+<CardContent className={styles.cardContent}>
+  <ModelCanvas
+    model={state.model ? { components: state.model.model.components, connections: state.model.model.connections } : null}
+    setModel={handleModelCanvasUpdate}
+    selectedComponent={state.selectedComponent}
+    setSelectedComponent={handleSelectComponent}
+    calculations={state.calculations}
+    getFormattedValue={getFormattedValue}
+  />
+</CardContent>
 
-    const modelBuilderData: ModelBuilderData = {
-      ...state.model,
-      calculations: state.calculations
+// ...
+
+<CalculationPanel
+  model={state.model ? { components: state.model.model.components, connections: state.model.model.connections } : null}
+  calculations={state.calculations}
+  isCalculating={state.isCalculating}
+  isGenerating={state.isGenerating}
+  generateScenarios={handleGenerateScenarios}
+  getFormattedValue={getFormattedValue}
+  recalculate={handleCalculate}
+/>
+
+// ...
+
+<div className={styles.navigation}>
+  {/* ... */}
+  <div className={styles.actions}>
+    <div className={styles.metrics}>
+      {state.model?.model.components.length || 0} components • {Object.keys(state.calculations).length} calculations
+    </div>
+    <Button 
+      onClick={handleContinue}
+      disabled={!state.model || state.model.model.components.length === 0}
+    >
+      Continue to Narrative
+      <Zap className={styles.icon} />
+    </Button>
+  </div>
+</div>
+
+// ...
+
+const handleGetAIAssistance = useCallback(async () => {
+  if (!state.model) return;
+
+  setState(prev => ({ ...prev, showAIAssistant: true }));
+
+  try {
+    const modelData: ModelBuilderData = {
+      model: state.model.model,
+      calculations: state.calculations,
+      metadata: state.model.metadata,
+      summary: state.model.summary
     };
 
-    onNext({
-      ...discoveryData,
-      modelBuilderData,
-      localCalculations: state.calculations,
-      validationResults: state.validationResult || undefined
+    const aiResponse = await modelBuilderAPI.getAIAssistance({
+      model_data: modelData,
+      user_query: 'Please analyze this model and provide optimization suggestions',
+      context: {
+        discovery_data: discoveryData,
+        current_focus: 'optimization'
+      }
     });
-  }, [state.model, state.calculations, state.validationResult, discoveryData, onNext]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+    setState(prev => ({
+      ...prev,
+      aiSuggestions: aiResponse,
+      showAIAssistant: false
+    }));
 
-  return (
-    <DndProvider backend={HTML5Backend}>
-      <div className={styles.container}>
-        {alert && (
-          <div
-            role={alert.type === 'error' ? 'alert' : 'status'}
-            aria-live={alert.type === 'error' ? 'assertive' : 'polite'}
-          >
-            <Alert
-              className={`${styles.alert} ${styles[alert.type]}`}
-              variant={alert.type === 'error' ? 'destructive' : 'default'}
-            >
-              <AlertDescription>{alert.message}</AlertDescription>
-            </Alert>
-          </div>
-        )}
+    setAlert({
+      type: 'success',
+      message: 'AI assistance completed successfully'
+    });
 
-        {/* Loading spinner overlay for async actions */}
-        {(state.isCalculating || state.isGenerating || state.isExporting || state.showAIAssistant) && (
-          <div className={styles.loadingOverlay} role="status" aria-live="polite">
-            <div className={styles.spinner} aria-label="Loading" />
-          </div>
-        )}
-        <div className={styles.header}>
-          {/* Type-safe metrics display */}
-          <div className={styles.metrics}>
-            {state.model?.model.components.length ?? 0} components • 
-            {Object.keys(state.calculations ?? {}).length} calculations
-          </div>
-          <div>
-            <h2 className={styles.title}>Visual Model Builder</h2>
-            <p className={styles.description}>
-              Create your financial model with drag-and-drop components
-            </p>
-          </div>
-          
-          <div className={styles.actions}>
-            {state.hasUnsavedChanges && (
-              <Badge variant="outline" className={styles.badge}>
-                Unsaved Changes
-              </Badge>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGetAIAssistance}
-              disabled={state.showAIAssistant}
-              aria-busy={state.showAIAssistant}
-            >
-              {state.showAIAssistant ? (
-                <Brain className={styles.icon} />
-              ) : (
-                <Sparkles className={styles.icon} />
-              )}
-              {state.showAIAssistant ? 'Loading...' : 'AI Assist'}
-            </Button>
-          </div>
-        </div>
+  } catch (error) {
+    console.error('AI assistance error:', error);
+    setState(prev => ({ ...prev, showAIAssistant: false }));
+    setAlert({
+      type: 'error',
+      message: 'Failed to get AI assistance'
+    });
+  }
+}, [state.model, state.calculations, discoveryData]);
 
-        {discoveryData && (
-          <Alert>
-            <Sparkles className={styles.icon} />
-            <AlertDescription>
-              Using discovery data: Investment ${discoveryData.investment_amount?.toLocaleString()} 
-              with {discoveryData.metrics?.length || 0} identified metrics. 
-              Components will be pre-populated with smart defaults.
-            </AlertDescription>
-          </Alert>
-        )}
+// ...
 
-        <div className={styles.interface}>
-          <div className={styles.library}>
-            <Tabs defaultValue="library">
-              <TabsList className={styles.tabs}>
-                <TabsTrigger value="library">
-                  <FileInput className={styles.icon} />
-                  Library
-                </TabsTrigger>
-                <TabsTrigger value="properties">
-                  <Settings className={styles.icon} />
-                  Properties
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="library" className={styles.content}>
-                <ComponentLibrary onAddComponent={handleAddComponent} />
-              </TabsContent>
-              
-              <TabsContent value="properties" className={styles.content}>
-                <PropertiesPanel
-                  model={state.model ? { components: state.model.model.components } : null}
-                  setModel={handlePropertiesPanelUpdate}
-                  selectedComponent={state.selectedComponent}
-                  calculations={state.calculations}
-                  getFormattedValue={getFormattedValue}
-                />
-              </TabsContent>
-            </Tabs>
-          </div>
+const handleAddComponent = useCallback((type: string) => {
+  setState(prev => {
+    if (prev.model) {
+      const newComponent: ModelComponent = {
+        id: `component-${Date.now()}`,
+        type,
+        properties: {
+          label: `New ${type}`,
+          value: 0
+        },
+        position: { x: 100, y: 100 }
+      };
+      return {
+        ...prev,
+        model: {
+          ...prev.model,
+          model: {
+            ...prev.model.model,
+            components: [...prev.model.model.components, newComponent]
+          }
+        },
+        hasUnsavedChanges: true
+      };
+    }
+    return prev;
+  });
+}, []);
 
-          <div className={styles.canvas}>
-            <Card className={styles.card}>
-              <CardHeader className={styles.cardHeader}>
-                <div className={styles.cardTitle}>
-                  <Cpu className={styles.icon} />
-                  Financial Model Canvas
-                </div>
-                <div className={styles.cardActions}>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleCalculate} 
-                    disabled={state.isCalculating}
-                    aria-busy={state.isCalculating}
-                  >
-                    <Play className={styles.icon} />
-                    {state.isCalculating ? 'Calculating...' : 'Calculate'}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleExport} 
-                    disabled={state.isExporting}
-                    aria-busy={state.isExporting}
-                  >
-                    <Download className={styles.icon} />
-                    {state.isExporting ? 'Exporting...' : ''}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={state.isExporting}
-                  >
-                    <label htmlFor="model-import-file" className="cursor-pointer flex items-center">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Import Model
-                    </label>
-                    <input
-                      id="model-import-file"
-                      type="file"
-                      accept=".json"
-                      onChange={(e) => e.target.files?.[0] && handleImport(e.target.files[0])}
-                      className="hidden"
-                      aria-label="Import financial model file"
-                      ref={fileInputRef}
-                      disabled={state.isExporting}
-                    />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <ModelCanvas
-                  model={state.model ? { components: state.model.model.components, connections: state.model.model.connections } : null}
-                  setModel={handleModelCanvasUpdate}
-                  selectedComponent={state.selectedComponent}
-                  setSelectedComponent={handleSelectComponent}
-                  calculations={state.calculations}
-                  getFormattedValue={getFormattedValue}
-                />
-              </CardContent>
-            </Card>
-          </div>
+// ...
 
-          <div className={styles.calculations}>
-            <CalculationPanel
-              model={state.model ? { components: state.model.model.components } : null}
-              calculations={state.calculations}
-              isCalculating={state.isCalculating}
-              isGenerating={state.isGenerating}
-              generateScenarios={handleGenerateScenarios}
-              getFormattedValue={getFormattedValue}
-              recalculate={handleCalculate}
-            />
-          </div>
-        </div>
+const handleContinue = useCallback(() => {
+  if (!state.model) return;
 
-        <div className={styles.navigation}>
-          <Button variant="outline" onClick={onBack}>
-            <TrendingUp className={styles.icon} />
-            Back to Discovery
-          </Button>
-          
-          <div className={styles.actions}>
-            <div className={styles.metrics}>
-              {state.model?.components.length || 0} components • 
-              {Object.keys(state.calculations).length} calculations
-            </div>
-            <Button 
-              onClick={handleContinue}
-              disabled={!state.model || state.model.components.length === 0}
-            >
-              Continue to Narrative
-              <Zap className={styles.icon} />
-            </Button>
-          </div>
-        </div>
+  const modelBuilderData: ModelBuilderData = {
+    model: state.model.model,
+    calculations: state.calculations,
+    metadata: state.model.metadata,
+    summary: state.model.summary
+  };
+
+  onNext({
+    ...discoveryData,
+    modelBuilderData,
+    localCalculations: state.calculations,
+    validationResults: state.validationResult || undefined
+  });
+}, [state.model, state.calculations, state.validationResult, discoveryData, onNext]);
+
+// ...
       </div>
     </DndProvider>
   );

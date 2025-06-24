@@ -284,8 +284,6 @@ export class FinancialCalculationEngine {
     for (let t = 0; t < cashFlows.length; t++) {
       npv += cashFlows[t] / Math.pow(1 + discountRate / 100, t + 1);
     }
-    });
-
     return {
       value: npv,
       formatted: this.formatCurrency(npv),
@@ -298,11 +296,9 @@ export class FinancialCalculationEngine {
   /**
    * Calculate payback period
    */
-  private calculatePayback(component: ModelComponent): CalculationResult {
-    const { investment = 0, annualCashFlow = 0 } = component.properties;
-    
-    const paybackPeriod = annualCashFlow > 0 ? investment / annualCashFlow : 0;
-
+  private calculatePayback(component: ModelComponent<PaybackCalculatorProperties>): CalculationResult {
+    const { investment = 0, annualBenefit = 0 } = component.properties;
+    const paybackPeriod = annualBenefit > 0 ? investment / annualBenefit : 0;
     return {
       value: paybackPeriod,
       formatted: this.formatPeriod(paybackPeriod * 12), // Convert to months
@@ -315,16 +311,14 @@ export class FinancialCalculationEngine {
   /**
    * Calculate sensitivity analysis
    */
-  private calculateSensitivity(component: ModelComponent): CalculationResult {
-    const { baseCase = 0, scenarios = [] } = component.properties;
-    
-    const variance = scenarios.reduce((acc: number, scenario: number) => {
-      return acc + Math.pow(scenario - baseCase, 2);
-    }, 0) / scenarios.length;
-    
+  private calculateSensitivity(component: ModelComponent<SensitivityAnalysisProperties>): CalculationResult {
+    const { baseValue, rangeMin, rangeMax } = component.properties;
+    // Simulate three scenarios: min, base, max
+    const scenarios = [rangeMin, baseValue, rangeMax];
+    const mean = scenarios.reduce((acc, v) => acc + v, 0) / scenarios.length;
+    const variance = scenarios.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / scenarios.length;
     const standardDeviation = Math.sqrt(variance);
-    const sensitivity = baseCase > 0 ? (standardDeviation / baseCase) * 100 : 0;
-
+    const sensitivity = baseValue > 0 ? (standardDeviation / baseValue) * 100 : 0;
     return {
       value: sensitivity,
       formatted: this.formatPercentage(sensitivity),
@@ -337,13 +331,8 @@ export class FinancialCalculationEngine {
   /**
    * Calculate variable
    */
-  private calculateVariable(component: ModelComponent): CalculationResult {
-    const { value = 0, formula } = component.properties;
-    
-    if (formula) {
-      return this.evaluateFormula(formula);
-    }
-
+  private calculateVariable(component: ModelComponent<VariableProperties>): CalculationResult {
+    const { value = 0 } = component.properties;
     return {
       value: value,
       formatted: this.formatCurrency(value),
@@ -356,9 +345,9 @@ export class FinancialCalculationEngine {
   /**
    * Calculate formula
    */
-  private calculateFormula(component: ModelComponent): CalculationResult {
-    const { formula = '' } = component.properties;
-    return this.evaluateFormula(formula);
+  private calculateFormula(component: ModelComponent<FormulaProperties>): CalculationResult {
+    const { expression } = component.properties;
+    return this.evaluateFormula(expression);
   }
 
   /**
@@ -369,7 +358,6 @@ export class FinancialCalculationEngine {
       // Replace component references with their calculated values
       let evaluatedFormula = formula;
       const componentRefs = formula.match(/\$([a-zA-Z0-9_]+)/g) || [];
-      
       componentRefs.forEach(ref => {
         const componentId = ref.substring(1);
         const result = this.calculateComponent(componentId);
@@ -378,7 +366,6 @@ export class FinancialCalculationEngine {
 
       // Evaluate the mathematical expression
       const result = this.safeEvaluate(evaluatedFormula);
-      
       return {
         value: result,
         formatted: this.formatCurrency(result),
@@ -408,13 +395,11 @@ export class FinancialCalculationEngine {
   /**
    * Get all calculations
    */
-  getAllCalculations(): Record<string, CalculationResult> {
+  public getAllCalculations(): Record<string, CalculationResult> {
     const results: Record<string, CalculationResult> = {};
-    
-    this.components.forEach((component, id) => {
+    this.components.forEach((_, id) => {
       results[id] = this.calculateComponent(id);
     });
-
     return results;
   }
 
@@ -423,8 +408,6 @@ export class FinancialCalculationEngine {
    */
   private invalidateCache(componentId: string): void {
     this.calculationCache.delete(componentId);
-    
-    // Invalidate dependents
     this.dependencies.forEach((deps, id) => {
       if (deps.has(componentId)) {
         this.invalidateCache(id);
@@ -448,15 +431,13 @@ export class FinancialCalculationEngine {
    */
   private updateDependencies(): void {
     this.dependencies.clear();
-    
     this.components.forEach((component, id) => {
       const deps = new Set<string>();
-      
-      if (component.properties.formula) {
-        const refs = component.properties.formula.match(/\$([a-zA-Z0-9_]+)/g) || [];
+      if (component.type === 'formula') {
+        const formulaProps = component.properties as FormulaProperties;
+        const refs = formulaProps.expression.match(/\$([a-zA-Z0-9_]+)/g) || [];
         refs.forEach((ref: string) => deps.add(ref.substring(1)));
       }
-      
       this.dependencies.set(id, deps);
     });
   }
@@ -464,14 +445,14 @@ export class FinancialCalculationEngine {
   /**
    * Clear all caches
    */
-  clearCache(): void {
+  public clearCache(): void {
     this.calculationCache.clear();
   }
 
   /**
    * Format currency values
    */
-  formatCurrency(value: number, currency: string = 'USD'): string {
+  private formatCurrency(value: number, currency: string = 'USD'): string {
     const formatter = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency,
@@ -484,38 +465,40 @@ export class FinancialCalculationEngine {
     } else if (Math.abs(value) >= 1000) {
       return formatter.format(value / 1000) + 'K';
     }
-    
     return formatter.format(value);
   }
 
   /**
    * Format percentage values
    */
-  formatPercentage(value: number, decimals: number = 1): string {
+  private formatPercentage(value: number, decimals: number = 1): string {
     return `${value.toFixed(decimals)}%`;
   }
 
-  // ...
+  /**
+   * Format period values
+   */
+  private formatPeriod(value: number): string {
+    return `${value.toFixed(0)} months`;
+  }
 
   /**
    * Calculate all metrics and return summary
    */
-  calculateAll(inputs: Record<string, ModelComponent>): { calculations: Record<string, CalculationResult>; summary: CalculationSummary } {
+  public calculateAll(inputs: Record<string, ModelComponent<ComponentProperties>>): { calculations: Record<string, CalculationResult>; summary: CalculationSummary } {
     const calculations: Record<string, CalculationResult> = {};
-    
-    // Register components from inputs
     Object.entries(inputs).forEach(([id, data]) => {
       if (data && typeof data === 'object') {
         this.registerComponent({
           id,
           type: data.type || 'unknown',
-          properties: data
+          properties: data.properties || data
         });
       }
     });
 
     // Calculate all registered components
-    for (const [id, component] of this.components.entries()) {
+    for (const [id] of this.components.entries()) {
       try {
         const result = this.calculateComponent(id);
         if (result) {
@@ -637,20 +620,25 @@ export class FinancialUtils {
    */
   static calculateIRR(cashFlows: number[], guess: number = 0.1): number {
     let irr: number = guess;
+    const tolerance = 1e-7;
     for (let i = 0; i < 1000; i++) {
-      let npv: number = 0;
-      let d_npv: number = 0;
+      let npv = 0;
+      let d_npv = 0;
       for (let t = 0; t < cashFlows.length; t++) {
         npv += cashFlows[t] / Math.pow(1 + irr, t);
-        d_npv -= t * cashFlows[t] / Math.pow(1 + irr, t + 1);
-      if (Math.abs(newRate - rate) < TOLERANCE) {
-        return newRate * 100; // Return as percentage
+        if (t > 0) {
+          d_npv -= t * cashFlows[t] / Math.pow(1 + irr, t + 1);
+        }
       }
-      
-      rate = newRate;
+      if (Math.abs(npv) < tolerance) {
+        return irr * 100; // Return as percentage
+      }
+      if (d_npv === 0) {
+        break;
+      }
+      irr = irr - npv / d_npv;
     }
-    
-    return rate * 100; // Return as percentage
+    return irr * 100; // Return as percentage
   }
 }
 
