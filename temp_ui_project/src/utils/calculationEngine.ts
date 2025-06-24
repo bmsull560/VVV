@@ -254,27 +254,18 @@ export class FinancialCalculationEngine {
       value: totalCost,
       formatted: this.formatCurrency(totalCost),
       confidence: 0.9,
+      dependencies: [],
+      type: 'currency'
+    };
+  }
 
-  return {
-    value: sensitivity,
-    formatted: this.formatPercentage(sensitivity),
-    confidence: 0.7,
-    dependencies: [],
-    type: 'percentage'
-  };
-}
-
-/**
- * Calculate variable
- */
-private calculateVariable(component: ModelComponent<VariableProperties>): CalculationResult {
-  const { value = 0, formula } = component.properties;
-  if (formula) {
+  /**
+   * Calculate ROI
+   */
+  private calculateROI(component: ModelComponent<ROICalculatorProperties>): CalculationResult {
     const { investment = 0, annualBenefit = 0, periods = 3 } = component.properties;
-    
     const totalBenefit = annualBenefit * periods;
     const roi = investment > 0 ? ((totalBenefit - investment) / investment) * 100 : 0;
-
     return {
       value: roi,
       formatted: this.formatPercentage(roi),
@@ -287,12 +278,12 @@ private calculateVariable(component: ModelComponent<VariableProperties>): Calcul
   /**
    * Calculate NPV
    */
-  private calculateNPV(component: ModelComponent): CalculationResult {
-    const { cashFlows = [], discountRate = 0.1 } = component.properties;
-    
+  private calculateNPV(component: ModelComponent<NPVCalculatorProperties>): CalculationResult {
+    const { cashFlows, discountRate } = component.properties;
     let npv = 0;
-    cashFlows.forEach((cashFlow: number, index: number) => {
-      npv += cashFlow / Math.pow(1 + discountRate, index);
+    for (let t = 0; t < cashFlows.length; t++) {
+      npv += cashFlows[t] / Math.pow(1 + discountRate / 100, t + 1);
+    }
     });
 
     return {
