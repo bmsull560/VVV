@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { Card, CardHeader } from '../components/ui/card';
+import { Card, CardHeader, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -13,13 +13,15 @@ import {
   Download,
   Sparkles,
   Zap,
-  Cpu
+  Cpu,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
 import PropertiesPanel from './model-builder/PropertiesPanel';
 import ModelCanvas from './model-builder/ModelCanvas';
 import CalculationPanel from './model-builder/CalculationPanel';
 import ComponentLibrary from './model-builder/ComponentLibrary';
-import { ModelComponent, CalculationResult, calculationEngine } from '../utils/calculationEngine';
+import { ModelComponent, CalculationResult, calculationEngine, ComponentProperties } from '../utils/calculationEngine';
 import { modelBuilderAPI, ModelBuilderData, ModelValidationResult, AIAssistantResponse, ConnectionData, DiscoveryData } from '../services/modelBuilderApi';
 import styles from './Step2_ModelBuilder.module.css';
 
@@ -46,6 +48,7 @@ interface ModelBuilderState {
   isExporting: boolean;
   aiSuggestions: AIAssistantResponse | null;
   collaborationMode: boolean;
+  alert: { type: 'success' | 'warning' | 'error'; message: string } | null;
 }
 
 const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
@@ -53,11 +56,9 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   onNext,
   onBack,
   modelBuilderData: initialModelBuilderData,
-  quantificationResults: initialQuantificationResults,
   localCalculations: initialLocalCalculations,
   validationResults: initialValidationResults
 }) => {
-  // Initialize state with provided props if available
   const [state, setState] = useState<ModelBuilderState>({
     model: initialModelBuilderData || null,
     selectedComponent: null,
@@ -70,13 +71,14 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     exportFormat: 'json',
     isExporting: false,
     aiSuggestions: null,
-    collaborationMode: false
+    collaborationMode: false,
+    alert: null,
   });
 
-  const [alert, setAlert] = useState<{
-    type: 'success' | 'warning' | 'error';
-    message: string;
-  } | null>(null);
+  const setAlert = useCallback((type: 'success' | 'warning' | 'error', message: string) => {
+    setState(prev => ({ ...prev, alert: { type, message } }));
+    setTimeout(() => setState(prev => ({ ...prev, alert: null })), 5000);
+  }, []);
 
   const performCalculations = useCallback((components: ModelComponent[]): Record<string, CalculationResult> => {
     const results: Record<string, CalculationResult> = {};
@@ -110,27 +112,18 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
     if (!state.hasUnsavedChanges || !state.model) return;
     try {
       await modelBuilderAPI.saveModel({
-        model: state.model ? state.model.model : { components: [], connections: [] },
+        model: state.model.model,
         calculations: state.calculations,
-        summary: state.model ? state.model.summary : {
-          totalRevenue: 0,
-          totalCosts: 0,
-          netValue: 0,
-          netBenefit: 0,
-          roi: 0,
-          confidence: 0
-        },
-        metadata: state.model ? state.model.metadata : {
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          version: '1.0.0'
-        }
+        summary: state.model.summary,
+        metadata: state.model.metadata
       });
       setState(prev => ({ ...prev, hasUnsavedChanges: false }));
+      setAlert('success', 'Model saved automatically!');
     } catch (error) {
       console.error('Auto-save failed:', error);
+      setAlert('error', 'Auto-save failed. Please check your connection.');
     }
-  }, [state.hasUnsavedChanges, state.model, state.calculations]);
+  }, [state.hasUnsavedChanges, state.model, state.calculations, setAlert]);
 
   useEffect(() => {
     const interval = setInterval(handleAutoSave, 30000);
@@ -138,266 +131,194 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   }, [handleAutoSave]);
 
   const handleCalculate = useCallback(async () => {
-    if (!state.model) return;
+    if (!state.model) {
+      setAlert('warning', 'No model to calculate. Please add components.');
+      return;
+    }
     setState(prev => ({ ...prev, isCalculating: true }));
     try {
       const modelData: ModelBuilderData = {
-        model: state.model ? state.model.model : { components: [], connections: [] },
+        model: state.model.model,
         calculations: state.calculations,
-        summary: {
-          totalRevenue: 0,
-          totalCosts: 0,
-          netValue: 0,
-          netBenefit: 0,
-          roi: 0,
-          confidence: 0
-        },
-        metadata: {
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          version: '1.0.0'
-        }
+        summary: state.model.summary,
+        metadata: state.model.metadata
       };
-      const investmentAmount = discoveryData.investment_amount || 100000;
-      await modelBuilderAPI.calculateROIWithBackend(modelData, investmentAmount);
-      const localCalculations = performCalculations(state.model.model.components);
+      
+      const response = await modelBuilderAPI.calculateModel(modelData);
+      const newCalculations = performCalculations(response.model.components);
+
       setState(prev => ({
         ...prev,
-        calculations: localCalculations,
+        calculations: newCalculations,
+        model: response,
+        validationResult: response.validationResult || null,
         isCalculating: false,
         hasUnsavedChanges: true
       }));
-      setAlert({
-        type: 'success',
-        message: 'Model calculations completed successfully'
-      });
+      setAlert('success', 'Model calculated successfully!');
     } catch (error) {
-      console.error('Calculation error:', error);
-      try {
-        const localCalculations = performCalculations(state.model.model.components);
-        setState(prev => ({
-          ...prev,
-          calculations: localCalculations,
-          isCalculating: false,
-          hasUnsavedChanges: true
-        }));
-        setAlert({
-          type: 'warning',
-          message: 'Using local calculations (backend unavailable)'
-        });
-      } catch (localError) {
-        setState(prev => ({ ...prev, isCalculating: false }));
-        setAlert({
-          type: 'error',
-          message: `Calculation failed: ${localError instanceof Error ? localError.message : 'Unknown error'}`
-        });
-      }
+      console.error('Calculation failed:', error);
+      setAlert('error', 'Calculation failed. Please check the model components.');
+      setState(prev => ({ ...prev, isCalculating: false }));
     }
-  }, [state.model, state.calculations, performCalculations, discoveryData]);
-
-  const handleGenerateScenarios = useCallback(async () => {
-    if (!state.model) return;
-    setState(prev => ({ ...prev, isGenerating: true }));
-    try {
-      const modelData: ModelBuilderData = {
-        model: state.model ? state.model.model : { components: [], connections: [] },
-        calculations: state.calculations,
-        summary: {
-          totalRevenue: 0,
-          totalCosts: 0,
-          netValue: 0,
-          netBenefit: 0,
-          roi: 0,
-          confidence: 0
-        },
-        metadata: {
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          version: '1.0.0'
-        }
-      };
-      const aiResponse = await modelBuilderAPI.getAIAssistance({
-        model_data: modelData,
-        user_query: 'Generate different scenarios for this model',
-        context: {
-          discovery_data: discoveryData,
-          current_focus: 'scenario_generation'
-        }
-      });
-      setState(prev => ({
-        ...prev,
-        aiSuggestions: aiResponse,
-        isGenerating: false,
-        hasUnsavedChanges: true
-      }));
-      setAlert({
-        type: 'success',
-        message: 'Scenarios generated successfully'
-      });
-    } catch (error) {
-      setState(prev => ({ ...prev, isGenerating: false }));
-      setAlert({
-        type: 'error',
-        message: `Scenario generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
-    }
-  }, [state.model, state.calculations, discoveryData]);
+  }, [state.model, state.calculations, performCalculations, setAlert]);
 
   const handleExport = useCallback(async () => {
     if (!state.model) {
-      setAlert({
-        type: 'error',
-        message: 'No model to export'
-      });
+      setAlert('warning', 'No model to export.');
       return;
     }
     setState(prev => ({ ...prev, isExporting: true }));
     try {
-      const modelData: ModelBuilderData = {
-        model: state.model ? state.model.model : { components: [], connections: [] },
-        calculations: state.calculations,
-        summary: {
-          totalRevenue: 0,
-          totalCosts: 0,
-          netValue: 0,
-          netBenefit: 0,
-          roi: 0,
-          confidence: 0
-        },
-        metadata: {
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          version: '1.0.0'
-        }
-      };
-      await modelBuilderAPI.exportModel(modelData, state.exportFormat);
-      setAlert({
-        type: 'success',
-        message: `Model exported successfully as ${state.exportFormat.toUpperCase()}`
-      });
+      const data = await modelBuilderAPI.exportModel(state.model, state.exportFormat);
+      const blob = new Blob([data], { type: 'application/json' }); // Adjust type based on format
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `model.${state.exportFormat}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setAlert('success', `Model exported as ${state.exportFormat}!`);
     } catch (error) {
       console.error('Export failed:', error);
-      setAlert({
-        type: 'error',
-        message: `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
+      setAlert('error', 'Export failed. Please try again.');
     } finally {
       setState(prev => ({ ...prev, isExporting: false }));
     }
-  }, [state.model, state.calculations, state.exportFormat]);
+  }, [state.model, state.exportFormat, setAlert]);
 
   const handleImport = useCallback(async (file: File) => {
     try {
-      const importedData = await modelBuilderAPI.importModel(file);
-      setState((prev: ModelBuilderState) => ({
-        ...prev,
-        model: importedData.model,
-        calculations: importedData.calculations,
-        hasUnsavedChanges: true
-      }));
-      setAlert({
-        type: 'success',
-        message: 'Model imported successfully'
-      });
-    } catch (error) {
-      console.error('Import failed:', error);
-      setAlert({
-        type: 'error',
-        message: `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
-    }
-  }, []);
-
-  const handleGetAIAssistance = useCallback(async () => {
-    if (!state.model) return;
-    setState(prev => ({ ...prev, showAIAssistant: true }));
-    try {
-      const modelData: ModelBuilderData = {
-        model: state.model ? state.model.model : { components: [], connections: [] },
-        calculations: state.calculations,
-        metadata: state.model ? state.model.metadata : {
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          version: '1.0.0'
-        },
-        summary: state.model ? state.model.summary : {
-          totalRevenue: 0,
-          totalCosts: 0,
-          netValue: Object.values(state.calculations).reduce((sum, calc) => sum + calc.value, 0),
-          netBenefit: 0,
-          roi: 0,
-          confidence: 0.8
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const content = e.target?.result as string;
+          const importedModel = JSON.parse(content);
+          const response = await modelBuilderAPI.importModel(importedModel);
+          setState(prev => ({
+            ...prev,
+            model: response,
+            calculations: performCalculations(response.model.components),
+            validationResult: response.validationResult || null,
+            hasUnsavedChanges: true,
+            selectedComponent: null
+          }));
+          setAlert('success', 'Model imported successfully!');
+        } catch (parseError) {
+          console.error('Error parsing imported file:', parseError);
+          setAlert('error', 'Invalid file format. Please import a valid model file.');
         }
       };
-      const aiResponse = await modelBuilderAPI.getAIAssistance({
-        model_data: modelData,
-        user_query: 'Please analyze this model and provide optimization suggestions',
-        context: {
-          discovery_data: discoveryData,
-          current_focus: 'optimization'
-        }
-      });
-      setState(prev => ({
-        ...prev,
-        aiSuggestions: aiResponse,
-        showAIAssistant: false
-      }));
-      setAlert({
-        type: 'success',
-        message: 'AI assistance completed successfully'
-      });
+      reader.readAsText(file);
     } catch (error) {
-      console.error('AI assistance error:', error);
-      setState(prev => ({ ...prev, showAIAssistant: false }));
-      setAlert({
-        type: 'error',
-        message: 'Failed to get AI assistance'
-      });
+      console.error('Import failed:', error);
+      setAlert('error', 'Import failed. Please try again.');
     }
-  }, [state.model, state.calculations, discoveryData]);
+  }, [performCalculations, setAlert]);
 
-  const handleAddComponent = useCallback((type: string) => {
-    setState((prev: ModelBuilderState) => {
-      if (prev.model) {
-        const newComponent: ModelComponent = {
-          id: `component-${Date.now()}`,
-          type,
-          properties: {
-            label: `New ${type}`,
-            value: 0
-          },
-          position: { x: 100, y: 100 }
-        };
-        return {
-          ...prev,
-          model: {
-            ...prev.model,
-            model: {
-              ...prev.model.model,
-              components: [...prev.model.model.components, newComponent]
-            }
-          },
-          hasUnsavedChanges: true
-        };
-      }
-      return prev;
+  const handleAddComponent = useCallback((component: ModelComponent) => {
+    setState(prev => {
+      const newModel = prev.model ? { ...prev.model.model } : { components: [], connections: [] };
+      newModel.components = [...newModel.components, component];
+      return {
+        ...prev,
+        model: {
+          ...prev.model!,
+          model: newModel,
+          summary: prev.model?.summary || { totalRevenue: 0, totalCosts: 0, netValue: 0, netBenefit: 0, roi: 0, confidence: 0 },
+          metadata: prev.model?.metadata || { created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: '1.0.0' }
+        },
+        hasUnsavedChanges: true,
+        selectedComponent: component.id
+      };
     });
   }, []);
+
+  const handleGenerateScenarios = useCallback(async () => {
+    if (!state.model) {
+      setAlert('warning', 'No model to generate scenarios for.');
+      return;
+    }
+    setState(prev => ({ ...prev, isGenerating: true }));
+    try {
+      const response = await modelBuilderAPI.generateScenarios(state.model);
+      setState(prev => ({
+        ...prev,
+        model: response, // Assuming response contains updated model with scenarios
+        isGenerating: false,
+        hasUnsavedChanges: true
+      }));
+      setAlert('success', 'Scenarios generated successfully!');
+    } catch (error) {
+      console.error('Scenario generation failed:', error);
+      setAlert('error', 'Scenario generation failed. Please try again.');
+    } finally {
+      setState(prev => ({ ...prev, isGenerating: false }));
+    }
+  }, [state.model, setAlert]);
+
+  const handleGetAIAssistance = useCallback(async () => {
+    if (!state.model) {
+      setAlert('warning', 'No model to get AI assistance for.');
+      return;
+    }
+    setState(prev => ({ ...prev, showAIAssistant: true }));
+    try {
+      const response = await modelBuilderAPI.getAIAssistance(state.model);
+      setState(prev => ({ ...prev, aiSuggestions: response }));
+      setAlert('success', 'AI assistance received!');
+    } catch (error) {
+      console.error('AI assistance failed:', error);
+      setAlert('error', 'Failed to get AI assistance. Please try again.');
+    }
+  }, [state.model, setAlert]);
+
+  const handleContinue = useCallback(() => {
+    if (!state.model) {
+      setAlert('error', 'Cannot continue: Model is empty.');
+      return;
+    }
+    
+    const modelBuilderData: ModelBuilderData = {
+      model: state.model.model,
+      calculations: state.calculations,
+      metadata: state.model.metadata,
+      summary: state.model.summary
+    };
+    
+    onNext({
+      ...discoveryData,
+      modelBuilderData,
+      localCalculations: state.calculations,
+      validationResults: state.validationResult || undefined
+    });
+  }, [state.model, state.calculations, state.validationResult, discoveryData, onNext, setAlert]);
 
   return (
     <DndProvider backend={HTML5Backend}>
       <div className={styles.container}>
-        <Card className={styles.headerCard}>
-          <CardHeader>
-            <div className={styles.headerTitle}>
-              <Brain className={styles.icon} />
-              <span>Step 2: Model Builder</span>
-              {state.collaborationMode && <Badge variant="outline">Collaboration</Badge>}
+        <Card className={styles.card}>
+          <CardHeader className={styles.header}>
+            <div className={styles.headerLeft}>
+              <Badge variant="secondary" className={styles.badge}>
+                <Brain className={styles.icon} />
+                Step 2: Model Builder
+              </Badge>
+              <h2 className={styles.title}>Build Your Financial Model</h2>
             </div>
-            <div className={styles.headerActions}>
-              <Button variant="secondary" onClick={onBack} aria-label="Back to Discovery">
-                <Play className={styles.icon} /> Back
+            <div className={styles.headerRight}>
+              <Button variant="outline" onClick={onBack} aria-label="Go back">
+                <ArrowLeft className={styles.icon} /> Back
               </Button>
+              <Button variant="default" onClick={handleContinue} disabled={!state.model} aria-label="Continue to Next Step">
+                <Play className={styles.icon} /> Continue 
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className={styles.cardContent}>
+            <div className={styles.toolbar}>
               <Button variant="default" onClick={handleCalculate} disabled={state.isCalculating} aria-label="Calculate Model">
                 <Zap className={styles.icon} />
                 {state.isCalculating ? 'Calculating...' : 'Calculate'}
@@ -405,10 +326,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
               <Button variant="outline" onClick={handleExport} disabled={state.isExporting} aria-label="Export Model">
                 <Download className={styles.icon} /> Export
               </Button>
-              <Button variant="outline" onClick={() => document.getElementById('import-model')?.click()}>                
-                <Upload className={styles.icon} /> Import
-              </Button>
-              <label htmlFor="import-model" className={styles.visuallyHidden} aria-label="Import Model">
+              <label htmlFor="import-model" className={styles.visuallyHidden}>
                 <input
                   id="import-model"
                   type="file"
@@ -419,6 +337,9 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                   }}
                 />
               </label>
+              <Button variant="outline" onClick={() => document.getElementById('import-model')?.click()} aria-label="Import Model">
+                <Upload className={styles.icon} /> Import
+              </Button>
               <Button variant="outline" onClick={handleGenerateScenarios} disabled={state.isGenerating} aria-label="Generate Scenarios">
                 <Sparkles className={styles.icon} />
                 {state.isGenerating ? 'Generating...' : 'Scenarios'}
@@ -427,381 +348,84 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                 <Cpu className={styles.icon} /> AI Assistant
               </Button>
             </div>
-          </CardHeader>
+
+            {state.alert && (
+              <Alert className={styles.alert} variant={state.alert.type === 'error' ? 'destructive' : 'default'}>
+                <AlertDescription>{state.alert.message}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className={styles.mainContent}>
+              <Tabs defaultValue="canvas" className={styles.tabs}>
+                <TabsList>
+                  <TabsTrigger value="canvas">Model Canvas</TabsTrigger>
+                  <TabsTrigger value="properties">Properties</TabsTrigger>
+                  <TabsTrigger value="calculations">Calculations</TabsTrigger>
+                  <TabsTrigger value="library">Library</TabsTrigger>
+                </TabsList>
+                <TabsContent value="canvas">
+                  <ModelCanvas
+                    model={state.model ? state.model.model : { components: [], connections: [] }}
+                    selectedComponent={state.selectedComponent}
+                    onSelectComponent={(id: string) => setState(prev => ({ ...prev, selectedComponent: id }))}
+                    onModelChange={(modelData: {components: ModelComponent[]; connections: ConnectionData[]}) => {
+                      if (!state.model) return;
+                      setState(prev => ({
+                        ...prev, 
+                        model: { 
+                          ...prev.model!,
+                          model: modelData 
+                        } as ModelBuilderData, 
+                        hasUnsavedChanges: true 
+                      }));
+                    }}
+                    onAddComponent={handleAddComponent}
+                    calculations={state.calculations}
+                    readOnly={false}
+                    className={styles.canvas}
+                  />
+                </TabsContent>
+                <TabsContent value="properties">
+                  <PropertiesPanel
+                    selectedComponentId={state.selectedComponent}
+                    model={state.model ? state.model.model : { components: [], connections: [] }}
+                    onUpdateComponent={(id: string, props: Record<string, any>) => {
+                      if (!state.model) return;
+                      setState(prev => ({
+                        ...prev,
+                        model: {
+                          ...prev.model!,
+                          model: {
+                            ...prev.model!.model,
+                            components: prev.model!.model.components.map(c =>
+                              c.id === id ? { ...c, properties: { ...c.properties, ...props } } : c
+                            )
+                          }
+                        },
+                        hasUnsavedChanges: true
+                      }));
+                    }}
+                  />
+                </TabsContent>
+                <TabsContent value="calculations">
+                  <CalculationPanel
+                    calculations={state.calculations}
+                    getFormattedValue={getFormattedValue}
+                    isCalculating={state.isCalculating}
+                  />
+                </TabsContent>
+                <TabsContent value="library">
+                  <ComponentLibrary
+                    onAddComponent={handleAddComponent}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
+          </CardContent>
         </Card>
-
-        {alert && (
-          <Alert className={styles.alert} variant={alert.type === 'error' ? 'destructive' : 'default'}>
-            <AlertDescription>{alert.message}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className={styles.mainContent}>
-          <Tabs defaultValue="canvas" className={styles.tabs}>
-            <TabsList>
-              <TabsTrigger value="canvas">Model Canvas</TabsTrigger>
-              <TabsTrigger value="properties">Properties</TabsTrigger>
-              <TabsTrigger value="calculations">Calculations</TabsTrigger>
-              <TabsTrigger value="library">Library</TabsTrigger>
-            </TabsList>
-            <TabsContent value="canvas">
-              <ModelCanvas
-                model={state.model ? state.model.model : { components: [], connections: [] }}
-                selectedComponent={state.selectedComponent}
-                onSelectComponent={(id: string) => setState(prev => ({ ...prev, selectedComponent: id }))}
-                onModelChange={(modelData: {components: ModelComponent[]; connections: ConnectionData[]}) => {
-                  if (!state.model) return;
-                  setState(prev => ({
-                    ...prev, 
-                    model: { 
-                      ...prev.model!,
-                      model: modelData 
-                    } as ModelBuilderData, 
-                    hasUnsavedChanges: true 
-                  }));
-                }}
-                onAddComponent={handleAddComponent}
-                calculations={state.calculations}
-                readOnly={false}
-                className={styles.canvas}
-              />
-            </TabsContent>
-            <TabsContent value="properties">
-              <PropertiesPanel
-                selectedComponentId={state.selectedComponent}
-                model={state.model ? state.model.model : { components: [], connections: [] }}
-                onUpdateComponent={(id: string, props: Record<string, any>) => {
-                  if (!state.model) return;
-                  setState(prev => ({
-                    ...prev,
-                    model: {
-                      ...prev.model!,
-                      model: {
-                        ...prev.model!.model,
-                        components: prev.model!.model.components.map(c =>
-                          c.id === id ? { ...c, properties: { ...c.properties, ...props } } : c
-                        )
-                      }
-                    },
-                    hasUnsavedChanges: true
-                  }));
-                }}
-              />
-            </TabsContent>
-            <TabsContent value="calculations">
-              <CalculationPanel
-                calculations={state.calculations}
-                getFormattedValue={getFormattedValue}
-                isCalculating={state.isCalculating}
-              />
-            </TabsContent>
-            <TabsContent value="library">
-              <ComponentLibrary
-                onAddComponent={handleAddComponent}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
       </div>
     </DndProvider>
   );
 };
 
-export default Step2_ModelBuilder;
-  }, [state.model, state.calculations, discoveryData]);
-
-  const handleExport = useCallback(async () => {
-    if (!state.model) {
-      setAlert({
-        type: 'error',
-        message: 'No model to export'
-      });
-      return;
-    }
-    setState(prev => ({ ...prev, isExporting: true }));
-    try {
-      const modelData: ModelBuilderData = {
-        model: state.model ? state.model.model : { components: [], connections: [] },
-        calculations: state.calculations,
-        summary: {
-          totalRevenue: 0,
-          totalCosts: 0,
-          netValue: 0,
-          netBenefit: 0,
-          roi: 0,
-          confidence: 0
-        },
-        metadata: {
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          version: '1.0.0'
-        }
-      };
-      await modelBuilderAPI.exportModel(modelData, state.exportFormat);
-      setAlert({
-        type: 'success',
-        message: `Model exported successfully as ${state.exportFormat.toUpperCase()}`
-      });
-    } catch (error) {
-      console.error('Export failed:', error);
-      setAlert({
-        type: 'error',
-        message: `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
-    } finally {
-      setState(prev => ({ ...prev, isExporting: false }));
-    }
-  }, [state.model, state.calculations, state.exportFormat]);
-
-  const handleImport = useCallback(async (file: File) => {
-    try {
-      const importedData = await modelBuilderAPI.importModel(file);
-      setState((prev: ModelBuilderState) => ({
-        ...prev,
-        model: importedData.model,
-        calculations: importedData.calculations,
-        hasUnsavedChanges: true
-      }));
-      setAlert({
-        type: 'success',
-        message: 'Model imported successfully'
-      });
-    } catch (error) {
-      console.error('Import failed:', error);
-      setAlert({
-        type: 'error',
-        message: `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
-    }
-  }, []);
-
-  const handleGetAIAssistance = useCallback(async () => {
-    if (!state.model) return;
-    setState(prev => ({ ...prev, showAIAssistant: true }));
-    try {
-      const modelData: ModelBuilderData = {
-        model: state.model ? state.model.model : { components: [], connections: [] },
-        calculations: state.calculations,
-        metadata: state.model ? state.model.metadata : {
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          version: '1.0.0'
-        },
-        summary: state.model ? state.model.summary : {
-          totalRevenue: 0,
-          totalCosts: 0,
-          netValue: Object.values(state.calculations).reduce((sum, calc) => sum + calc.value, 0),
-          netBenefit: 0,
-          roi: 0,
-          confidence: 0.8
-        }
-      };
-      const aiResponse = await modelBuilderAPI.getAIAssistance({
-        model_data: modelData,
-        user_query: 'Please analyze this model and provide optimization suggestions',
-        context: {
-          discovery_data: discoveryData,
-          current_focus: 'optimization'
-        }
-      });
-      setState(prev => ({
-        ...prev,
-        aiSuggestions: aiResponse,
-        showAIAssistant: false
-      }));
-      setAlert({
-        type: 'success',
-        message: 'AI assistance completed successfully'
-      });
-    } catch (error) {
-      console.error('AI assistance error:', error);
-      setState(prev => ({ ...prev, showAIAssistant: false }));
-      setAlert({
-        type: 'error',
-        message: 'Failed to get AI assistance'
-      });
-    }
-  }, [state.model, state.calculations, discoveryData]);
-
-  const handleAddComponent = useCallback((type: string) => {
-    setState((prev: ModelBuilderState) => {
-      if (prev.model) {
-        const newComponent: ModelComponent = {
-          id: `component-${Date.now()}`,
-          type,
-          properties: {
-            label: `New ${type}`,
-            value: 0
-          },
-          position: { x: 100, y: 100 }
-        };
-        return {
-          ...prev,
-          model: {
-            ...prev.model,
-            model: {
-              ...prev.model.model,
-              components: [...prev.model.model.components, newComponent]
-            }
-          },
-          hasUnsavedChanges: true
-        };
-    const modelData: ModelBuilderData = {
-      model: state.model ? state.model.model : { components: [], connections: [] },
-      calculations: state.calculations,
-      summary: {
-        totalRevenue: 0,
-        totalCosts: 0,
-        netValue: 0,
-        netBenefit: 0,
-        roi: 0,
-        confidence: 0
-      },
-      metadata: {
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    };
-
-    await modelBuilderAPI.exportModel(modelData, state.exportFormat);
-
-    setAlert({
-      type: 'success',
-      message: `Model exported successfully as ${state.exportFormat.toUpperCase()}`
-    });
-  } catch (error) {
-    console.error('Export failed:', error);
-    setAlert({
-      type: 'error',
-      message: `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-    });
-  } finally {
-    setState(prev => ({ ...prev, isExporting: false }));
-  }
-}, [state.model, state.calculations, state.exportFormat]);
-
-// handleImport is declared only once below. Remove all duplicate declarations.
-
-  try {
-    const importedData = await modelBuilderAPI.importModel(file);
-    setState((prev: ModelBuilderState) => ({
-      ...prev,
-      model: importedData.model,
-      calculations: importedData.calculations,
-      hasUnsavedChanges: true
-    }));
-
-    setAlert({
-      type: 'success',
-      message: 'Model imported successfully'
-    });
-  } catch (error) {
-    console.error('Import failed:', error);
-    setAlert({
-      type: 'error',
-      message: `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-    });
-  }
-}, []);
-
-// handleGetAIAssistance is declared only once below. Remove all duplicate declarations.
-
-  if (!state.model) return;
-
-  setState(prev => ({ ...prev, showAIAssistant: true }));
-
-  try {
-    const modelData: ModelBuilderData = {
-      model: state.model.model,
-      calculations: state.calculations,
-      metadata: state.model.metadata,
-      summary: state.model.summary
-    };
-
-    const aiResponse = await modelBuilderAPI.getAIAssistance({
-      model_data: modelData,
-      user_query: 'Please analyze this model and provide optimization suggestions',
-      context: {
-        discovery_data: discoveryData,
-        current_focus: 'optimization'
-      }
-    });
-
-    setState(prev => ({
-      ...prev,
-      aiSuggestions: aiResponse,
-      showAIAssistant: false
-    }));
-
-    setAlert({
-      type: 'success',
-      message: 'AI assistance completed successfully'
-    });
-
-  } catch (error) {
-    console.error('AI assistance error:', error);
-    setState(prev => ({ ...prev, showAIAssistant: false }));
-    setAlert({
-      type: 'error',
-      message: 'Failed to get AI assistance'
-    });
-  }
-}, [state.model, state.calculations, discoveryData]);
-
-// ...
-
-// handleAddComponent is declared only once below. Remove all duplicate declarations.
-
-  setState(prev => {
-    if (prev.model) {
-      const newComponent: ModelComponent = {
-        id: `component-${Date.now()}`,
-        type,
-        properties: {
-          label: `New ${type}`,
-          value: 0
-        },
-        position: { x: 100, y: 100 }
-      };
-      return {
-        ...prev,
-        model: {
-          ...prev.model,
-          model: {
-            ...prev.model.model,
-            components: [...prev.model.model.components, newComponent]
-          }
-        },
-        hasUnsavedChanges: true
-      };
-    }
-    return prev;
-  });
-}, []);
-
-// ...
-
-const handleContinue = useCallback(() => {
-  if (!state.model) return;
-
-  const modelBuilderData: ModelBuilderData = {
-    model: state.model.model,
-    calculations: state.calculations,
-    metadata: state.model.metadata,
-    summary: state.model.summary
-  };
-
-  onNext({
-    ...discoveryData,
-    modelBuilderData,
-    localCalculations: state.calculations,
-    validationResults: state.validationResult || undefined
-  });
-}, [state.model, state.calculations, state.validationResult, discoveryData, onNext]);
-
-      </div>
-    </DndProvider>
-  );
-};
 export default Step2_ModelBuilder;
