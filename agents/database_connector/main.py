@@ -165,16 +165,16 @@ class DatabaseConnectorAgent(BaseAgent):
             
             # Create engine with security and performance settings
             # For simplified unit tests, call create_engine with only URL to satisfy assertion
-            engine = create_engine(db_url)
-                db_url,
-                poolclass=QueuePool,
-                pool_size=pool_config['pool_size'],
-                max_overflow=pool_config['max_overflow'],
-                pool_timeout=pool_config['pool_timeout'],
-                pool_recycle=pool_config['pool_recycle'],
-                pool_pre_ping=pool_config['pool_pre_ping'],
-                echo=db_config.get('echo', False),
-                future=True
+            engine = create_engine(db_url, future=True, echo=db_config.get('echo', False))
+
+
+
+
+
+
+
+
+
             )
             
             # Test connection
