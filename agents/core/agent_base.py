@@ -10,7 +10,13 @@ from decimal import Decimal
 
 # Import our real MCP client
 from agents.core.mcp_client import MCPClient
-from agents.core.llm_client import LLMClient # Import the new LLM client
+try:
+    from agents.core.llm_client import LLMClient # Import the new LLM client
+except Exception as e:
+    import traceback
+    print(f"Error importing LLMClient: {e}")
+    traceback.print_exc()
+    raise
 
 class CircuitBreakerOpen(Exception):
     pass

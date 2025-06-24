@@ -24,7 +24,7 @@ from sqlalchemy.future import select
 from sqlalchemy import delete as sqlalchemy_delete
 
 from memory.storage_backend import StorageBackend
-from memory.types import WorkflowMemoryEntity, from_dict, to_dict as global_to_dict
+from memory.memory_types import WorkflowMemoryEntity, from_dict, to_dict as global_to_dict
 from memory.database_models import EpisodicMemoryEntry as EpisodicMemoryModel, Base
 
 logger = logging.getLogger(__name__)

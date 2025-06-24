@@ -19,7 +19,7 @@ except ImportError:
     SentenceTransformer = None
 
 
-from memory.types import MemoryEntity, KnowledgeEntity, MemoryTier, DataSensitivity
+from memory.memory_types import MemoryEntity, KnowledgeEntity, MemoryTier, DataSensitivity
 from memory.storage_backend import StorageBackend
 
 logger = logging.getLogger(__name__)

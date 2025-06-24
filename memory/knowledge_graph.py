@@ -13,7 +13,7 @@ import json
 import os
 from datetime import datetime, timezone
 
-from memory.types import MemoryEntity, RelationshipEntity, MemoryTier, DataSensitivity
+from memory.memory_types import MemoryEntity, RelationshipEntity, MemoryTier, DataSensitivity
 from memory.storage_backend import StorageBackend
 
 logger = logging.getLogger(__name__)

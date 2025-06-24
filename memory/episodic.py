@@ -10,7 +10,7 @@ import logging
 import os
 from typing import Dict, Any, List, Optional
 
-from memory.types import WorkflowMemoryEntity
+from memory.memory_types import WorkflowMemoryEntity
 from memory.episodic_storage_backend import EpisodicStorageBackend
 
 logger = logging.getLogger(__name__)

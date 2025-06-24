@@ -4,7 +4,7 @@ import json
 import asyncpg
 import logging
 
-from memory.types import from_dict, MemoryEntity, to_dict as global_to_dict
+from memory.memory_types import from_dict, MemoryEntity, to_dict as global_to_dict
 
 logger = logging.getLogger(__name__)
 

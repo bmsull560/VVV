@@ -19,7 +19,7 @@ import asyncio
 
 
 
-from memory.types import (
+from memory.memory_types import (
     MemoryEntity, ContextMemoryEntity, WorkflowMemoryEntity, 
     KnowledgeEntity, RelationshipEntity, MemoryTier,
     DataSensitivity, MemoryAccess, MemoryAccessControl, AuditLogEntry
