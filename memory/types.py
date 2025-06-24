@@ -152,6 +152,7 @@ class KnowledgeEntity(MemoryEntity):
     source: str = field(default="system")
     confidence: float = field(default=1.0)
     references: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert entity to dictionary representation."""
@@ -162,6 +163,7 @@ class KnowledgeEntity(MemoryEntity):
             "source": self.source,
             "confidence": self.confidence,
             "references": self.references,
+            "metadata": self.metadata,
         })
         
         if self.vector_embedding is not None:

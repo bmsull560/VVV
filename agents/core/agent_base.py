@@ -59,6 +59,7 @@ class AgentStatus(Enum):
     IDLE = "idle"
     RUNNING = "running"
     COMPLETED = "completed"
+    ERROR = "error"
     FAILED = "failed"
     TIMEOUT = "timeout"
 
