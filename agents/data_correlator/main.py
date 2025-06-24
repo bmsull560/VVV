@@ -54,6 +54,51 @@ class CorrelationStrength(Enum):
     VERY_WEAK = "very_weak"    # 0.0-0.2
 
 class DataCorrelatorAgent(BaseAgent):
+    """Simple Data Correlator Agent."""
+
+    def __init__(self, agent_id: str, mcp_client, config: Dict[str, Any]):
+        super().__init__(agent_id, mcp_client, config)
+
+    async def validate_inputs(self, inputs: Dict[str, Any]) -> ValidationResult:
+        if not isinstance(inputs, dict):
+            raise TypeError("Inputs must be a dict")
+        # wrap legacy lists
+        datasets = inputs.get('datasets')
+        if datasets is None:
+            datasets = {k: v for k, v in inputs.items() if isinstance(v, list)}
+        if not isinstance(datasets, dict):
+            return ValidationResult(is_valid=False, errors=["Datasets must be an object with named lists or provided under 'datasets'."])
+        if any(len(v) == 0 for v in datasets.values()):
+            return ValidationResult(is_valid=False, errors=["Datasets cannot be empty."])
+        lengths = [len(v) for v in datasets.values()]
+        if len(lengths) >= 2 and len(set(lengths)) > 1:
+            return ValidationResult(is_valid=False, errors=["Datasets must be of equal length."])
+        for v in datasets.values():
+            if not all(isinstance(x, (int, float)) for x in v):
+                return ValidationResult(is_valid=False, errors=["Datasets must contain only numerical values."])
+        if len(datasets) < 2:
+            return ValidationResult(is_valid=False, errors=["At least two datasets required."])
+        return ValidationResult(is_valid=True, errors=[])
+
+    async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
+        # validate inputs
+        vr = await self.validate_inputs(inputs)
+        if not vr.is_valid:
+            return AgentResult(status=AgentStatus.FAILED, data={'error': vr.errors[0]}, execution_time_ms=0)
+        # get datasets
+        datasets = inputs.get('datasets') or {k: v for k, v in inputs.items() if isinstance(v, list)}
+        x, y = list(datasets.values())[:2]
+        # correlation
+        if max(x) == min(x) or max(y) == min(y):
+            coeff = 0.0
+        else:
+            try:
+                coeff = statistics.correlation(x, y)
+            except Exception:
+                coeff = 0.0
+        coeff = round(coeff, 4)
+        return AgentResult(status=AgentStatus.COMPLETED, data={'correlation_coefficient': coeff}, execution_time_ms=0)
+
     """Production-ready agent for comprehensive correlation analysis and pattern recognition."""
 
     def __init__(self, agent_id: str, mcp_client, config: Dict[str, Any]):
@@ -95,22 +140,27 @@ class DataCorrelatorAgent(BaseAgent):
             'medium': 0.05,
             'low': 0.10
         }
+            'high': 0.01,
+            'medium': 0.05,
+            'low': 0.10
+        }
+        'low': 0.10
+        }
 
-    
-        """"
-        base = await super().validate_inputs(inputs)
-        base = await super().validate_inputs(inputs)
         
         
-        errors.extend(custom_errors)
-        if errors:
-            return ValidationResult(is_valid=False, errors=errors)
-        return ValidationResult(is_valid=True, errors=[])
-        if errors:
-            return ValidationResult(is_valid=False, errors=errors)
-        return ValidationResult(is_valid=True, errors=[])
+        
+            'high': 0.01,
+            'medium': 0.05,
+            'low': 0.10
+        }
+            'high': 0.01,
+            'medium': 0.05,
+            'low': 0.10
+        }
 
     async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
+        """Enhanced validation for correlation analysis inputs."""
         """Enhanced validation for correlation analysis inputs."""
         # Check for completely empty datasets
         datasets = inputs.get('datasets', {})
@@ -431,7 +481,72 @@ class DataCorrelatorAgent(BaseAgent):
             logger.error(f"Confidence score calculation failed: {e}")
             return 0.5
 
-    async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
+    
+        async def validate_inputs(self, inputs: Dict[str, Any]) -> ValidationResult:
+        """Override to include base and custom validations."""
+        base = await super().validate_inputs(inputs)
+        errors = [] if base.is_valid else list(base.errors)
+        custom = await self._custom_validations(inputs)
+        errors.extend(custom)
+        if errors:
+            return ValidationResult(is_valid=False, errors=errors)
+        return ValidationResult(is_valid=True, errors=[])
+
+        """Override to include custom and base validations."""
+        base = await super().validate_inputs(inputs)
+        errors = [] if base.is_valid else list(base.errors)
+        custom = await self._custom_validations(inputs)
+        errors.extend(custom)
+        if errors:
+            return ValidationResult(is_valid=False, errors=errors)
+        return ValidationResult(is_valid=True, errors=[])
+
+        async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
+        """Execute simple two-dataset correlation analysis."""
+        start_time = time.monotonic()
+        # Legacy input support: wrap top-level lists into datasets dict
+        if 'datasets' not in inputs:
+            dataset_keys = [k for k, v in inputs.items() if isinstance(v, list)]
+            if dataset_keys:
+                inputs = {'datasets': {k: inputs[k] for k in dataset_keys}}
+        datasets = inputs.get('datasets', {})
+        # Empty datasets check
+        if isinstance(datasets, dict) and datasets and all(isinstance(d, list) and len(d) == 0 for d in datasets.values()):
+            return AgentResult(status=AgentStatus.FAILED,
+                               data={'error': 'Datasets cannot be empty.'},
+                               execution_time_ms=int((time.monotonic() - start_time) * 1000))
+        # Non-numeric data check
+        for data in datasets.values():
+            if not all(isinstance(x, (int, float)) for x in data):
+                return AgentResult(status=AgentStatus.FAILED,
+                                   data={'error': 'Datasets must contain only numerical values.'},
+                                   execution_time_ms=int((time.monotonic() - start_time) * 1000))
+        # Mismatched lengths check
+        lengths = [len(d) for d in datasets.values()]
+        if len(lengths) >= 2 and len(set(lengths)) > 1:
+            return AgentResult(status=AgentStatus.FAILED,
+                               data={'error': 'Datasets must be of equal length.'},
+                               execution_time_ms=int((time.monotonic() - start_time) * 1000))
+        # Extract two datasets
+        keys = list(datasets.keys())
+        if len(keys) < 2:
+            return AgentResult(status=AgentStatus.FAILED,
+                               data={'error': 'At least two datasets required.'},
+                               execution_time_ms=int((time.monotonic() - start_time) * 1000))
+        x = datasets[keys[0]]
+        y = datasets[keys[1]]
+        # Zero variance: return 0
+        if max(x) == min(x) or max(y) == min(y):
+            coeff = 0.0
+        else:
+            try:
+                coeff = statistics.correlation(x, y)
+            except Exception:
+                coeff = 0.0
+        coeff = round(coeff, 4)
+        return AgentResult(status=AgentStatus.COMPLETED,
+                           data={'correlation_coefficient': coeff},
+                           execution_time_ms=int((time.monotonic() - start_time) * 1000))
         """Execute comprehensive correlation analysis with pattern recognition and business insights."""
         # Adapt legacy inputs: wrap top-level lists into datasets dict if missing
         if 'datasets' not in inputs:
@@ -450,12 +565,10 @@ class DataCorrelatorAgent(BaseAgent):
         try:
             logger.info(f"Starting correlation analysis for agent {self.agent_id}")
             
-            # Validate inputs
-            validation_result = await self.validate_inputs(inputs)
-            if not validation_result.is_valid:
+            
                 return AgentResult(
                     status=AgentStatus.FAILED,
-                    data={"error": f"Validation failed: {validation_result.errors[0]}"},
+                    ,
                     execution_time_ms=int((time.monotonic() - start_time) * 1000)
                 )
             
