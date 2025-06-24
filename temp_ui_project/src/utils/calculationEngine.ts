@@ -3,17 +3,101 @@
  * Handles various financial metrics and formula evaluation for visual model builder
  */
 
-export interface ComponentProperties {
-  [key: string]: any;
+/**
+ * Properties for a revenue stream component.
+ */
+export interface RevenueStreamProperties {
+  unitPrice: number;
+  quantity: number;
+  growthRate?: number;
+  periods?: number;
 }
 
-export interface ModelComponent {
+/**
+ * Properties for a cost center component.
+ */
+export interface CostCenterProperties {
+  monthlyCost: number;
+  periods?: number;
+  escalationRate?: number;
+}
+
+/**
+ * Properties for an ROI calculator component.
+ */
+export interface ROICalculatorProperties {
+  investment: number;
+  annualBenefit: number;
+  periods?: number;
+}
+
+/**
+ * Properties for an NPV calculator component.
+ */
+export interface NPVCalculatorProperties {
+  cashFlows: number[];
+  discountRate: number;
+}
+
+/**
+ * Properties for a payback calculator component.
+ */
+export interface PaybackCalculatorProperties {
+  investment: number;
+  annualBenefit: number;
+}
+
+/**
+ * Properties for a sensitivity analysis component.
+ */
+export interface SensitivityAnalysisProperties {
+  baseValue: number;
+  rangeMin: number;
+  rangeMax: number;
+  variableName: string;
+}
+
+/**
+ * Properties for a variable component.
+ */
+export interface VariableProperties {
+  value: number;
+  label?: string;
+}
+
+/**
+ * Properties for a formula component.
+ */
+export interface FormulaProperties {
+  expression: string;
+  variables: Record<string, number>;
+}
+
+/**
+ * Discriminated union of all component properties.
+ */
+export type ComponentProperties =
+  | RevenueStreamProperties
+  | CostCenterProperties
+  | ROICalculatorProperties
+  | NPVCalculatorProperties
+  | PaybackCalculatorProperties
+  | SensitivityAnalysisProperties
+  | VariableProperties
+  | FormulaProperties;
+
+
+/**
+ * Generic model component interface, parameterized by properties type.
+ */
+export interface ModelComponent<T extends ComponentProperties = ComponentProperties> {
   id: string;
   type: string;
-  properties: ComponentProperties;
+  properties: T;
   position?: { x: number; y: number };
   connections?: string[];
 }
+
 
 export interface CalculationResult {
   value: number;
