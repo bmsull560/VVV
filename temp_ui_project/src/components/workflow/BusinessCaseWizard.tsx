@@ -15,8 +15,8 @@ import {
 import { 
   DiscoveryData,
   ModelValidationResult,
-  ModelBuilderData 
 } from '../../services/modelBuilderApi';
+import { ModelData } from '../../api/types';
 import { CalculationResult } from '../../utils/calculationEngine';
 import { adaptDiscoveryResponseToData } from '../../utils/typeAdapters';
 import styles from './BusinessCaseWizard.module.css';
@@ -82,7 +82,7 @@ const BusinessCaseWizard: FC = () => {
   };
 
   const handleStep2Complete = (data: DiscoveryData & {
-    modelBuilderData: ModelBuilderData;
+    modelData: ModelData;
     quantificationResults?: unknown; // Matches Step2_ModelBuilder's expected type
     localCalculations?: Record<string, CalculationResult>;
     validationResults?: ModelValidationResult;
@@ -141,6 +141,7 @@ const BusinessCaseWizard: FC = () => {
               onNext={handleStep2Complete}
               discoveryData={discoveryData}
               onBack={() => handleStepNavigation(1)}
+              templateContext={wizardData.templateContext}
             />
           );
         } catch (error) {

@@ -26,6 +26,8 @@ import { modelBuilderAPI, ModelValidationResult, AIAssistantResponse, Connection
 import { ModelData } from '../api/types';
 import styles from './Step2_ModelBuilder.module.css';
 
+import type { TemplateContext } from './workflow/BusinessCaseWizard';
+
 interface Step2ModelBuilderProps {
   discoveryData: DiscoveryData;
   onNext: (data: DiscoveryData & { modelData: ModelData; quantificationResults?: unknown; localCalculations?: Record<string, CalculationResult>; validationResults?: ModelValidationResult; }) => void;
@@ -34,6 +36,7 @@ interface Step2ModelBuilderProps {
   localCalculations?: Record<string, CalculationResult>;
   validationResults?: ModelValidationResult;
   onBack: () => void;
+  templateContext?: TemplateContext;
 }
 
 interface ModelBuilderState {
