@@ -65,7 +65,6 @@ class EpisodicStorageBackend(StorageBackend):
 
     def clear_cache(self):
         """Clears all internal caches."""
-        self.retrieve.cache_clear()
         EpisodicStorageBackend._search_cache.clear()
         EpisodicStorageBackend._search_cache_hits = 0
         EpisodicStorageBackend._search_cache_misses = 0
@@ -95,7 +94,6 @@ class EpisodicStorageBackend(StorageBackend):
             raise TypeError("EpisodicStorageBackend can only store WorkflowMemoryEntity objects")
 
         # Invalidate cache for this entity and any search results
-        self.retrieve.cache_clear() # Clear retrieve cache for simplicity, or target specific ID
         EpisodicStorageBackend._search_cache.clear() # Clear search cache on any store operation
         EpisodicStorageBackend._search_cache_hits = 0
         EpisodicStorageBackend._search_cache_misses = 0
@@ -137,7 +135,6 @@ class EpisodicStorageBackend(StorageBackend):
     async def delete(self, entity_id: str) -> bool:
         """Deletes a workflow entity by its ID."""
         # Invalidate cache for this entity and any search results
-        self.retrieve.cache_clear() # Clear retrieve cache for simplicity, or target specific ID
         EpisodicStorageBackend._search_cache.clear() # Clear search cache on any delete operation
         EpisodicStorageBackend._search_cache_hits = 0
         EpisodicStorageBackend._search_cache_misses = 0
