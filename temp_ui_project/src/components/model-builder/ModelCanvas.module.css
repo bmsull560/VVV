@@ -68,6 +68,11 @@
   transition: filter 0.2s;
 }
 
+.hiddenInput {
+  display: none;
+}
+}
+
 .joint-element .label {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   font-size: 12px;

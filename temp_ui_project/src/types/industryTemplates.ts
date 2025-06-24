@@ -369,9 +369,8 @@ export const industryTemplates: Record<IndustryVertical, IndustryTemplate> = {
       'Faculty and staff buy-in',
       'Student-centered design',
       'Measurable learning outcomes'
-    ]
-  )
-};
+    ],
+    [
       'Strong executive sponsorship',
       'Cross-functional collaboration',
       'Clear success metrics and KPIs',

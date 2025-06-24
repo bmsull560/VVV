@@ -6,6 +6,7 @@ export interface ModelConnection {
   id: string;
   source: string;
   target: string;
+  type: 'input' | 'calculation' | 'output';
   sourceHandle?: string;
   targetHandle?: string;
 }
@@ -24,7 +25,13 @@ export interface ModelData {
   metadata?: Record<string, unknown>;
   summary?: CalculationSummary;
   validationResult?: ModelValidationResult;
-  scenarios?: any[];
+  scenarios?: Scenario[];
+}
+
+export interface Scenario {
+  name: string;
+  data: Record<string, unknown>;
+
 }
 
 export interface SaveModelResponse {

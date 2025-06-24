@@ -38,7 +38,7 @@ interface Step2ModelBuilderProps {
 
 interface ModelBuilderState {
   model: ModelData | null;
-  selectedComponent: string | null;
+  selectedComponent: ModelComponent | null;
   calculations: Record<string, CalculationResult>;
 
   isGenerating: boolean;
@@ -200,7 +200,45 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
         ...prev,
         model: newModel,
         hasUnsavedChanges: true,
-        selectedComponent: component.id
+      };
+    });
+  }, []);
+
+  const handleDeleteComponent = useCallback((componentId: string) => {
+    setState(prev => {
+      if (!prev.model) return prev;
+
+      const newComponents = prev.model.components.filter(comp => comp.id !== componentId);
+      const newConnections = prev.model.connections.filter(conn => conn.source !== componentId && conn.target !== componentId);
+
+      return {
+        ...prev,
+        model: {
+          ...prev.model,
+          components: newComponents,
+          connections: newConnections,
+        },
+        selectedComponent: prev.selectedComponent?.id === componentId ? null : prev.selectedComponent,
+        hasUnsavedChanges: true,
+      };
+    });
+  }, []);
+
+  const handleUpdateComponent = useCallback((id: string, props: Record<string, unknown>) => {
+    setState(prev => {
+      if (!prev.model) return prev;
+
+      const updatedComponents = prev.model.components.map(comp =>
+        comp.id === id ? { ...comp, properties: { ...comp.properties, ...props } } : comp
+      );
+
+      return {
+        ...prev,
+        model: {
+          ...prev.model,
+          components: updatedComponents,
+        },
+        hasUnsavedChanges: true,
       };
     });
   }, []);
@@ -297,7 +335,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                   id="import-model"
                   type="file"
                   accept=".json,.csv,.xlsx,.xls,.pdf"
-                  style={{ display: 'none' }}
+                  className={styles.hiddenInput}
                   onChange={e => {
                     if (e.target.files && e.target.files[0]) handleImport(e.target.files[0]);
                   }}
@@ -333,7 +371,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                   <ModelCanvas
                     model={state.model || { components: [], connections: [], name: '', description: '', metadata: { created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: '1.0.0' } }}
                     selectedComponent={state.selectedComponent}
-                    onSelectComponent={(id: string) => setState(prev => ({ ...prev, selectedComponent: id }))}
+                    onSelectComponent={(component: ModelComponent | null) => setState(prev => ({ ...prev, selectedComponent: component }))}
                     onModelChange={(modelData: {components: ModelComponent[]; connections: ConnectionData[]}) => {
                       if (!state.model) return;
                       setState(prev => ({
@@ -347,7 +385,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                       }));
                     }}
                     onAddComponent={handleAddComponent}
-                    calculations={state.calculations}
+                    onDeleteComponent={handleDeleteComponent}
                     readOnly={false}
                     className={styles.canvas}
                   />
@@ -356,21 +394,8 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
                   <PropertiesPanel
                     selectedComponent={state.selectedComponent}
                     model={state.model || { components: [], connections: [], name: '', description: '', metadata: { created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: '1.0.0' } }}
-                    calculations={state.calculations}
                     getFormattedValue={getFormattedValue}
-                    onUpdateComponent={(id: string, props: Record<string, unknown>) => {
-                      if (!state.model) return;
-                      setState(prev => ({
-                        ...prev,
-                        model: {
-                          ...prev.model!,
-                          components: prev.model!.components.map((c: ModelComponent) =>
-                            c.id === id ? { ...c, properties: { ...c.properties, ...props } } : c
-                          )
-                        },
-                        hasUnsavedChanges: true
-                      }));
-                    }}
+                    onUpdateComponent={handleUpdateComponent}
                   />
                 </TabsContent>
                 <TabsContent value="calculations">

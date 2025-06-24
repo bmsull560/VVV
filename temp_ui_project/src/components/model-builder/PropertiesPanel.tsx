@@ -7,13 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../ui/textarea';
 import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
-import { Calculator, TrendingUp, DollarSign, Percent, Hash, Calendar } from 'lucide-react';
+import { Calculator, TrendingUp, DollarSign, Hash, Calendar } from 'lucide-react';
 import { ModelComponent } from '../../utils/calculationEngine';
 
 interface PropertiesPanelProps {
   model: { components: ModelComponent[] } | null;
-  selectedComponent: string | null;
-  calculations: Record<string, any>;
+  selectedComponent: ModelComponent | null;
+
   getFormattedValue: (id: string) => string;
   onUpdateComponent: (id: string, props: Record<string, unknown>) => void;
 }
@@ -21,14 +21,14 @@ interface PropertiesPanelProps {
 const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   model,
   selectedComponent,
-  calculations,
-  getFormattedValue
+  getFormattedValue,
+  onUpdateComponent
 }) => {
-  const [localProperties, setLocalProperties] = useState<Record<string, any>>({});
+  const [localProperties, setLocalProperties] = useState<Record<string, unknown>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
   const component = selectedComponent 
-    ? model?.components.find(c => c.id === selectedComponent)
+    ? model?.components.find(c => c.id === selectedComponent.id)
     : null;
 
   // Update local properties when component changes
@@ -43,7 +43,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   }, [component]);
 
   // Update property value
-  const updateProperty = (key: string, value: any) => {
+  const updateProperty = (key: string, value: unknown) => {
     const newProperties = { ...localProperties, [key]: value };
     setLocalProperties(newProperties);
     setHasChanges(true);
@@ -53,13 +53,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   const saveChanges = () => {
     if (!component || !model) return;
 
-    const updatedComponents = model.components.map(c => 
-      c.id === component.id 
-        ? { ...c, properties: { ...localProperties } }
-        : c
-    );
-
-    setModel({ components: updatedComponents });
+    onUpdateComponent(component.id, localProperties);
     setHasChanges(false);
   };
 
@@ -72,8 +66,30 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   };
 
   // Get component type configuration
+// Define ComponentConfig interface
+interface ComponentConfig {
+  icon: React.ElementType;
+  title: string;
+  color: string;
+  fields: FieldConfig[];
+}
+
+// Define FieldConfig interface
+interface FieldConfig {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'textarea' | 'select' | 'boolean';
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+  default?: unknown;
+  condition?: string;
+}
+
   const getComponentConfig = (type: string) => {
-    const configs: Record<string, any> = {
+    const configs: Record<string, ComponentConfig> = {
       'revenue-stream': {
         icon: TrendingUp,
         title: 'Revenue Stream',
@@ -174,89 +190,106 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   };
 
   // Render field based on type
-  const renderField = (field: any) => {
-    const value = localProperties[field.key] ?? field.default ?? '';
-    
-    // Check condition if present
-    if (field.condition && !localProperties[field.condition]) {
-      return null;
-    }
+// Render field based on type
+const renderField = (field: FieldConfig) => {
+  let value: unknown = localProperties[field.key];
 
-    switch (field.type) {
-      case 'text':
-        return (
-          <Input
-            value={value}
-            onChange={(e) => updateProperty(field.key, e.target.value)}
-            placeholder={field.placeholder}
-            className="mt-1"
-          />
-        );
-      
-      case 'number':
-        return (
-          <Input
-            type="number"
-            value={value}
-            onChange={(e) => updateProperty(field.key, parseFloat(e.target.value) || 0)}
-            min={field.min}
-            max={field.max}
-            step={field.step || 1}
-            className="mt-1"
-          />
-        );
-      
-      case 'textarea':
-        return (
-          <Textarea
-            value={value}
-            onChange={(e) => updateProperty(field.key, e.target.value)}
-            placeholder={field.placeholder}
-            rows={3}
-            className="mt-1"
-          />
-        );
-      
-      case 'select':
-        return (
-          <Select
-            value={value}
-            onValueChange={(newValue) => updateProperty(field.key, newValue)}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Select option" />
-            </SelectTrigger>
-            <SelectContent>
-              {field.options?.map((option: string) => (
-                <SelectItem key={option} value={option}>{option}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      
-      case 'boolean':
-        return (
-          <div className="flex items-center space-x-2 mt-1">
-            <Switch
-              checked={value}
-              onCheckedChange={(checked) => updateProperty(field.key, checked)}
-            />
-            <span className="text-sm text-gray-600">
-              {value ? 'Enabled' : 'Disabled'}
-            </span>
-          </div>
-        );
-      
-      default:
-        return (
-          <Input
-            value={value}
-            onChange={(e) => updateProperty(field.key, e.target.value)}
-            className="mt-1"
-          />
-        );
+  // Initialize value based on type if it's undefined or null
+  if (value === undefined || value === null) {
+    if (field.type === 'number') {
+      value = field.default ?? 0;
+    } else if (field.type === 'boolean') {
+      value = field.default ?? false;
+    } else {
+      value = field.default ?? '';
     }
-  };
+  }
+
+  // Check condition if present
+  if (field.condition && !localProperties[field.condition]) {
+    return null;
+  }
+
+  switch (field.type) {
+    case 'text':
+      return (
+        <Input
+          value={value as string}
+          onChange={(e) => updateProperty(field.key, e.target.value)}
+          placeholder={field.placeholder}
+          className="mt-1"
+        />
+      );
+
+    case 'number':
+      return (
+        <Input
+          type="number"
+          value={value as number}
+          onChange={(e) => updateProperty(field.key, parseFloat(e.target.value) || 0)}
+          min={field.min}
+          max={field.max}
+          step={field.step || 1}
+          className="mt-1"
+        />
+      );
+
+    case 'textarea':
+      return (
+        <Textarea
+          value={value as string}
+          onChange={(e) => updateProperty(field.key, e.target.value)}
+          placeholder={field.placeholder}
+          rows={3}
+          className="mt-1"
+        />
+      );
+
+    case 'select':
+      return (
+        <Select
+          id={field.key}
+          label={field.label || field.key}
+          options={field.options?.map(option => ({ value: option, label: option })) || []}
+          value={value as string}
+          onChange={(e) => updateProperty(field.key, e.target.value)}
+        >
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="Select option" />
+          </SelectTrigger>
+          <SelectContent>
+            {field.options?.map((option) => (
+              <SelectItem key={option} value={option}>{option}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+
+    case 'boolean':
+      return (
+        <div className="flex items-center space-x-2 mt-1">
+          <Switch
+            id={field.key} // Add id prop
+            label={field.label} // Add label prop
+            checked={value as boolean}
+            onCheckedChange={(checked) => updateProperty(field.key, checked)}
+          />
+          <span className="text-sm text-gray-600">
+            {value ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
+      );
+
+    default:
+      return (
+        <Input
+          value={value as string}
+          onChange={(e) => updateProperty(field.key, e.target.value)}
+          className="mt-1"
+        />
+      );
+  }
+};
 
   if (!component) {
     return (
@@ -296,7 +329,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
       <CardContent className="flex-1 overflow-y-auto">
         <div className="space-y-4">
-          {config.fields.map((field: any) => (
+          {config.fields.map((field: FieldConfig) => (
             <div key={field.key}>
               <Label htmlFor={field.key} className="text-sm font-medium">
                 {field.label}

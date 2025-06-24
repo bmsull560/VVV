@@ -72,9 +72,34 @@ declare module '@joint/core' {
       drawGrid(options: { name: string; args?: unknown }): void;
       scaleContentToFit(options?: { padding?: number }): void;
       zoomToFit(options?: { padding?: number }): void;
+      scale(): { sx: number; sy: number };
       scale(sx: number, sy: number): void;
+      on(eventName: 'element:pointerdblclick', handler: (elementView: dia.ElementView, evt: JQuery.Event, x: number, y: number) => void): void;
+      on(eventName: 'link:pointerup', handler: (linkView: dia.LinkView, evt: JQuery.Event, x: number, y: number) => void): void;
+      on(eventName: 'link:pointerdblclick', handler: (linkView: dia.LinkView, evt: JQuery.Event, x: number, y: number) => void): void;
       on(eventName: string, handler: (...args: unknown[]) => void): void;
       off(eventName: string): void;
     }
   }
+
+  // Augment the @joint/core module to add dia and shapes as properties
+  export const dia: {
+    Graph: new (...args: unknown[]) => dia.Graph;
+    Paper: new (...args: unknown[]) => dia.Paper;
+    Cell: new (...args: unknown[]) => dia.Cell;
+    Element: new (...args: unknown[]) => dia.Element;
+    Link: new (...args: unknown[]) => dia.Link;
+    CellView: new (...args: unknown[]) => dia.CellView;
+    ElementView: new (...args: unknown[]) => dia.ElementView;
+    LinkView: new (...args: unknown[]) => dia.LinkView;
+  };
+
+  export const shapes: {
+    standard: {
+      Rectangle: new (...args: unknown[]) => dia.Element;
+      Ellipse: new (...args: unknown[]) => dia.Element;
+      // Add other standard shapes as needed
+    };
+    // Add other shape namespaces if they exist, e.g., basic, fsa, etc.
+  };
 }

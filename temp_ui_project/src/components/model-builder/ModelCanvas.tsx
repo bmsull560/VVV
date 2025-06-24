@@ -4,8 +4,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { Button } from '../ui/button';
 import { ZoomIn, ZoomOut, Maximize, Grid, Link2 as Link, Trash2 } from 'lucide-react';
 import * as joint from '@joint/core';
-import { dia } from '@joint/core';
-import * as shapes from '@joint/shapes';
 import { ModelComponent } from '../../utils/calculationEngine';
 import { ConnectionData } from '../../services/modelBuilderApi';
 import styles from './ModelCanvas.module.css';
@@ -26,17 +24,18 @@ interface ModelCanvasProps {
   selectedComponent: ModelComponent | null;
 
   readOnly: boolean;
+  className?: string;
 }
 
 const DEFAULT_COMPONENT_PROPERTIES = {
-  'revenue-stream': { amount: 0, growthRate: 0.05 },
-  'cost-center': { amount: 0, growthRate: 0.03 },
-  'roi-calculator': { period: 3, discountRate: 0.1 },
-  'npv-calculator': { discountRate: 0.1 },
-  'payback-calculator': { targetPeriod: 12 },
-  'sensitivity-analysis': { scenarios: 3 },
+  'revenue-stream': { unitPrice: 0, quantity: 0, growthRate: 0.05, periods: 12 },
+  'cost-center': { monthlyCost: 0, periods: 12, escalationRate: 0.03 },
+  'roi-calculator': { investment: 0, annualBenefit: 0, periods: 12 },
+  'npv-calculator': { cashFlows: [0], discountRate: 0.1 },
+  'payback-calculator': { investment: 0, annualBenefit: 0 },
+  'sensitivity-analysis': { baseValue: 0, rangeMin: 0, rangeMax: 0, variableName: '' },
   'variable': { value: 0 },
-  'formula': { expression: '' }
+  'formula': { expression: '', variables: {} }
 };
 
 const COMPONENT_COLORS = {
@@ -61,8 +60,8 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
   readOnly
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const paperRef = useRef<dia.Paper | null>(null);
-  const graphRef = useRef<dia.Graph | null>(null);
+  const paperRef = useRef<joint.dia.Paper | null>(null);
+  const graphRef = useRef<joint.dia.Graph | null>(null);
   const [zoom, setZoom] = useState<number>(100);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
@@ -70,21 +69,21 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    const graph = new joint.dia.Graph({}, { cellNamespace: shapes });
+    const graph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
     const paper = new joint.dia.Paper({
       el: canvasRef.current,
       model: graph,
       width: '100%',
       height: '100%',
       gridSize: 10,
-      drawGrid: { name: 'mesh' },
+      drawGrid: true,
       background: {
-        color: '#F8F8F8',
+        color: '#f8f8f8',
       },
       linkPinning: false,
       snapLinks: true,
       embedding: true,
-      validateConnection: function(cellViewS: dia.CellView, magnetS: SVGElement, cellViewT: dia.CellView, magnetT: SVGElement) {
+      validateConnection: (cellViewS: joint.dia.CellView, magnetS: SVGElement, cellViewT: joint.dia.CellView, magnetT: SVGElement) => {
         if (cellViewS === cellViewT) return false;
 
         if (magnetS && magnetS.getAttribute('port-group') === 'in' && magnetT && magnetT.getAttribute('port-group') === 'in') return false;
@@ -95,7 +94,7 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
 
         return true;
       },
-      defaultLink: new shapes.standard.Link({
+      defaultLink: new joint.dia.Link({
         attrs: {
           line: {
             stroke: '#8f8f8f',
@@ -116,7 +115,7 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
     };
   }, [readOnly]);
 
-  const handleElementClick = useCallback((elementView: dia.ElementView) => {
+  const handleElementClick = useCallback((elementView: joint.dia.ElementView) => {
     const element = elementView.model;
     const componentId = element.get('componentId');
     if (componentId) {
@@ -125,7 +124,7 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
     }
   }, [model.components, onSelectComponent]);
 
-  const handleConnectionCreate = useCallback((linkView: dia.LinkView) => {
+  const handleConnectionCreate = useCallback((linkView: joint.dia.LinkView) => {
     const sourceElement = linkView.model.getSourceElement();
     const targetElement = linkView.model.getTargetElement();
     
@@ -152,7 +151,7 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
 
     onAddComponent(component);
 
-    const element = new shapes.standard.Rectangle({
+    const element = new joint.shapes.standard.Rectangle({
       position: { x: position.x, y: position.y },
       size: { width: 120, height: 60 },
       attrs: {
@@ -236,7 +235,7 @@ const ModelCanvas: React.FC<ModelCanvasProps> = ({
     if (!selectedComponent || !graphRef.current) return;
     
     const elements = graphRef.current.getElements();
-    const elementToRemove = elements.find(el => el.get('componentId') === selectedComponent.id);
+    const elementToRemove = elements.find((el: joint.dia.Element) => el.get('componentId') === selectedComponent.id);
     if (elementToRemove) {
       graphRef.current.removeCells([elementToRemove]);
     }
