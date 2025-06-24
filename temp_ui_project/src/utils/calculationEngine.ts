@@ -163,32 +163,46 @@ export class FinancialCalculationEngine {
 
     try {
       switch (component.type) {
-        case 'revenue-stream':
-          result = this.calculateRevenueStream(component);
+        case 'revenue-stream': {
+          // Type guard for RevenueStreamProperties
+          result = this.calculateRevenueStream(component as ModelComponent<RevenueStreamProperties>);
           break;
-        case 'cost-center':
-          result = this.calculateCostCenter(component);
+        }
+        case 'cost-center': {
+          result = this.calculateCostCenter(component as ModelComponent<CostCenterProperties>);
           break;
-        case 'roi-calculator':
-          result = this.calculateROI(component);
+        }
+        case 'roi-calculator': {
+          result = this.calculateROI(component as ModelComponent<ROICalculatorProperties>);
           break;
-        case 'npv-calculator':
-          result = this.calculateNPV(component);
+        }
+        case 'npv-calculator': {
+          result = this.calculateNPV(component as ModelComponent<NPVCalculatorProperties>);
           break;
-        case 'payback-calculator':
-          result = this.calculatePayback(component);
+        }
+        case 'payback-calculator': {
+          result = this.calculatePayback(component as ModelComponent<PaybackCalculatorProperties>);
           break;
-        case 'sensitivity-analysis':
-          result = this.calculateSensitivity(component);
+        }
+        case 'sensitivity-analysis': {
+          result = this.calculateSensitivity(component as ModelComponent<SensitivityAnalysisProperties>);
           break;
-        case 'variable':
-          result = this.calculateVariable(component);
+        }
+        case 'variable': {
+          result = this.calculateVariable(component as ModelComponent<VariableProperties>);
           break;
-        case 'formula':
-          result = this.calculateFormula(component);
+        }
+        case 'formula': {
+          result = this.calculateFormula(component as ModelComponent<FormulaProperties>);
           break;
-        default:
-          result = { value: component.properties.value || 0, formatted: this.formatCurrency(component.properties.value || 0), confidence: 0.8, dependencies: [] };
+        }
+        default: {
+          // Fallback: if properties has 'value', use it, else 0
+          const props = component.properties as Partial<VariableProperties>;
+          const value = typeof props.value === 'number' ? props.value : 0;
+          result = { value, formatted: this.formatCurrency(value), confidence: 0.8, dependencies: [] };
+          break;
+        }
       }
     } catch (error) {
       console.error(`Calculation error for component ${componentId}:`, error);
@@ -203,17 +217,18 @@ export class FinancialCalculationEngine {
   /**
    * Calculate revenue stream
    */
-  private calculateRevenueStream(component: ModelComponent): CalculationResult {
+  /**
+   * Calculate revenue stream
+   * @param component ModelComponent with RevenueStreamProperties
+   */
+  private calculateRevenueStream(component: ModelComponent<RevenueStreamProperties>): CalculationResult {
     const { unitPrice = 0, quantity = 0, growthRate = 0, periods = 12 } = component.properties;
-    
     let totalRevenue = 0;
     let currentRevenue = unitPrice * quantity;
-    
     for (let i = 0; i < periods; i++) {
       totalRevenue += currentRevenue;
       currentRevenue *= (1 + growthRate / 100);
     }
-
     return {
       value: totalRevenue,
       formatted: this.formatCurrency(totalRevenue),
@@ -225,31 +240,36 @@ export class FinancialCalculationEngine {
 
   /**
    * Calculate cost center
+   * @param component ModelComponent with CostCenterProperties
    */
-  private calculateCostCenter(component: ModelComponent): CalculationResult {
+  private calculateCostCenter(component: ModelComponent<CostCenterProperties>): CalculationResult {
     const { monthlyCost = 0, periods = 12, escalationRate = 0 } = component.properties;
-    
     let totalCost = 0;
     let currentCost = monthlyCost;
-    
     for (let i = 0; i < periods; i++) {
       totalCost += currentCost;
       currentCost *= (1 + escalationRate / 100);
     }
-
     return {
       value: totalCost,
       formatted: this.formatCurrency(totalCost),
       confidence: 0.9,
-      dependencies: [],
-      type: 'currency'
-    };
-  }
 
-  /**
-   * Calculate ROI
-   */
-  private calculateROI(component: ModelComponent): CalculationResult {
+  return {
+    value: sensitivity,
+    formatted: this.formatPercentage(sensitivity),
+    confidence: 0.7,
+    dependencies: [],
+    type: 'percentage'
+  };
+}
+
+/**
+ * Calculate variable
+ */
+private calculateVariable(component: ModelComponent<VariableProperties>): CalculationResult {
+  const { value = 0, formula } = component.properties;
+  if (formula) {
     const { investment = 0, annualBenefit = 0, periods = 3 } = component.properties;
     
     const totalBenefit = annualBenefit * periods;
