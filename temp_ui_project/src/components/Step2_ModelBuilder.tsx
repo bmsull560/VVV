@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { Card, CardHeader, CardContent } from '../components/ui/card';
@@ -52,12 +52,119 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   onNext,
   onBack
 }) => {
-  const [state, setState] = useState<ModelBuilderState>({
-    model: null,
-    selectedComponent: null,
-    calculations: {},
-    isCalculating: false,
-    isGenerating: false,
+  // All hooks and logic must be declared here, before the return statement}
+
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <div className={styles.container}>
+        <Card className={styles.headerCard}>
+          <CardHeader>
+            <div className={styles.headerTitle}>
+              <Brain className={styles.icon} />
+              <span>Step 2: Model Builder</span>
+              {state.collaborationMode && <Badge color="blue">Collaboration</Badge>}
+            </div>
+            <div className={styles.headerActions}>
+              <Button variant="secondary" onClick={onBack} aria-label="Back to Discovery">
+                <Play className={styles.icon} /> Back
+              </Button>
+              <Button variant="primary" onClick={handleCalculate} disabled={state.isCalculating} aria-label="Calculate Model">
+                <Zap className={styles.icon} />
+                {state.isCalculating ? 'Calculating...' : 'Calculate'}
+              </Button>
+              <Button variant="outline" onClick={handleExport} disabled={state.isExporting} aria-label="Export Model">
+                <Download className={styles.icon} /> Export
+              </Button>
+              <Button variant="outline" asChild>
+                <label htmlFor="import-model" aria-label="Import Model">
+                  <Upload className={styles.icon} /> Import
+                  <input
+                    id="import-model"
+                    type="file"
+                    accept=".json,.csv,.xlsx,.xls,.pdf"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      if (e.target.files && e.target.files[0]) handleImport(e.target.files[0]);
+                    }}
+                  />
+                </label>
+              </Button>
+              <Button variant="outline" onClick={handleGenerateScenarios} disabled={state.isGenerating} aria-label="Generate Scenarios">
+                <Sparkles className={styles.icon} />
+                {state.isGenerating ? 'Generating...' : 'Scenarios'}
+              </Button>
+              <Button variant="outline" onClick={handleGetAIAssistance} aria-label="AI Assistance">
+                <Cpu className={styles.icon} /> AI Assistant
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {alert && (
+          <Alert className={styles.alert} variant={alert.type}>
+            <AlertDescription>{alert.message}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className={styles.mainContent}>
+          <Tabs defaultValue="canvas" className={styles.tabs}>
+            <TabsList>
+              <TabsTrigger value="canvas">Model Canvas</TabsTrigger>
+              <TabsTrigger value="properties">Properties</TabsTrigger>
+              <TabsTrigger value="calculations">Calculations</TabsTrigger>
+              <TabsTrigger value="library">Library</TabsTrigger>
+            </TabsList>
+            <TabsContent value="canvas">
+              <ModelCanvas
+                model={state.model ? state.model.model : { components: [], connections: [] }}
+                selectedComponent={state.selectedComponent}
+                onSelectComponent={id => setState(prev => ({ ...prev, selectedComponent: id }))}
+                onModelChange={modelData => setState(prev => ({ ...prev, model: { ...prev.model!, model: modelData } as ModelBuilderData, hasUnsavedChanges: true }))}
+                onAddComponent={handleAddComponent}
+                calculations={state.calculations}
+                readOnly={false}
+                className={styles.canvas}
+              />
+            </TabsContent>
+            <TabsContent value="properties">
+              <PropertiesPanel
+                componentId={state.selectedComponent}
+                model={state.model ? state.model.model : { components: [], connections: [] }}
+                onUpdateComponent={(id, props) => {
+                  if (!state.model) return;
+                  setState(prev => ({
+                    ...prev,
+                    model: {
+                      ...prev.model!,
+                      model: {
+                        ...prev.model!.model,
+                        components: prev.model!.model.components.map(c =>
+                          c.id === id ? { ...c, properties: { ...c.properties, ...props } } : c
+                        )
+                      }
+                    },
+                    hasUnsavedChanges: true
+                  }));
+                }}
+                className={styles.propertiesPanel}
+              />
+            </TabsContent>
+            <TabsContent value="calculations">
+              <CalculationPanel
+                calculations={state.calculations}
+                getFormattedValue={getFormattedValue}
+                isCalculating={state.isCalculating}
+                className={styles.calculationPanel}
+              />
+            </TabsContent>
+            <TabsContent value="library">
+              <ComponentLibrary
+                onAddComponent={handleAddComponent}
+                className={styles.library}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
     hasUnsavedChanges: false,
     showAIAssistant: false,
     validationResult: null,
@@ -74,10 +181,8 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
 
   const performCalculations = useCallback((components: ModelComponent[]): Record<string, CalculationResult> => {
     const results: Record<string, CalculationResult> = {};
-    
     components.forEach(component => {
       calculationEngine.registerComponent(component);
-      
       try {
         const result = calculationEngine.calculateComponent(component.id);
         if (result) {
@@ -93,7 +198,6 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
         };
       }
     });
-    
     return results;
   }, []);
 
@@ -105,7 +209,6 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
 
   const handleAutoSave = useCallback(async () => {
     if (!state.hasUnsavedChanges || !state.model) return;
-
     try {
       await modelBuilderAPI.saveModel({
         model: state.model ? state.model.model : { components: [], connections: [] },
@@ -124,7 +227,6 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           version: '1.0.0'
         }
       });
-      
       setState(prev => ({ ...prev, hasUnsavedChanges: false }));
     } catch (error) {
       console.error('Auto-save failed:', error);
@@ -132,15 +234,13 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   }, [state.hasUnsavedChanges, state.model, state.calculations]);
 
   useEffect(() => {
-    const interval = setInterval(handleAutoSave, 30000); 
+    const interval = setInterval(handleAutoSave, 30000);
     return () => clearInterval(interval);
   }, [handleAutoSave]);
 
   const handleCalculate = useCallback(async () => {
     if (!state.model) return;
-
     setState(prev => ({ ...prev, isCalculating: true }));
-    
     try {
       const modelData: ModelBuilderData = {
         model: state.model ? state.model.model : { components: [], connections: [] },
@@ -159,28 +259,21 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           version: '1.0.0'
         }
       };
-
-      // Get investment amount from discovery data or use default
       const investmentAmount = discoveryData.investment_amount || 100000;
-      
       await modelBuilderAPI.calculateROIWithBackend(modelData, investmentAmount);
-      
       const localCalculations = performCalculations(state.model.model.components);
-      
       setState(prev => ({
         ...prev,
         calculations: localCalculations,
         isCalculating: false,
         hasUnsavedChanges: true
       }));
-
       setAlert({
         type: 'success',
         message: 'Model calculations completed successfully'
       });
     } catch (error) {
       console.error('Calculation error:', error);
-      
       try {
         const localCalculations = performCalculations(state.model.model.components);
         setState(prev => ({
@@ -189,7 +282,6 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           isCalculating: false,
           hasUnsavedChanges: true
         }));
-        
         setAlert({
           type: 'warning',
           message: 'Using local calculations (backend unavailable)'
@@ -206,11 +298,8 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
 
   const handleGenerateScenarios = useCallback(async () => {
     if (!state.model) return;
-
     setState(prev => ({ ...prev, isGenerating: true }));
-
     try {
-      // Get AI suggestions for scenario generation
       const modelData: ModelBuilderData = {
         model: state.model ? state.model.model : { components: [], connections: [] },
         calculations: state.calculations,
@@ -228,7 +317,6 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           version: '1.0.0'
         }
       };
-
       const aiResponse = await modelBuilderAPI.getAIAssistance({
         model_data: modelData,
         user_query: 'Generate different scenarios for this model',
@@ -237,14 +325,12 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           current_focus: 'scenario_generation'
         }
       });
-
       setState(prev => ({
         ...prev,
         aiSuggestions: aiResponse,
         isGenerating: false,
         hasUnsavedChanges: true
       }));
-
       setAlert({
         type: 'success',
         message: 'Scenarios generated successfully'
@@ -266,9 +352,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
       });
       return;
     }
-
     setState(prev => ({ ...prev, isExporting: true }));
-
     try {
       const modelData: ModelBuilderData = {
         model: state.model ? state.model.model : { components: [], connections: [] },
@@ -287,9 +371,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           version: '1.0.0'
         }
       };
-
       await modelBuilderAPI.exportModel(modelData, state.exportFormat);
-
       setAlert({
         type: 'success',
         message: `Model exported successfully as ${state.exportFormat.toUpperCase()}`
@@ -308,13 +390,12 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   const handleImport = useCallback(async (file: File) => {
     try {
       const importedData = await modelBuilderAPI.importModel(file);
-      setState(prev => ({
+      setState((prev: ModelBuilderState) => ({
         ...prev,
         model: importedData.model,
         calculations: importedData.calculations,
         hasUnsavedChanges: true
       }));
-
       setAlert({
         type: 'success',
         message: 'Model imported successfully'
@@ -330,9 +411,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
 
   const handleGetAIAssistance = useCallback(async () => {
     if (!state.model) return;
-
     setState(prev => ({ ...prev, showAIAssistant: true }));
-
     try {
       const modelData: ModelBuilderData = {
         model: state.model ? state.model.model : { components: [], connections: [] },
@@ -351,7 +430,6 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           confidence: 0.8
         }
       };
-
       const aiResponse = await modelBuilderAPI.getAIAssistance({
         model_data: modelData,
         user_query: 'Please analyze this model and provide optimization suggestions',
@@ -360,18 +438,15 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           current_focus: 'optimization'
         }
       });
-
       setState(prev => ({
         ...prev,
         aiSuggestions: aiResponse,
         showAIAssistant: false
       }));
-
       setAlert({
         type: 'success',
         message: 'AI assistance completed successfully'
       });
-
     } catch (error) {
       console.error('AI assistance error:', error);
       setState(prev => ({ ...prev, showAIAssistant: false }));
@@ -383,7 +458,7 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   }, [state.model, state.calculations, discoveryData]);
 
   const handleAddComponent = useCallback((type: string) => {
-    setState(prev => {
+    setState((prev: ModelBuilderState) => {
       if (prev.model) {
         const newComponent: ModelComponent = {
           id: `component-${Date.now()}`,
@@ -405,13 +480,6 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
           },
           hasUnsavedChanges: true
         };
-    });
-    return;
-  }
-
-  setState(prev => ({ ...prev, isExporting: true }));
-
-  try {
     const modelData: ModelBuilderData = {
       model: state.model ? state.model.model : { components: [], connections: [] },
       calculations: state.calculations,
@@ -447,10 +515,11 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   }
 }, [state.model, state.calculations, state.exportFormat]);
 
-const handleImport = useCallback(async (file: File) => {
+// handleImport is declared only once below. Remove all duplicate declarations.
+
   try {
     const importedData = await modelBuilderAPI.importModel(file);
-    setState(prev => ({
+    setState((prev: ModelBuilderState) => ({
       ...prev,
       model: importedData.model,
       calculations: importedData.calculations,
@@ -470,7 +539,8 @@ const handleImport = useCallback(async (file: File) => {
   }
 }, []);
 
-const handleGetAIAssistance = useCallback(async () => {
+// handleGetAIAssistance is declared only once below. Remove all duplicate declarations.
+
   if (!state.model) return;
 
   setState(prev => ({ ...prev, showAIAssistant: true }));
@@ -515,7 +585,8 @@ const handleGetAIAssistance = useCallback(async () => {
 
 // ...
 
-const handleAddComponent = useCallback((type: string) => {
+// handleAddComponent is declared only once below. Remove all duplicate declarations.
+
   setState(prev => {
     if (prev.model) {
       const newComponent: ModelComponent = {
@@ -563,10 +634,8 @@ const handleContinue = useCallback(() => {
   });
 }, [state.model, state.calculations, state.validationResult, discoveryData, onNext]);
 
-// ...
       </div>
     </DndProvider>
   );
 };
-
 export default Step2_ModelBuilder;
