@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { Card, CardHeader, CardContent } from '../components/ui/card';
+import { Card, CardHeader } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -12,10 +12,7 @@ import {
   Upload,
   Download,
   Sparkles,
-  Settings,
   Zap,
-  TrendingUp,
-  FileInput,
   Cpu
 } from 'lucide-react';
 import PropertiesPanel from './model-builder/PropertiesPanel';
@@ -29,6 +26,10 @@ import styles from './Step2_ModelBuilder.module.css';
 interface Step2ModelBuilderProps {
   discoveryData: DiscoveryData;
   onNext: (data: DiscoveryData & { modelBuilderData: ModelBuilderData; quantificationResults?: unknown; localCalculations?: Record<string, CalculationResult>; validationResults?: ModelValidationResult; }) => void;
+  modelBuilderData?: ModelBuilderData;
+  quantificationResults?: unknown;
+  localCalculations?: Record<string, CalculationResult>;
+  validationResults?: ModelValidationResult;
   onBack: () => void;
 }
 
@@ -50,124 +51,22 @@ interface ModelBuilderState {
 const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
   discoveryData,
   onNext,
-  onBack
+  onBack,
+  modelBuilderData: initialModelBuilderData,
+  quantificationResults: initialQuantificationResults,
+  localCalculations: initialLocalCalculations,
+  validationResults: initialValidationResults
 }) => {
-  // All hooks and logic must be declared here, before the return statement}
-
-  return (
-    <DndProvider backend={HTML5Backend}>
-      <div className={styles.container}>
-        <Card className={styles.headerCard}>
-          <CardHeader>
-            <div className={styles.headerTitle}>
-              <Brain className={styles.icon} />
-              <span>Step 2: Model Builder</span>
-              {state.collaborationMode && <Badge color="blue">Collaboration</Badge>}
-            </div>
-            <div className={styles.headerActions}>
-              <Button variant="secondary" onClick={onBack} aria-label="Back to Discovery">
-                <Play className={styles.icon} /> Back
-              </Button>
-              <Button variant="primary" onClick={handleCalculate} disabled={state.isCalculating} aria-label="Calculate Model">
-                <Zap className={styles.icon} />
-                {state.isCalculating ? 'Calculating...' : 'Calculate'}
-              </Button>
-              <Button variant="outline" onClick={handleExport} disabled={state.isExporting} aria-label="Export Model">
-                <Download className={styles.icon} /> Export
-              </Button>
-              <Button variant="outline" asChild>
-                <label htmlFor="import-model" aria-label="Import Model">
-                  <Upload className={styles.icon} /> Import
-                  <input
-                    id="import-model"
-                    type="file"
-                    accept=".json,.csv,.xlsx,.xls,.pdf"
-                    style={{ display: 'none' }}
-                    onChange={e => {
-                      if (e.target.files && e.target.files[0]) handleImport(e.target.files[0]);
-                    }}
-                  />
-                </label>
-              </Button>
-              <Button variant="outline" onClick={handleGenerateScenarios} disabled={state.isGenerating} aria-label="Generate Scenarios">
-                <Sparkles className={styles.icon} />
-                {state.isGenerating ? 'Generating...' : 'Scenarios'}
-              </Button>
-              <Button variant="outline" onClick={handleGetAIAssistance} aria-label="AI Assistance">
-                <Cpu className={styles.icon} /> AI Assistant
-              </Button>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {alert && (
-          <Alert className={styles.alert} variant={alert.type}>
-            <AlertDescription>{alert.message}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className={styles.mainContent}>
-          <Tabs defaultValue="canvas" className={styles.tabs}>
-            <TabsList>
-              <TabsTrigger value="canvas">Model Canvas</TabsTrigger>
-              <TabsTrigger value="properties">Properties</TabsTrigger>
-              <TabsTrigger value="calculations">Calculations</TabsTrigger>
-              <TabsTrigger value="library">Library</TabsTrigger>
-            </TabsList>
-            <TabsContent value="canvas">
-              <ModelCanvas
-                model={state.model ? state.model.model : { components: [], connections: [] }}
-                selectedComponent={state.selectedComponent}
-                onSelectComponent={id => setState(prev => ({ ...prev, selectedComponent: id }))}
-                onModelChange={modelData => setState(prev => ({ ...prev, model: { ...prev.model!, model: modelData } as ModelBuilderData, hasUnsavedChanges: true }))}
-                onAddComponent={handleAddComponent}
-                calculations={state.calculations}
-                readOnly={false}
-                className={styles.canvas}
-              />
-            </TabsContent>
-            <TabsContent value="properties">
-              <PropertiesPanel
-                componentId={state.selectedComponent}
-                model={state.model ? state.model.model : { components: [], connections: [] }}
-                onUpdateComponent={(id, props) => {
-                  if (!state.model) return;
-                  setState(prev => ({
-                    ...prev,
-                    model: {
-                      ...prev.model!,
-                      model: {
-                        ...prev.model!.model,
-                        components: prev.model!.model.components.map(c =>
-                          c.id === id ? { ...c, properties: { ...c.properties, ...props } } : c
-                        )
-                      }
-                    },
-                    hasUnsavedChanges: true
-                  }));
-                }}
-                className={styles.propertiesPanel}
-              />
-            </TabsContent>
-            <TabsContent value="calculations">
-              <CalculationPanel
-                calculations={state.calculations}
-                getFormattedValue={getFormattedValue}
-                isCalculating={state.isCalculating}
-                className={styles.calculationPanel}
-              />
-            </TabsContent>
-            <TabsContent value="library">
-              <ComponentLibrary
-                onAddComponent={handleAddComponent}
-                className={styles.library}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+  // Initialize state with provided props if available
+  const [state, setState] = useState<ModelBuilderState>({
+    model: initialModelBuilderData || null,
+    selectedComponent: null,
+    calculations: initialLocalCalculations || {},
+    isCalculating: false,
+    isGenerating: false,
     hasUnsavedChanges: false,
     showAIAssistant: false,
-    validationResult: null,
+    validationResult: initialValidationResults || null,
     exportFormat: 'json',
     isExporting: false,
     aiSuggestions: null,
@@ -342,6 +241,273 @@ const Step2_ModelBuilder: React.FC<Step2ModelBuilderProps> = ({
         message: `Scenario generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       });
     }
+  }, [state.model, state.calculations, discoveryData]);
+
+  const handleExport = useCallback(async () => {
+    if (!state.model) {
+      setAlert({
+        type: 'error',
+        message: 'No model to export'
+      });
+      return;
+    }
+    setState(prev => ({ ...prev, isExporting: true }));
+    try {
+      const modelData: ModelBuilderData = {
+        model: state.model ? state.model.model : { components: [], connections: [] },
+        calculations: state.calculations,
+        summary: {
+          totalRevenue: 0,
+          totalCosts: 0,
+          netValue: 0,
+          netBenefit: 0,
+          roi: 0,
+          confidence: 0
+        },
+        metadata: {
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          version: '1.0.0'
+        }
+      };
+      await modelBuilderAPI.exportModel(modelData, state.exportFormat);
+      setAlert({
+        type: 'success',
+        message: `Model exported successfully as ${state.exportFormat.toUpperCase()}`
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      setAlert({
+        type: 'error',
+        message: `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    } finally {
+      setState(prev => ({ ...prev, isExporting: false }));
+    }
+  }, [state.model, state.calculations, state.exportFormat]);
+
+  const handleImport = useCallback(async (file: File) => {
+    try {
+      const importedData = await modelBuilderAPI.importModel(file);
+      setState((prev: ModelBuilderState) => ({
+        ...prev,
+        model: importedData.model,
+        calculations: importedData.calculations,
+        hasUnsavedChanges: true
+      }));
+      setAlert({
+        type: 'success',
+        message: 'Model imported successfully'
+      });
+    } catch (error) {
+      console.error('Import failed:', error);
+      setAlert({
+        type: 'error',
+        message: `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
+  }, []);
+
+  const handleGetAIAssistance = useCallback(async () => {
+    if (!state.model) return;
+    setState(prev => ({ ...prev, showAIAssistant: true }));
+    try {
+      const modelData: ModelBuilderData = {
+        model: state.model ? state.model.model : { components: [], connections: [] },
+        calculations: state.calculations,
+        metadata: state.model ? state.model.metadata : {
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          version: '1.0.0'
+        },
+        summary: state.model ? state.model.summary : {
+          totalRevenue: 0,
+          totalCosts: 0,
+          netValue: Object.values(state.calculations).reduce((sum, calc) => sum + calc.value, 0),
+          netBenefit: 0,
+          roi: 0,
+          confidence: 0.8
+        }
+      };
+      const aiResponse = await modelBuilderAPI.getAIAssistance({
+        model_data: modelData,
+        user_query: 'Please analyze this model and provide optimization suggestions',
+        context: {
+          discovery_data: discoveryData,
+          current_focus: 'optimization'
+        }
+      });
+      setState(prev => ({
+        ...prev,
+        aiSuggestions: aiResponse,
+        showAIAssistant: false
+      }));
+      setAlert({
+        type: 'success',
+        message: 'AI assistance completed successfully'
+      });
+    } catch (error) {
+      console.error('AI assistance error:', error);
+      setState(prev => ({ ...prev, showAIAssistant: false }));
+      setAlert({
+        type: 'error',
+        message: 'Failed to get AI assistance'
+      });
+    }
+  }, [state.model, state.calculations, discoveryData]);
+
+  const handleAddComponent = useCallback((type: string) => {
+    setState((prev: ModelBuilderState) => {
+      if (prev.model) {
+        const newComponent: ModelComponent = {
+          id: `component-${Date.now()}`,
+          type,
+          properties: {
+            label: `New ${type}`,
+            value: 0
+          },
+          position: { x: 100, y: 100 }
+        };
+        return {
+          ...prev,
+          model: {
+            ...prev.model,
+            model: {
+              ...prev.model.model,
+              components: [...prev.model.model.components, newComponent]
+            }
+          },
+          hasUnsavedChanges: true
+        };
+      }
+      return prev;
+    });
+  }, []);
+
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <div className={styles.container}>
+        <Card className={styles.headerCard}>
+          <CardHeader>
+            <div className={styles.headerTitle}>
+              <Brain className={styles.icon} />
+              <span>Step 2: Model Builder</span>
+              {state.collaborationMode && <Badge variant="outline">Collaboration</Badge>}
+            </div>
+            <div className={styles.headerActions}>
+              <Button variant="secondary" onClick={onBack} aria-label="Back to Discovery">
+                <Play className={styles.icon} /> Back
+              </Button>
+              <Button variant="default" onClick={handleCalculate} disabled={state.isCalculating} aria-label="Calculate Model">
+                <Zap className={styles.icon} />
+                {state.isCalculating ? 'Calculating...' : 'Calculate'}
+              </Button>
+              <Button variant="outline" onClick={handleExport} disabled={state.isExporting} aria-label="Export Model">
+                <Download className={styles.icon} /> Export
+              </Button>
+              <Button variant="outline" onClick={() => document.getElementById('import-model')?.click()}>                
+                <Upload className={styles.icon} /> Import
+              </Button>
+              <label htmlFor="import-model" className={styles.visuallyHidden} aria-label="Import Model">
+                <input
+                  id="import-model"
+                  type="file"
+                  accept=".json,.csv,.xlsx,.xls,.pdf"
+                  style={{ display: 'none' }}
+                  onChange={e => {
+                    if (e.target.files && e.target.files[0]) handleImport(e.target.files[0]);
+                  }}
+                />
+              </label>
+              <Button variant="outline" onClick={handleGenerateScenarios} disabled={state.isGenerating} aria-label="Generate Scenarios">
+                <Sparkles className={styles.icon} />
+                {state.isGenerating ? 'Generating...' : 'Scenarios'}
+              </Button>
+              <Button variant="outline" onClick={handleGetAIAssistance} aria-label="AI Assistance">
+                <Cpu className={styles.icon} /> AI Assistant
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {alert && (
+          <Alert className={styles.alert} variant={alert.type === 'error' ? 'destructive' : 'default'}>
+            <AlertDescription>{alert.message}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className={styles.mainContent}>
+          <Tabs defaultValue="canvas" className={styles.tabs}>
+            <TabsList>
+              <TabsTrigger value="canvas">Model Canvas</TabsTrigger>
+              <TabsTrigger value="properties">Properties</TabsTrigger>
+              <TabsTrigger value="calculations">Calculations</TabsTrigger>
+              <TabsTrigger value="library">Library</TabsTrigger>
+            </TabsList>
+            <TabsContent value="canvas">
+              <ModelCanvas
+                model={state.model ? state.model.model : { components: [], connections: [] }}
+                selectedComponent={state.selectedComponent}
+                onSelectComponent={(id: string) => setState(prev => ({ ...prev, selectedComponent: id }))}
+                onModelChange={(modelData: {components: ModelComponent[]; connections: ConnectionData[]}) => {
+                  if (!state.model) return;
+                  setState(prev => ({
+                    ...prev, 
+                    model: { 
+                      ...prev.model!,
+                      model: modelData 
+                    } as ModelBuilderData, 
+                    hasUnsavedChanges: true 
+                  }));
+                }}
+                onAddComponent={handleAddComponent}
+                calculations={state.calculations}
+                readOnly={false}
+                className={styles.canvas}
+              />
+            </TabsContent>
+            <TabsContent value="properties">
+              <PropertiesPanel
+                selectedComponentId={state.selectedComponent}
+                model={state.model ? state.model.model : { components: [], connections: [] }}
+                onUpdateComponent={(id: string, props: Record<string, any>) => {
+                  if (!state.model) return;
+                  setState(prev => ({
+                    ...prev,
+                    model: {
+                      ...prev.model!,
+                      model: {
+                        ...prev.model!.model,
+                        components: prev.model!.model.components.map(c =>
+                          c.id === id ? { ...c, properties: { ...c.properties, ...props } } : c
+                        )
+                      }
+                    },
+                    hasUnsavedChanges: true
+                  }));
+                }}
+              />
+            </TabsContent>
+            <TabsContent value="calculations">
+              <CalculationPanel
+                calculations={state.calculations}
+                getFormattedValue={getFormattedValue}
+                isCalculating={state.isCalculating}
+              />
+            </TabsContent>
+            <TabsContent value="library">
+              <ComponentLibrary
+                onAddComponent={handleAddComponent}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </DndProvider>
+  );
+};
+
+export default Step2_ModelBuilder;
   }, [state.model, state.calculations, discoveryData]);
 
   const handleExport = useCallback(async () => {
