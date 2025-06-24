@@ -3,6 +3,10 @@ Pytest configuration file for B2BValue tests.
 """
 
 import pytest
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 def pytest_collection_modifyitems(items):
     """
@@ -14,3 +18,4 @@ def pytest_collection_modifyitems(items):
             if item.name.startswith(("TestResult", "TestSuiteResult", "TestExecutionReport", 
                                     "SystemMonitor", "IntegrationTestRunner")):
                 items.remove(item)
+

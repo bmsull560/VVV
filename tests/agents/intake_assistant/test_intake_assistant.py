@@ -1,60 +1,266 @@
-import unittest
-import asyncio
-from unittest.mock import MagicMock, AsyncMock
+import pytest
+from unittest.mock import AsyncMock, MagicMock
 from agents.intake_assistant.main import IntakeAssistantAgent
 from agents.core.agent_base import AgentStatus
+from agents.utils.validation import ValidationResult
+import logging
 
-class TestIntakeAssistantAgent(unittest.TestCase):
+# Configure logging for tests
+logging.basicConfig(level=logging.INFO)
 
-    def setUp(self):
-        """Set up a mock MCPClient and the agent for testing."""
-        self.mock_mcp_client = MagicMock()
-        self.mock_mcp_client.store_knowledge = AsyncMock()
-        self.agent = IntakeAssistantAgent(agent_id="test-intake-agent", mcp_client=self.mock_mcp_client, config={})
+@pytest.fixture
+def mock_mcp_client():
+    """Fixture for a mock MCPClient."""
+    client = MagicMock()
+    client.create_entities = AsyncMock(return_value=None)
+    client.search_nodes = AsyncMock(return_value=[])
+    return client
 
-    def test_successful_intake(self):
-        """Test the successful processing of a valid project intake."""
-        async def run_test():
-            inputs = {
-                'project_name': 'New CRM Integration',
-                'description': 'Integrating our new CRM with the sales pipeline.',
-                'goals': ['Improve lead tracking', 'Automate sales reports']
-            }
-            result = await self.agent.execute(inputs)
+@pytest.fixture
+def intake_agent(mock_mcp_client):
+    """Fixture for an IntakeAssistantAgent instance."""
+    return IntakeAssistantAgent(agent_id="test-intake-agent", mcp_client=mock_mcp_client, config={})
 
-            self.assertEqual(result.status, AgentStatus.COMPLETED)
-            self.assertEqual(result.data['message'], 'Project intake successful')
-            self.assertTrue(result.data['entity_id'].startswith('proj_'))
+@pytest.mark.asyncio
+async def test_successful_intake(intake_agent, mock_mcp_client):
+    """Test the successful processing of a valid project intake."""
+    inputs = {
+        'project_name': 'New CRM Integration',
+        'description': 'Integrating our new CRM with the sales pipeline.',
+        'business_objective': 'Improve customer relationship management efficiency',
+        'industry': 'technology',
+        'department': 'sales',
+        'goals': ['Improve lead tracking', 'Automate sales reports'],
+        'success_criteria': ['Increase lead conversion by 15%', 'Reduce manual reporting by 50%'],
+        'stakeholders': [
+            {'name': 'John Doe', 'role': 'sponsor'},
+            {'name': 'Jane Smith', 'role': 'project_manager'}
+        ],
+        'budget_range': '50k_to_250k',
+        'timeline': 'quarterly',
+        'urgency': 'medium',
+        'expected_participants': 10,
+        'geographic_scope': 'national',
+        'regulatory_requirements': []
+    }
+    
+    # Mock validate_inputs to always return valid for this test
+    intake_agent.validate_inputs = AsyncMock(return_value=ValidationResult(is_valid=True, errors=[]))
 
-            self.mock_mcp_client.store_knowledge.assert_called_once()
-            call_args = self.mock_mcp_client.store_knowledge.call_args[1]
-            self.assertEqual(call_args['title'], 'New CRM Integration')
-            self.assertIn('Integrating our new CRM', call_args['content'])
-            self.assertIn('Improve lead tracking', call_args['content'])
+    result = await intake_agent.execute(inputs)
 
-        asyncio.run(run_test())
+    assert result.status == AgentStatus.SUCCESS
+    assert 'project_data' in result.data
+    assert 'recommendations' in result.data
+    assert 'analysis_summary' in result.data
+    assert result.data['metadata']['mcp_storage_success'] is True
 
-    def test_missing_fields(self):
-        """Test that the agent fails if required fields are missing."""
-        async def run_test():
-            inputs = {'project_name': 'Incomplete Project'}
-            result = await self.agent.execute(inputs)
+    mock_mcp_client.create_entities.assert_called_once()
+    knowledge_entity = mock_mcp_client.create_entities.call_args[0][0][0]
+    assert knowledge_entity.title == "Project Intake: New CRM Integration"
+    assert knowledge_entity.metadata['project_id'].startswith('proj_')
+    assert knowledge_entity.metadata['industry'] == 'technology'
 
-            self.assertEqual(result.status, AgentStatus.FAILED)
-            self.assertIn('Missing required fields', result.data['error'])
-            self.assertIn('description', result.data['error'])
-            self.assertIn('goals', result.data['error'])
-            self.mock_mcp_client.store_knowledge.assert_not_called()
+@pytest.mark.asyncio
+async def test_input_validation_failure(intake_agent, mock_mcp_client):
+    """Test that the agent fails if input validation fails."""
+    inputs = {
+        'project_name': 'Too Short',
+        'description': 'a',
+        'goals': []
+    } # These inputs will fail validation
+    
+    # Do not mock validate_inputs here, let the actual validation run
 
-        asyncio.run(run_test())
+    result = await intake_agent.execute(inputs)
 
-    def test_invalid_input_type(self):
-        """Test that the agent raises a TypeError for non-dictionary inputs."""
-        async def run_test():
-            with self.assertRaises(TypeError):
-                await self.agent.execute("this is not a dict")
-        
-        asyncio.run(run_test())
+    assert result.status == AgentStatus.FAILED
+    assert 'Input validation failed' in result.data['error']
+    assert 'project_name' in result.data['details']
+    assert 'description' in result.data['details']
+    assert 'goals' in result.data['details']
+    mock_mcp_client.create_entities.assert_not_called()
 
-if __name__ == '__main__':
-    unittest.main()
+@pytest.mark.asyncio
+async def test_mcp_storage_failure(intake_agent, mock_mcp_client, caplog):
+    """Test that the agent handles MCP storage failures gracefully."""
+    inputs = {
+        'project_name': 'Project for MCP Failure',
+        'description': 'This project will cause MCP storage to fail.',
+        'business_objective': 'Test MCP error handling',
+        'industry': 'technology',
+        'department': 'it',
+        'goals': ['Ensure robustness'],
+        'success_criteria': ['No data loss'],
+        'stakeholders': [{'name': 'Test User', 'role': 'sponsor'}],
+        'budget_range': 'under_50k',
+        'timeline': 'quarterly',
+        'urgency': 'low',
+        'expected_participants': 2,
+        'geographic_scope': 'local',
+        'regulatory_requirements': []
+    }
+    
+    # Mock validate_inputs to always return valid for this test
+    intake_agent.validate_inputs = AsyncMock(return_value=ValidationResult(is_valid=True, errors=[]))
+
+    mock_mcp_client.create_entities.side_effect = Exception("MCP connection error")
+
+    with caplog.at_level(logging.ERROR):
+        result = await intake_agent.execute(inputs)
+
+    assert result.status == AgentStatus.FAILED
+    assert 'Failed to store project data in memory' in result.data['error']
+    assert 'MCP connection error' in result.data['details']
+    assert 'MCP storage failed' in result.error_details
+    assert "AUDIT: Failed to create KnowledgeEntity" in caplog.text
+    assert "MCP connection error" in caplog.text
+
+@pytest.mark.asyncio
+async def test_check_existing_projects_found(intake_agent, mock_mcp_client):
+    """Test _check_existing_projects when similar projects are found."""
+    mock_mcp_client.search_nodes.return_value = [
+        {'name': 'Existing CRM Integration Project', 'observations': ['CRM integration for sales']},
+        {'name': 'CRM Upgrade Initiative', 'observations': ['Upgrade existing CRM system']}
+    ]
+    
+    # Temporarily replace the agent's _check_existing_projects with the mock
+    original_check_method = intake_agent._check_existing_projects
+    intake_agent._check_existing_projects = AsyncMock(side_effect=original_check_method)
+
+    inputs = {
+        'project_name': 'New CRM Integration',
+        'description': 'Integrating our new CRM with the sales pipeline.',
+        'business_objective': 'Improve customer relationship management efficiency',
+        'industry': 'technology',
+        'department': 'sales',
+        'goals': ['Improve lead tracking', 'Automate sales reports'],
+        'success_criteria': ['Increase lead conversion by 15%', 'Reduce manual reporting by 50%'],
+        'stakeholders': [
+            {'name': 'John Doe', 'role': 'sponsor'},
+            {'name': 'Jane Smith', 'role': 'project_manager'}
+        ],
+        'budget_range': '50k_to_250k',
+        'timeline': 'quarterly',
+        'urgency': 'medium',
+        'expected_participants': 10,
+        'geographic_scope': 'national',
+        'regulatory_requirements': []
+    }
+
+    # Mock validate_inputs to allow _custom_validations to run
+    intake_agent.validate_inputs = AsyncMock(side_effect=intake_agent._actual_validate_inputs)
+    
+    result = await intake_agent.execute(inputs)
+
+    assert result.status == AgentStatus.FAILED
+    assert "Similar project name already exists" in result.data['error']
+    mock_mcp_client.search_nodes.assert_called_once_with(query='New CRM Integration')
+    intake_agent._check_existing_projects.assert_called_once_with('New CRM Integration')
+
+@pytest.mark.asyncio
+async def test_check_existing_projects_not_found(intake_agent, mock_mcp_client):
+    """Test _check_existing_projects when no similar projects are found."""
+    mock_mcp_client.search_nodes.return_value = [] # No existing projects
+    
+    # Temporarily replace the agent's _check_existing_projects with the mock
+    original_check_method = intake_agent._check_existing_projects
+    intake_agent._check_existing_projects = AsyncMock(side_effect=original_check_method)
+
+    inputs = {
+        'project_name': 'Truly Unique Project',
+        'description': 'A project that has no duplicates.',
+        'business_objective': 'Achieve uniqueness',
+        'industry': 'technology',
+        'department': 'it',
+        'goals': ['Be original'],
+        'success_criteria': ['Pass uniqueness test'],
+        'stakeholders': [{'name': 'Solo', 'role': 'sponsor'}],
+        'budget_range': 'under_50k',
+        'timeline': 'quarterly',
+        'urgency': 'low',
+        'expected_participants': 1,
+        'geographic_scope': 'local',
+        'regulatory_requirements': []
+    }
+    
+    # Mock validate_inputs to allow _custom_validations to run
+    intake_agent.validate_inputs = AsyncMock(side_effect=intake_agent._actual_validate_inputs)
+
+    result = await intake_agent.execute(inputs)
+
+    assert result.status == AgentStatus.SUCCESS # Should succeed as no duplicates are found
+    mock_mcp_client.search_nodes.assert_called_once_with(query='Truly Unique Project')
+    intake_agent._check_existing_projects.assert_called_once_with('Truly Unique Project')
+
+@pytest.mark.asyncio
+async def test_mcp_audit_logging_success(intake_agent, mock_mcp_client, caplog):
+    """Test that audit logs are generated for successful MCP write operations."""
+    inputs = {
+        'project_name': 'Audit Log Test Project',
+        'description': 'Testing successful audit logging for MCP.',
+        'business_objective': 'Verify logging',
+        'industry': 'technology',
+        'department': 'it',
+        'goals': ['Log everything'],
+        'success_criteria': ['Logs are perfect'],
+        'stakeholders': [{'name': 'Logger', 'role': 'sponsor'}],
+        'budget_range': 'under_50k',
+        'timeline': 'quarterly',
+        'urgency': 'low',
+        'expected_participants': 1,
+        'geographic_scope': 'local',
+        'regulatory_requirements': []
+    }
+    
+    intake_agent.validate_inputs = AsyncMock(return_value=ValidationResult(is_valid=True, errors=[]))
+
+    with caplog.at_level(logging.INFO):
+        result = await intake_agent.execute(inputs)
+
+    assert result.status == AgentStatus.SUCCESS
+    assert "AUDIT: Attempting to create KnowledgeEntity" in caplog.text
+    assert "AUDIT: Successfully created KnowledgeEntity" in caplog.text
+    assert f"Successfully stored project intake for {result.data['project_data']['project_id']}" in caplog.text
+
+@pytest.mark.asyncio
+async def test_overall_unexpected_error_handling(intake_agent, caplog):
+    """Test that the agent handles unexpected errors gracefully at the top level."""
+    # Simulate an unexpected error by making a method raise an exception
+    intake_agent._classify_project_type = MagicMock(side_effect=Exception("Unexpected classification error"))
+
+    inputs = {
+        'project_name': 'Error Test',
+        'description': 'This project will trigger an unexpected error.',
+        'business_objective': 'Handle errors',
+        'industry': 'technology',
+        'department': 'it',
+        'goals': ['Catch all exceptions'],
+        'success_criteria': ['No crashes'],
+        'stakeholders': [{'name': 'Error Handler', 'role': 'sponsor'}],
+        'budget_range': 'under_50k',
+        'timeline': 'quarterly',
+        'urgency': 'low',
+        'expected_participants': 1,
+        'geographic_scope': 'local',
+        'regulatory_requirements': []
+    }
+
+    # Mock validate_inputs to allow the process to proceed to the error point
+    intake_agent.validate_inputs = AsyncMock(return_value=ValidationResult(is_valid=True, errors=[]))
+
+    with caplog.at_level(logging.CRITICAL):
+        result = await intake_agent.execute(inputs)
+
+    assert result.status == AgentStatus.FAILED
+    assert "An unexpected error occurred during intake processing" in result.data['error']
+    assert "Unexpected classification error" in result.data['error']
+    assert "An unexpected error occurred during intake processing for agent test-intake-agent: Unexpected classification error" in caplog.text
+    assert "CRITICAL" in caplog.text
+
+# Add a temporary method to IntakeAssistantAgent to allow mocking of validate_inputs
+def _actual_validate_inputs(self, inputs: dict):
+    return self._perform_validation(inputs)
+
+IntakeAssistantAgent._actual_validate_inputs = _actual_validate_inputs
+
