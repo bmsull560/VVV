@@ -243,10 +243,11 @@ class IntakeAssistantAgent(BaseAgent):
             )
 
         except Exception as e:
-            logger.exception(f"[{self.agent_id}] An unexpected error occurred during project intake for project {project_id}")
+            error_message = f"An unexpected error occurred during core processing for agent {self.agent_id}: {e}"
+            logger.exception(error_message)
             return AgentResult(
                 status=AgentStatus.FAILED,
-                data={'error': 'An unexpected error occurred', 'details': str(e)},
+                data={'error': error_message, 'details': str(e)},
                 execution_time_ms=int((time.time() - start_time) * 1000)
             )
 
