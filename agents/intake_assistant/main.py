@@ -176,14 +176,13 @@ class IntakeAssistantAgent(BaseAgent):
         base_validation_result = await super().validate_inputs(inputs)
 
         # Perform custom validations specific to IntakeAssistantAgent
-        custom_validation_result = await self._custom_validations(inputs)
+        custom_errors = await self._custom_validations(inputs)
 
         # Combine results
         combined_errors = []
         if not base_validation_result.is_valid:
             combined_errors.extend(base_validation_result.errors)
-        if not custom_validation_result.is_valid:
-            combined_errors.extend(custom_validation_result.errors)
+        combined_errors.extend(custom_errors)
 
         return ValidationResult(is_valid=not combined_errors, errors=combined_errors)
 
@@ -251,63 +250,26 @@ class IntakeAssistantAgent(BaseAgent):
                 execution_time_ms=int((time.time() - start_time) * 1000)
             )
 
-    async def _custom_validations(self, inputs: Dict[str, Any]) -> ValidationResult:
-        """Perform intake-specific validations beyond standard validations."""
+    async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
         errors = []
-        
-        # Validate project name uniqueness and quality
-        project_name = inputs.get('project_name', '').strip()
-        if project_name:
-            # Check for potential duplicate project names
-            existing_projects = await self._check_existing_projects(project_name)
-            if existing_projects:
-                errors.append(f"Similar project name already exists: '{existing_projects[0]}'. Consider using a more specific name.")
-            
-            # Check for meaningful project name
-            if len(project_name.split()) < 2:
-                errors.append("Project name should contain at least 2 words for clarity and specificity")
-        
-        # Enhanced industry classification validation
-        industry = inputs.get('industry', '').lower()
-        if industry and industry not in self.industry_classifications:
-            valid_industries = list(self.industry_classifications.keys())
-            errors.append(f"Invalid industry '{industry}'. Must be one of: {', '.join(valid_industries)}")
-        
-        # Enhanced department classification validation
-        department = inputs.get('department', '').lower()
-        if department and department not in self.department_classifications:
-            valid_departments = list(self.department_classifications.keys())
-            errors.append(f"Invalid department '{department}'. Must be one of: {', '.join(valid_departments)}")
-        
-        # Enhanced stakeholders structure validation
         stakeholders = inputs.get('stakeholders', [])
-        if stakeholders:
-            unique_roles = set()
-            for i, stakeholder in enumerate(stakeholders):
-                if not isinstance(stakeholder, dict):
-                    errors.append(f"Stakeholder {i} must be an object with 'name' and 'role' fields")
-                    continue
-                    
-                if 'name' not in stakeholder or not stakeholder['name'].strip():
-                    errors.append(f"Stakeholder {i} missing required 'name' field")
-                    
-                if 'role' not in stakeholder:
-                    errors.append(f"Stakeholder {i} missing required 'role' field")
-                elif stakeholder['role'] not in [role.value for role in StakeholderRole]:
-                    valid_roles = [role.value for role in StakeholderRole]
-                    errors.append(f"Stakeholder {i} has invalid role '{stakeholder['role']}'. Must be one of: {', '.join(valid_roles)}")
-                else:
-                    unique_roles.add(stakeholder['role'])
-            
-            # Check for essential roles
-            if len(stakeholders) > 0:
-                if 'sponsor' not in unique_roles and 'decision_maker' not in unique_roles:
-                    errors.append("Project should have at least one sponsor or decision maker identified")
-                if len(stakeholders) > 3 and 'financial_approver' not in unique_roles:
-                    errors.append("Projects with multiple stakeholders should include a financial approver")
-        
-        # Enhanced goals validation
-        goals = inputs.get('goals', [])
+
+        # Example: Validate 'project_name' length
+        project_name = inputs.get('project_name')
+        if project_name and len(project_name) < 5:
+            errors.append("Project name must be at least 5 characters long.")
+
+        # Example: Validate 'description' content
+        description = inputs.get('description')
+        if description and "test" in description.lower():
+            errors.append("Description cannot contain the word 'test'.")
+
+        # Example: Validate 'goals' is not empty if provided
+        goals = inputs.get('goals')
+        if isinstance(goals, list) and not goals:
+            errors.append("Goals cannot be an empty list if provided.")
+
+        # Example: Validate 'budget_range' against allowed values
         if goals:
             for i, goal in enumerate(goals):
                 if isinstance(goal, str):

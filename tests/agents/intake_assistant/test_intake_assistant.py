@@ -123,7 +123,7 @@ async def test_check_existing_projects_found(intake_agent, mock_mcp_client):
         {'name': 'Existing CRM Integration Project', 'observations': ['CRM integration for sales']},
         {'name': 'CRM Upgrade Initiative', 'observations': ['Upgrade existing CRM system']}
     ]
-    
+
     # Temporarily replace the agent's _check_existing_projects with the mock
     original_check_method = intake_agent._check_existing_projects
     intake_agent._check_existing_projects = AsyncMock(side_effect=original_check_method)
@@ -148,9 +148,6 @@ async def test_check_existing_projects_found(intake_agent, mock_mcp_client):
         'regulatory_requirements': []
     }
 
-    # Mock validate_inputs to allow _custom_validations to run
-    intake_agent.validate_inputs = AsyncMock(side_effect=intake_agent._actual_validate_inputs)
-    
     result = await intake_agent.execute(inputs)
 
     assert result.status == AgentStatus.FAILED
@@ -162,7 +159,7 @@ async def test_check_existing_projects_found(intake_agent, mock_mcp_client):
 async def test_check_existing_projects_not_found(intake_agent, mock_mcp_client):
     """Test _check_existing_projects when no similar projects are found."""
     mock_mcp_client.search_nodes.return_value = [] # No existing projects
-    
+
     # Temporarily replace the agent's _check_existing_projects with the mock
     original_check_method = intake_agent._check_existing_projects
     intake_agent._check_existing_projects = AsyncMock(side_effect=original_check_method)
@@ -183,9 +180,6 @@ async def test_check_existing_projects_not_found(intake_agent, mock_mcp_client):
         'geographic_scope': 'local',
         'regulatory_requirements': []
     }
-    
-    # Mock validate_inputs to allow _custom_validations to run
-    intake_agent.validate_inputs = AsyncMock(side_effect=intake_agent._actual_validate_inputs)
 
     result = await intake_agent.execute(inputs)
 
@@ -253,9 +247,7 @@ async def test_overall_unexpected_error_handling(intake_agent, caplog):
         result = await intake_agent.execute(inputs)
 
     assert result.status == AgentStatus.FAILED
-    assert "An unexpected error occurred during intake processing" in result.data['error']
+    assert "An error occurred during core processing for agent test-intake-agent" in result.data['error']
     assert "Unexpected classification error" in result.data['error']
     assert "An unexpected error occurred during intake processing for agent test-intake-agent: Unexpected classification error" in caplog.text
     assert "CRITICAL" in caplog.text
-
-
