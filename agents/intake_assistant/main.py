@@ -375,6 +375,36 @@ class IntakeAssistantAgent(BaseAgent):
             except Exception as e:
                 logger.error(f"Error checking existing projects: {e}", exc_info=True)
                 return []
+            """Check for existing projects with similar names in MCP."""
+            try:
+                logger.debug(f"Searching MCP for existing projects with query: '{project_name}'")
+                search_results = await self.mcp_client.search_nodes(query=project_name)
+                # Debug print for test visibility
+                print(f"[DEBUG] search_results for '{project_name}': {search_results}")
+
+                existing_project_names: List[str] = []
+                for result in search_results:
+                    name = result.get('name') or ''
+                    observations = result.get('observations') or []
+
+                    if project_name.lower() in name.lower():
+                        existing_project_names.append(name)
+                        logger.debug(f"Found existing project by name: {name}")
+                        continue
+
+                    for obs in observations:
+                        if isinstance(obs, str) and project_name.lower() in obs.lower():
+                            existing_project_names.append(name)
+                            logger.debug(f"Found existing project by observation: {name}")
+                            break
+
+                # Debug print before returning
+                print(f"[DEBUG] existing_project_names: {existing_project_names}")
+                # Deduplicate preserving order
+                return list(dict.fromkeys(existing_project_names))
+            except Exception as e:
+                logger.error(f"Error checking existing projects: {e}", exc_info=True)
+                return []
 
         """Check for existing projects with similar names in MCP."""
         try:
