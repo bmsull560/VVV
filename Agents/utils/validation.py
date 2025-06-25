@@ -17,6 +17,21 @@ class ValidationError(Exception):
     """Custom exception for validation errors."""
     pass
 
+class ValidationResult:
+    """Represents the result of a validation operation."""
+    def __init__(self, is_valid: bool, errors: Optional[List[str]] = None):
+        self.is_valid = is_valid
+        self.errors = errors if errors is not None else []
+
+    def __bool__(self):
+        return self.is_valid
+
+    def __repr__(self):
+        if self.is_valid:
+            return "<ValidationResult: Valid>"
+        else:
+            return f"<ValidationResult: Invalid, Errors: {self.errors}>"
+
 class ValidationType(Enum):
     """Standard validation types."""
     REQUIRED = "required"

@@ -16,6 +16,7 @@ from enum import Enum
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 from memory.memory_types import KnowledgeEntity
+from agents.utils.validation import ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +170,88 @@ class IntakeAssistantAgent(BaseAgent):
             ]
         }
 
-    async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
+    async def validate_inputs(self, inputs: Dict[str, Any]) -> ValidationResult:
+        """Performs comprehensive validation of inputs using both base and custom rules."""
+        # Perform base validation inherited from AgentBase
+        base_validation_result = await super().validate_inputs(inputs)
+
+        # Perform custom validations specific to IntakeAssistantAgent
+        custom_validation_result = await self._custom_validations(inputs)
+
+        # Combine results
+        combined_errors = []
+        if not base_validation_result.is_valid:
+            combined_errors.extend(base_validation_result.errors)
+        if not custom_validation_result.is_valid:
+            combined_errors.extend(custom_validation_result.errors)
+
+        return ValidationResult(is_valid=not combined_errors, errors=combined_errors)
+
+    async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
+        """Processes the project intake, validates, classifies, and stores data."""
+        start_time = time.time()
+        project_id = inputs.get('project_id', str(uuid.uuid4()))
+        logger.info(f"[{self.agent_id}] Starting project intake for project_id: {project_id}")
+
+        try:
+            # 1. Input Validation
+            validation_result = await self.validate_inputs(inputs)
+            if not validation_result.is_valid:
+                logger.warning(f"[{self.agent_id}] Input validation failed for project {project_id}: {validation_result.errors}")
+                return AgentResult(
+                    status=AgentStatus.FAILED,
+                    data={'error': 'Input validation failed', 'details': validation_result.errors},
+                    execution_time_ms=int((time.time() - start_time) * 1000)
+                )
+
+            # 2. Data Structuring and Normalization
+            structured_data = self._structure_data(inputs)
+            logger.info(f"[{self.agent_id}] Structured data for project {project_id}")
+
+            # 3. Classification and Analysis
+            logger.info(f"[{self.agent_id}] Starting classification for project {project_id}")
+            try:
+                classification_results = self._classify_project(structured_data)
+                logger.info(f"[{self.agent_id}] Finished classification for project {project_id}: {classification_results}")
+            except Exception as e:
+                logger.error(f"[{self.agent_id}] Classification error for project {project_id}: {e}")
+                classification_results = []
+            
+            # 4. Generate Recommendations and Analysis Summary
+            recommendations = self._generate_recommendations(structured_data, classification_results)
+            analysis_summary = self._generate_analysis_summary(structured_data, classification_results, recommendations)
+            logger.info(f"[{self.agent_id}] Generated recommendations and analysis summary for project {project_id}")
+
+            # 5. Store Data in Memory (MCP)
+            mcp_storage_success = await self._store_in_mcp(project_id, structured_data, classification_results, analysis_summary, recommendations)
+            logger.info(f"[{self.agent_id}] MCP storage success for project {project_id}: {mcp_storage_success}")
+
+            # 6. Construct AgentResult
+            result_data = {
+                'project_id': project_id,
+                'project_data': structured_data,
+                'classification': classification_results,
+                'recommendations': recommendations,
+                'analysis_summary': analysis_summary,
+                'metadata': {
+                    'mcp_storage_success': mcp_storage_success
+                }
+            }
+            return AgentResult(
+                status=AgentStatus.COMPLETED,
+                data=result_data,
+                execution_time_ms=int((time.time() - start_time) * 1000)
+            )
+
+        except Exception as e:
+            logger.exception(f"[{self.agent_id}] An unexpected error occurred during project intake for project {project_id}")
+            return AgentResult(
+                status=AgentStatus.FAILED,
+                data={'error': 'An unexpected error occurred', 'details': str(e)},
+                execution_time_ms=int((time.time() - start_time) * 1000)
+            )
+
+    async def _custom_validations(self, inputs: Dict[str, Any]) -> ValidationResult:
         """Perform intake-specific validations beyond standard validations."""
         errors = []
         
@@ -1137,7 +1219,7 @@ class IntakeAssistantAgent(BaseAgent):
                 logger.info(f"Enhanced intake processing completed successfully in {execution_time_ms}ms for project {project_id}")
                 
                 return AgentResult(
-                    status=AgentStatus.SUCCESS,
+                    status=AgentStatus.COMPLETED,
                     data=response_data,
                     execution_time_ms=execution_time_ms
                 )

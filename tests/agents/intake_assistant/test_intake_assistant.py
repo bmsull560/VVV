@@ -49,7 +49,7 @@ async def test_successful_intake(intake_agent, mock_mcp_client):
 
     result = await intake_agent.execute(inputs)
 
-    assert result.status == AgentStatus.SUCCESS
+    assert result.status == AgentStatus.COMPLETED
     assert 'project_data' in result.data
     assert 'recommendations' in result.data
     assert 'analysis_summary' in result.data
@@ -189,7 +189,7 @@ async def test_check_existing_projects_not_found(intake_agent, mock_mcp_client):
 
     result = await intake_agent.execute(inputs)
 
-    assert result.status == AgentStatus.SUCCESS # Should succeed as no duplicates are found
+    assert result.status == AgentStatus.COMPLETED # Should succeed as no duplicates are found
     mock_mcp_client.search_nodes.assert_called_once_with(query='Truly Unique Project')
     intake_agent._check_existing_projects.assert_called_once_with('Truly Unique Project')
 
@@ -218,7 +218,7 @@ async def test_mcp_audit_logging_success(intake_agent, mock_mcp_client, caplog):
     with caplog.at_level(logging.INFO):
         result = await intake_agent.execute(inputs)
 
-    assert result.status == AgentStatus.SUCCESS
+    assert result.status == AgentStatus.COMPLETED
     assert "AUDIT: Attempting to create KnowledgeEntity" in caplog.text
     assert "AUDIT: Successfully created KnowledgeEntity" in caplog.text
     assert f"Successfully stored project intake for {result.data['project_data']['project_id']}" in caplog.text
@@ -258,9 +258,4 @@ async def test_overall_unexpected_error_handling(intake_agent, caplog):
     assert "An unexpected error occurred during intake processing for agent test-intake-agent: Unexpected classification error" in caplog.text
     assert "CRITICAL" in caplog.text
 
-# Add a temporary method to IntakeAssistantAgent to allow mocking of validate_inputs
-def _actual_validate_inputs(self, inputs: dict):
-    return self._perform_validation(inputs)
-
-IntakeAssistantAgent._actual_validate_inputs = _actual_validate_inputs
 
