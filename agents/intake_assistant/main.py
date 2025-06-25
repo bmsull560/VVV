@@ -208,6 +208,7 @@ class IntakeAssistantAgent(BaseAgent):
             project_name = inputs.get('project_name', '')
             logger.debug(f"[{self.agent_id}] Project name before check: '{project_name}'")
             if project_name:
+                logger.debug(f"[{self.agent_id}] Entering _check_existing_projects with project_name: '{project_name}'")
                 existing_projects = await self._check_existing_projects(project_name)
                 if existing_projects:
                     logger.warning(f"[{self.agent_id}] Similar projects found for {project_id}: {existing_projects}")

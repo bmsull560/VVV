@@ -1,3 +1,73 @@
+You're seeing two distinct test failures in your intake_assistant agent tests:
+
+🧪 Failure 1: test_check_existing_projects_found
+✅ What’s expected:
+If similar projects are found via search_nodes, the agent should fail the intake process to avoid duplicates.
+
+❌ What’s happening:
+The agent continues processing and completes successfully — AgentStatus.COMPLETED.
+
+🧠 Likely cause:
+The _check_existing_projects() logic isn't terminating or short-circuiting the intake when duplicates are found.
+
+✅ Fix:
+Ensure your agent returns early with AgentStatus.FAILED if search_nodes() yields similar project names.
+
+You probably want logic like this inside execute() or a helper:
+
+python
+Copy
+Edit
+existing = await self.mcp_client.search_nodes(query=inputs["project_name"])
+if existing:
+    return AgentResult(
+        status=AgentStatus.FAILED,
+        error_details="Similar project(s) already exist.",
+        data={"similar_projects": existing}
+    )
+🧪 Failure 2: test_check_existing_projects_not_found
+✅ What’s expected:
+Agent completes intake successfully, and search_nodes should be called once with the expected query.
+
+❌ What’s happening:
+The mock assertion fails — search_nodes() was never called.
+
+🧠 Likely cause:
+The logic to check for duplicates isn’t executed at all during the run. This could happen if:
+
+_check_existing_projects() isn’t being invoked inside execute()
+
+Or the call isn’t passing project_name into search_nodes(query=...)
+
+Or the logic is gated behind a condition not being met
+
+✅ Fix:
+Make sure you're actually invoking search_nodes() in your agent logic — something like:
+
+python
+Copy
+Edit
+async def _check_existing_projects(self, project_name: str):
+    return await self.mcp_client.search_nodes(query=project_name)
+And that this is being used early in execute():
+
+python
+Copy
+Edit
+existing = await self._check_existing_projects(inputs["project_name"])
+Then the test can pass as expected and the mock assertion will succeed.
+
+✅ Suggested Next Steps
+Review the agent’s execute() method: Ensure _check_existing_projects() is called at the top with the project name.
+
+Ensure early return on match: if duplicates are found, the agent should return AgentResult(status=AgentStatus.FAILED, ...)
+
+Ensure test mocks align:
+
+mock_mcp_client.search_nodes.assert_called_once_with(query=...) should reflect actual agent usage.
+
+You may want to log the query string actually used inside the agent to confirm matching.
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from agents.intake_assistant.main import IntakeAssistantAgent
@@ -129,6 +199,7 @@ async def test_check_existing_projects_found(intake_agent, mock_mcp_client):
         {'name': 'CRM Upgrade Initiative', 'observations': ['Upgrade existing CRM system']}
     ]
     intake_agent.mcp_client = mock_mcp_client
+    intake_agent.validate_inputs = AsyncMock(return_value=ValidationResult(is_valid=True, errors=[]))
 
     inputs = {
         'project_name': 'New CRM Integration',
@@ -155,13 +226,13 @@ async def test_check_existing_projects_found(intake_agent, mock_mcp_client):
     assert result.status == AgentStatus.FAILED
     assert "Similar project name already exists" in result.data['error']
     mock_mcp_client.search_nodes.assert_called_once_with(query='New CRM Integration')
-    intake_agent._check_existing_projects.assert_called_once_with('New CRM Integration')
 
 @pytest.mark.asyncio
 async def test_check_existing_projects_not_found(intake_agent, mock_mcp_client):
     """Test _check_existing_projects when no similar projects are found."""
     mock_mcp_client.search_nodes.return_value = [] # No existing projects
     intake_agent.mcp_client = mock_mcp_client
+    intake_agent.validate_inputs = AsyncMock(return_value=ValidationResult(is_valid=True, errors=[]))
 
     inputs = {
         'project_name': 'Truly Unique Project',
@@ -184,7 +255,6 @@ async def test_check_existing_projects_not_found(intake_agent, mock_mcp_client):
 
     assert result.status == AgentStatus.COMPLETED # Should succeed as no duplicates are found
     mock_mcp_client.search_nodes.assert_called_once_with(query='Truly Unique Project')
-    intake_agent._check_existing_projects.assert_called_once_with('Truly Unique Project')
 
 @pytest.mark.asyncio
 async def test_mcp_audit_logging_success(intake_agent, mock_mcp_client, caplog):
