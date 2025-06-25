@@ -480,6 +480,7 @@ class DatabaseConnectorAgent(BaseAgent):
                 },
                 content=f"Database operation: {operation_type}" +
                        (f" (error: {error})" if error else " (success)")
+            )
 
             
             await self.mcp_client.store_memory(audit_entry)
@@ -488,153 +489,76 @@ class DatabaseConnectorAgent(BaseAgent):
             logger.error(f"Failed to log database operation: {e}")
 
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
-        # ------------------------------------------------------------------
-        # Legacy simple action handling for unit tests (test_connection / run_query)
-        # ------------------------------------------------------------------
-        if 'action' in inputs:
-            return await self._execute_legacy(inputs)
-
-    async def _execute_legacy(self, inputs: Dict[str, Any]) -> AgentResult:
-        """Handle legacy 'action' API used in simplified unit tests."""
-        start_time = time.monotonic()
-        action = inputs['action']
-        try:
-            if action == 'test_connection':
-                if not self.engine:
-                    raise RuntimeError("No database engine configured")
-                with self.engine.connect() as conn:
-                    conn.execute("SELECT 1")
-                return AgentResult(
-                    status=AgentStatus.COMPLETED,
-                    data={"message": "Connection successful"},
-                    execution_time_ms=int((time.monotonic() - start_time) * 1000),
-    
-            elif action == 'run_query':
-                if not self.engine:
-                    raise RuntimeError("No database engine configured")
-                query = inputs.get('query')
-                if query is None:
-                    raise ValueError("'query' parameter required")
-                with self.engine.connect() as conn:
-                    result_proxy = conn.execute(query)
-                    result_list = [row._asdict() if hasattr(row, '_asdict') else dict(row) for row in result_proxy]
-                return AgentResult(
-                    status=AgentStatus.COMPLETED,
-                    data={"result": result_list},
-                    execution_time_ms=int((time.monotonic() - start_time) * 1000),
-    
-            else:
-                return AgentResult(
-                    status=AgentStatus.FAILED,
-                    data={"error": f"Unsupported action '{action}'"},
-                    execution_time_ms=int((time.monotonic() - start_time) * 1000),
-    
-        except Exception as exc:
-            return AgentResult(
-                status=AgentStatus.FAILED,
-                data={"error": str(exc)},
-                execution_time_ms=int((time.monotonic() - start_time) * 1000),
-
         """Execute database operations with comprehensive error handling and security."""
         start_time = time.monotonic()
-        
+        operation_type_str = inputs.get('operation_type', 'unknown')
         try:
-            logger.info(f"Starting database operation for agent {self.agent_id}")
-            
-            # Validate inputs
+            # --- Legacy Action Handling for Tests ---
+            if 'action' in inputs:
+                return await self._execute_legacy(inputs)
+
+            # --- Main Operation Execution ---
             validation_result = await self.validate_inputs(inputs)
             if not validation_result.is_valid:
-                return AgentResult(
-                    status=AgentStatus.FAILED,
-                    data={"error": f"Validation failed: {validation_result.errors[0]}"},
-                    execution_time_ms=int((time.monotonic() - start_time) * 1000)
-    
-            
-            # Extract operation parameters
-            operation_type = inputs['operation_type']
-            connection_id = inputs.get('connection_id', 'default')
-            timeout_seconds = inputs.get('timeout_seconds', 30)
-            
-            # Handle new database connection if specified
-            if inputs.get('database_config'):
-                connection_id = inputs.get('connection_id', f"temp_{int(time.time())}")
-                await self._create_engine(connection_id, inputs['database_config'])
-            
-            # Execute operation based on type
-            if operation_type == OperationType.TEST_CONNECTION.value:
-                result_data = await self._test_connection(connection_id)
-            
-            elif operation_type == OperationType.HEALTH_CHECK.value:
-                result_data = await self._test_connection(connection_id)
-                result_data['health_check'] = True
-            
-            elif operation_type == OperationType.GET_SCHEMA.value:
-                result_data = await self._get_schema_info(connection_id)
-            
-            elif operation_type == OperationType.TRANSACTION.value:
-                transaction_config = inputs['transaction_config']
-                result_data = await self._execute_transaction(transaction_config, connection_id)
-            
-            elif operation_type in [OperationType.QUERY.value, OperationType.INSERT.value,
-                                  OperationType.UPDATE.value, OperationType.DELETE.value,
-                                  OperationType.EXECUTE.value]:
-                query = inputs['query']
-                parameters = inputs.get('parameters', {})
-                return_format = inputs.get('return_format', 'dict')
-                result_data = await self._execute_query(query, parameters, connection_id, return_format)
-            
-            else:
-                return AgentResult(
-                    status=AgentStatus.FAILED,
-                    data={"error": f"Unsupported operation type: {operation_type}"},
-                    execution_time_ms=int((time.monotonic() - start_time) * 1000)
-    
-            
-            # Add execution metadata
-            result_data['agent_id'] = self.agent_id
-            result_data['operation_type'] = operation_type
-            result_data['connection_id'] = connection_id
-            result_data['timestamp'] = datetime.now().isoformat()
-            
-            execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            logger.info(f"Database operation completed in {execution_time_ms}ms")
-            
-            # Determine status based on operation result
-            status = AgentStatus.SUCCESS if result_data.get('status') == 'success' else AgentStatus.FAILED
-            
-            return AgentResult(
-                status=status,
-                data=result_data,
-                execution_time_ms=execution_time_ms
+                raise ValueError(f"Input validation failed: {validation_result.errors[0]}")
 
-            
+            validated_data = validation_result.validated_data
+            operation_type = validated_data['operation_type']
+            operation_type_str = operation_type.value
+            connection_id = validated_data.get('connection_id', 'default')
+
+            engine = self.get_engine(connection_id)
+            if not engine:
+                raise ConnectionError(f"Database connection '{connection_id}' not found or configured.")
+
+            with engine.connect() as connection:
+                if operation_type == OperationType.TRANSACTION:
+                    op_result = await self._execute_transaction(connection, validated_data)
+                else:
+                    op_result = await self._dispatch_operation(connection, validated_data)
+
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            await self._log_database_operation(
+                operation_type=operation_type_str,
+                query=inputs.get('query'),
+                execution_time_ms=execution_time_ms,
+                rows_affected=op_result.get('rows_affected')
+            )
+
+            return AgentResult(
+                status=AgentStatus.COMPLETED,
+                data=op_result.get('data'),
+                execution_time_ms=execution_time_ms
+            )
+
+        except (ValueError, TypeError) as e:
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            logger.warning(f"Invalid input for database operation: {e}")
+            return AgentResult(
+                status=AgentStatus.FAILED,
+                data={"error": f"Invalid input: {str(e)}", "operation_type": operation_type_str},
+                execution_time_ms=execution_time_ms
+            )
         except Exception as e:
             execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            logger.error(f"Database operation failed: {str(e)}")
-            
-            # Log the error
-            await self._log_database_operation(
-                operation_type=inputs.get('operation_type', 'unknown'),
-                error=str(e)
-
-            
+            logger.error(f"Database operation '{operation_type_str}' failed: {str(e)}", exc_info=True)
+            await self._log_database_operation(operation_type=operation_type_str, error=str(e))
             return AgentResult(
                 status=AgentStatus.FAILED,
                 data={
                     "error": f"Database operation failed: {str(e)}",
                     "error_type": type(e).__name__,
-                    "operation_type": inputs.get('operation_type')
-                })
-                # Corrected closing parenthesis
+                    "operation_type": operation_type_str
                 },
                 execution_time_ms=execution_time_ms
+            )
 
 
-    def __del__(self):
-        """Clean up database connections on agent destruction."""
-        try:
-            for connection_id, engine in self.engines.items():
-                engine.dispose()
-                logger.info(f"Database connection '{connection_id}' disposed")
-        except Exception as e:
-            logger.error(f"Error disposing database connections: {e}")
+def __del__(self):
+    """Clean up database connections on agent destruction."""
+    try:
+        for connection_id, engine in self.engines.items():
+            engine.dispose()
+            logger.info(f"Database connection '{connection_id}' disposed")
+    except Exception as e:
+        logger.error(f"Error disposing database connections: {e}")

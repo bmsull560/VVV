@@ -105,10 +105,12 @@ class TemplateSelectorAgent(BaseAgent):
 
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
         """Main execution logic for the agent."""
+        logger.info(f"Executing TemplateSelectorAgent with inputs: {inputs}")
         start_time = time.monotonic()
         try:
             # 1. Validate and structure inputs
             validated_inputs = TemplateSelectorInput(**inputs)
+            logger.info(f"Input validation successful. Validated data: {validated_inputs.model_dump()}")
 
             # 2. Perform analysis
             recommendations = self._get_template_recommendations(validated_inputs)
@@ -125,16 +127,26 @@ class TemplateSelectorAgent(BaseAgent):
             logger.info(f"Template selection completed in {execution_time_ms}ms. Selected: {result_data.selected_template.template_name}")
             return AgentResult(
                 status=AgentStatus.COMPLETED,
-                data=result_data.dict(),
+                data=result_data.model_dump(),
                 execution_time_ms=execution_time_ms
             )
 
         except ValidationError as e:
             logger.warning(f"Input validation failed: {e}")
-            return AgentResult.failure(f"Input validation error: {e}", start_time)
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(
+                status=AgentStatus.FAILED,
+                data={"message": f"Input validation error: {e}"},
+                execution_time_ms=execution_time_ms
+            )
         except Exception as e:
             logger.exception(f"An unexpected error occurred during template selection: {e}")
-            return AgentResult.failure(f"An unexpected error occurred: {e}", start_time)
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            return AgentResult(
+                status=AgentStatus.FAILED,
+                data={"message": f"An unexpected error occurred: {e}"},
+                execution_time_ms=execution_time_ms
+            )
 
     def _get_template_recommendations(self, inputs: TemplateSelectorInput) -> List[SelectedTemplate]:
         """Scores all templates and returns a ranked list of recommendations."""
@@ -144,6 +156,8 @@ class TemplateSelectorAgent(BaseAgent):
         for template_id, template_def in self.template_database.items():
             match_score, _ = self._calculate_match_score(template_def, inputs)
             
+            logger.debug(f"Scoring template '{template_id}': Match={match_score:.2f}, Confidence={confidence_score:.2f}")
+
             # Combine match score and confidence score
             overall_score = match_score * confidence_score
 
@@ -159,6 +173,7 @@ class TemplateSelectorAgent(BaseAgent):
 
         # Sort by the overall combined score
         scored_templates.sort(key=lambda x: x.overall_score, reverse=True)
+        logger.info(f"Ranked top 3 templates: {[(t.template_name, t.overall_score) for t in scored_templates[:3]]}")
         return scored_templates
 
     def _calculate_match_score(self, template: TemplateDefinition, inputs: TemplateSelectorInput) -> Tuple[float, Dict[str, float]]:
@@ -179,7 +194,7 @@ class TemplateSelectorAgent(BaseAgent):
         # Stakeholder fit
         if inputs.stakeholder_types:
             matching = set(inputs.stakeholder_types) & set(template.stakeholders)
-            score = len(matching) / len(inputs.stakeholder_types) if inputs.stakeholder_types else 0.0
+            score = len(matching) / len(template.stakeholders) if template.stakeholders else 0.0
         else:
             score = 0.5 # Neutral score if not provided
         total_score += score * self.scoring_weights.get('stakeholder_fit', 0.15)
@@ -196,7 +211,7 @@ class TemplateSelectorAgent(BaseAgent):
         # Value driver alignment
         if inputs.primary_value_drivers:
             matching = set(inputs.primary_value_drivers) & set(template.value_drivers)
-            score = len(matching) / len(inputs.primary_value_drivers) if inputs.primary_value_drivers else 0.0
+            score = len(matching) / len(template.value_drivers) if template.value_drivers else 0.0
         else:
             score = 0.5 # Neutral score
         total_score += score * self.scoring_weights.get('value_driver_alignment', 0.15)
@@ -205,23 +220,19 @@ class TemplateSelectorAgent(BaseAgent):
         return total_score, component_scores
 
     def _calculate_confidence_score(self, inputs: TemplateSelectorInput) -> Tuple[float, Dict[str, float]]:
-        """Calculates a confidence score based on the completeness of the input data."""
-        # Base confidence is 1.0, penalize for missing optional fields
-        confidence = 1.0
-        details = {'base': 1.0}
-        penalty = 0.15 # Penalty for each missing optional field
-
-        if not inputs.stakeholder_types:
-            confidence -= penalty
-            details['stakeholders'] = -penalty
-        if not inputs.complexity_level:
-            confidence -= penalty
-            details['complexity'] = -penalty
-        if not inputs.primary_value_drivers:
-            confidence -= penalty
-            details['value_drivers'] = -penalty
+        """
+        Calculates a confidence score based on the proportion of provided optional fields.
+        A higher score indicates a more complete input, leading to higher confidence.
+        """
+        optional_fields = ['stakeholder_types', 'complexity_level', 'primary_value_drivers']
+        provided_count = sum(1 for field in optional_fields if getattr(inputs, field) is not None)
         
-        return max(0.0, confidence), details
+        total_optional = len(optional_fields)
+        confidence = provided_count / total_optional if total_optional > 0 else 1.0
+        
+        details = {field: (1.0 if getattr(inputs, field) is not None else 0.0) for field in optional_fields}
+        
+        return confidence, details
 
     def _format_result(self, recommendations: List[SelectedTemplate], inputs: TemplateSelectorInput) -> TemplateSelectorResult:
         """Formats the final agent output."""
@@ -230,7 +241,7 @@ class TemplateSelectorAgent(BaseAgent):
         rationale = self._generate_selection_rationale(selected, inputs)
         
         execution_metadata = {
-            "input_parameters": inputs.dict(),
+            "input_parameters": inputs.model_dump(),
             "total_templates_evaluated": len(self.template_database),
             "confidence_score": selected.confidence_score
         }
