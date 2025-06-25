@@ -3,7 +3,7 @@ import os
 import asyncio
 from agents.core.mcp_client import MCPClient
 from memory.core import MemoryManager
-from memory.types import KnowledgeEntity, MemoryTier
+from memory.memory_types import KnowledgeEntity, MemoryTier
 from datetime import datetime, timezone
 
 class TestAgentMemoryIntegration(unittest.IsolatedAsyncioTestCase):

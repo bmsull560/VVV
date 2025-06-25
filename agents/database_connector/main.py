@@ -367,42 +367,44 @@ class DatabaseConnectorAgent(BaseAgent):
                             result = conn.execute(text(query), parameters)
                         else:
                             result = conn.execute(text(query))
-                        
                         operation_result = {
                             "operation_index": i,
                             "status": "success",
                             "rows_affected": result.rowcount if not result.returns_rows else len(result.fetchall())
                         }
                         results.append(operation_result)
-                        
+
                     except Exception as op_error:
                         logger.error(f"Transaction operation {i} failed: {op_error}")
                         raise op_error  # This will trigger rollback
-            
+
             execution_time = (time.monotonic() - start_time) * 1000
-            
-            # Audit logging
+
+            # Audit logging for success
             if self.audit_log_enabled:
                 await self._log_database_operation(
                     operation_type="transaction",
                     query=f"{len(operations)} operations",
                     execution_time_ms=execution_time,
                     rows_affected=sum(r.get('rows_affected', 0) for r in results)
-    
-            
+                )
+
             return {
                 "status": "success",
                 "operations_completed": len(results),
                 "results": results,
                 "execution_time_ms": execution_time
             }
-            
+
         except Exception as e:
             logger.error(f"Transaction execution failed: {e}")
-            await self._log_database_operation(
-                operation_type="transaction",
-                query=f"{len(operations)} operations",
-                error=str(e)
+            # Audit logging for failure
+            if self.audit_log_enabled:
+                await self._log_database_operation(
+                    operation_type="transaction",
+                    query=f"{len(operations)} operations",
+                    error=str(e)
+                )
 
             return {
                 "status": "failed",
@@ -622,7 +624,8 @@ class DatabaseConnectorAgent(BaseAgent):
                     "error": f"Database operation failed: {str(e)}",
                     "error_type": type(e).__name__,
                     "operation_type": inputs.get('operation_type')
-                )
+                })
+                # Corrected closing parenthesis
                 },
                 execution_time_ms=execution_time_ms
 

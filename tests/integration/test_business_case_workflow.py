@@ -20,7 +20,7 @@ from agents.risk_mitigation.main import RiskMitigationAgent
 from agents.sensitivity_analysis.main import SensitivityAnalysisAgent
 from agents.analytics_aggregator.main import AnalyticsAggregatorAgent
 from agents.core.agent_base import AgentResult, AgentStatus
-from memory.types import KnowledgeEntity
+from memory.memory_types import KnowledgeEntity
 
 
 class TestBusinessCaseWorkflow:
