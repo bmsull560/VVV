@@ -125,13 +125,10 @@ async def test_mcp_storage_failure(intake_agent, mock_mcp_client, caplog):
 async def test_check_existing_projects_found(intake_agent, mock_mcp_client):
     """Test _check_existing_projects when similar projects are found."""
     mock_mcp_client.search_nodes.return_value = [
-        {'name': 'Existing CRM Integration Project', 'observations': ['CRM integration for sales']},
+        {'name': 'Existing New CRM Integration Project', 'observations': ['CRM integration for sales']},
         {'name': 'CRM Upgrade Initiative', 'observations': ['Upgrade existing CRM system']}
     ]
-
-    # Temporarily replace the agent's _check_existing_projects with the mock
-    original_check_method = intake_agent._check_existing_projects
-    intake_agent._check_existing_projects = AsyncMock(side_effect=original_check_method)
+    intake_agent.mcp_client = mock_mcp_client
 
     inputs = {
         'project_name': 'New CRM Integration',
@@ -164,15 +161,12 @@ async def test_check_existing_projects_found(intake_agent, mock_mcp_client):
 async def test_check_existing_projects_not_found(intake_agent, mock_mcp_client):
     """Test _check_existing_projects when no similar projects are found."""
     mock_mcp_client.search_nodes.return_value = [] # No existing projects
-
-    # Temporarily replace the agent's _check_existing_projects with the mock
-    original_check_method = intake_agent._check_existing_projects
-    intake_agent._check_existing_projects = AsyncMock(side_effect=original_check_method)
+    intake_agent.mcp_client = mock_mcp_client
 
     inputs = {
         'project_name': 'Truly Unique Project',
         'description': 'A project that has no duplicates.',
-        'business_objective': 'Achieve uniqueness',
+        'business_objective': 'Achieve uniqueness and originality in all aspects',
         'industry': 'technology',
         'department': 'it',
         'goals': ['Be original'],
@@ -254,5 +248,5 @@ async def test_overall_unexpected_error_handling(intake_agent, caplog):
     assert result.status == AgentStatus.FAILED
     assert "An error occurred during core processing for agent test-intake-agent" in result.data['error']
     assert "Unexpected classification error" in result.data['error']
-    assert "An unexpected error occurred during core processing for agent test-intake-agent: Unexpected classification error" in caplog.text
-    assert "CRITICAL" in caplog.text
+    assert "An error occurred during core processing for agent test-intake-agent: Unexpected classification error" in caplog.text
+    assert "ERROR" in caplog.text

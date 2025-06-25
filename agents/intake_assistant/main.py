@@ -195,6 +195,7 @@ class IntakeAssistantAgent(BaseAgent):
         try:
             # 1. Input Validation
             validation_result = await self.validate_inputs(inputs)
+            logger.debug(f"[{self.agent_id}] Input validation result: {validation_result.is_valid}, Errors: {validation_result.errors}")
             if not validation_result.is_valid:
                 logger.warning(f"[{self.agent_id}] Input validation failed for project {project_id}: {validation_result.errors}")
                 return AgentResult(
@@ -205,6 +206,7 @@ class IntakeAssistantAgent(BaseAgent):
 
             # 2. Check for existing similar projects
             project_name = inputs.get('project_name', '')
+            logger.debug(f"[{self.agent_id}] Project name before check: '{project_name}'")
             if project_name:
                 existing_projects = await self._check_existing_projects(project_name)
                 if existing_projects:
