@@ -208,13 +208,12 @@ class IntakeAssistantAgent(BaseAgent):
             project_name = inputs.get('project_name', '')
             logger.debug(f"[{self.agent_id}] Project name before check: '{project_name}'")
             if project_name:
-                logger.debug(f"[{self.agent_id}] Entering _check_existing_projects with project_name: '{project_name}'")
                 existing_projects = await self._check_existing_projects(project_name)
                 if existing_projects:
                     logger.warning(f"[{self.agent_id}] Similar projects found for {project_id}: {existing_projects}")
                     return AgentResult(
                         status=AgentStatus.FAILED,
-                        data={'error': 'Similar project already exists', 'details': f"Found existing projects: {', '.join(existing_projects)}. Please choose a unique project name or update the existing one."}, 
+                        data={'error': 'Similar project already exists', 'details': f"Found existing projects: {', '.join(existing_projects)}. Please choose a unique project name or update the existing one."},
                         execution_time_ms=int((time.time() - start_time) * 1000)
                     )
 
