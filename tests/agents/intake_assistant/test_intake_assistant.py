@@ -19,7 +19,12 @@ def mock_mcp_client():
 @pytest.fixture
 def intake_agent(mock_mcp_client):
     """Fixture for an IntakeAssistantAgent instance."""
-    return IntakeAssistantAgent(agent_id="test-intake-agent", mcp_client=mock_mcp_client, config={})
+    # Create agent with mock_mcp_client properly injected
+    agent = IntakeAssistantAgent(agent_id="test-intake-agent", mcp_client=mock_mcp_client, config={})
+    # Reset any mocks to ensure clean state between tests
+    mock_mcp_client.search_nodes.reset_mock()
+    mock_mcp_client.create_entities.reset_mock()
+    return agent
 
 @pytest.mark.asyncio
 async def test_successful_intake(intake_agent, mock_mcp_client):
