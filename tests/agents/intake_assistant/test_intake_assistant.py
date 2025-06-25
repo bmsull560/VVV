@@ -135,6 +135,7 @@ async def test_check_existing_projects_found(intake_agent, mock_mcp_client):
     ]
     intake_agent.mcp_client = mock_mcp_client
     intake_agent.validate_inputs = AsyncMock(return_value=ValidationResult(is_valid=True, errors=[]))
+    intake_agent._check_existing_projects.cache_clear() # Clear the cache
 
     inputs = {
         'project_name': 'New CRM Integration',
@@ -257,3 +258,53 @@ async def test_overall_unexpected_error_handling(intake_agent, caplog):
     assert "Unexpected classification error" in result.data['error']
     assert "An error occurred during core processing for agent test-intake-agent: Unexpected classification error" in caplog.text
     assert "ERROR" in caplog.text
+
+@pytest.mark.asyncio
+async def test_structure_data_normalization(intake_agent):
+    """Test that _structure_data correctly normalizes input data."""
+    inputs = {
+        'project_name': 'Test Project',
+        'description': 'A test description.',
+        'goals': ['Goal 1', None, 'Goal 2'],  # Mixed list with None
+        'success_criteria': 'Single criteria string', # String instead of list
+        'budget_range': '100k_to_500k'
+    }
+
+    # Call the internal method directly for focused testing
+    structured_data = intake_agent._structure_data(inputs)
+
+    assert isinstance(structured_data['goals'], list)
+    assert structured_data['goals'] == ['Goal 1', 'Goal 2'] # None should be filtered out
+
+    assert isinstance(structured_data['success_criteria'], list)
+    assert structured_data['success_criteria'] == ['Single criteria string'] # Should be converted to list
+
+    assert structured_data['project_name'] == 'Test Project'
+    assert structured_data['budget_range'] == '100k_to_500k'
+
+    # Test with empty or missing fields
+    inputs_empty = {
+        'project_name': 'Empty Test',
+        'description': 'Another test description.'
+    }
+    structured_data_empty = intake_agent._structure_data(inputs_empty)
+    assert structured_data_empty['goals'] == []
+    assert structured_data_empty['success_criteria'] == []
+
+@pytest.mark.asyncio
+async def test_structure_data_type_conversion(intake_agent):
+    """Test that _structure_data correctly converts non-list inputs to lists of strings."""
+    inputs_conversion = {
+        'project_name': 'Conversion Test',
+        'description': 'This tests type conversion.',
+        'goals': 123,  # Non-list input
+        'success_criteria': {'key': 'value'} # Another non-list input
+    }
+
+    structured_data = intake_agent._structure_data(inputs_conversion)
+
+    assert isinstance(structured_data['goals'], list)
+    assert structured_data['goals'] == ['123']
+
+    assert isinstance(structured_data['success_criteria'], list)
+    assert structured_data['success_criteria'] == ["{'key': 'value'}"]

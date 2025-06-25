@@ -13,6 +13,7 @@ import statistics
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from enum import Enum
+import functools
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 from memory.memory_types import KnowledgeEntity
@@ -344,11 +345,12 @@ class IntakeAssistantAgent(BaseAgent):
         
         return errors
 
+    @functools.lru_cache(maxsize=128)
     async def _check_existing_projects(self, project_name: str) -> List[str]:
         """Check for existing projects with similar names in MCP."""
         try:
             logger.debug(f"Searching MCP for existing projects with query: '{project_name}'")
-            search_results = await self.mcp_client.search_nodes(query=project_name)
+            search_results = await self.mcp_client.search_knowledge_graph_nodes(query=project_name)
             print(f"[DEBUG] search_results for '{project_name}': {search_results}")
 
             existing_project_names: List[str] = []
@@ -377,6 +379,37 @@ class IntakeAssistantAgent(BaseAgent):
             logger.error(f"Error checking existing projects in MCP with query '{project_name}': {e}", exc_info=True)
             # Return empty list on error to avoid blocking validation, but log the error.
             return []
+
+    def _structure_data(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        """Structures and normalizes raw input data into a consistent format."""
+        try:
+            # Placeholder for actual data structuring and normalization logic
+            # In a real scenario, this would involve:
+            # - Type conversions (e.g., string to int/float)
+            # - Standardizing formats (e.g., dates, currency)
+            # - Mapping input fields to internal data models
+            # - Handling missing or default values
+            logger.debug(f"Structuring data for inputs: {inputs.keys()}")
+            structured_data = inputs.copy() # For now, just copy the inputs
+            
+            # Example of a simple structuring step:
+            # Ensure 'goals' and 'success_criteria' are lists of strings
+            goals_input = inputs.get('goals', [])
+            if not isinstance(goals_input, list):
+                goals_input = [goals_input]
+            structured_data['goals'] = [str(g) for g in goals_input if g is not None]
+
+            success_criteria_input = inputs.get('success_criteria', [])
+            if not isinstance(success_criteria_input, list):
+                success_criteria_input = [success_criteria_input]
+            structured_data['success_criteria'] = [str(sc) for sc in success_criteria_input if sc is not None]
+
+            logger.info("Data structuring completed successfully.")
+            return structured_data
+        except Exception as e:
+            logger.error(f"Error structuring data: {e}", exc_info=True)
+            # Depending on severity, might re-raise or return a partial/empty dict
+            raise ValueError(f"Failed to structure data: {e}")
 
     def _classify_project_type(self, inputs: Dict[str, Any]) -> List[str]:
         """Classify project type based on business objective and description."""

@@ -379,6 +379,21 @@ class MCPClient:
 
         logger.info(f"Completed workflow {self._current_workflow_id} with status {status}")
 
+    async def search_knowledge_graph_nodes(self, query: Dict[str, Any], user_id: str = "system", role: str = "agent", limit: int = 10) -> List[MemoryEntity]:
+        """
+        Search for nodes (entities) in the knowledge graph.
+
+        Args:
+            query: Dictionary of query parameters.
+            user_id: ID of user performing the operation.
+            role: Role of the user.
+            limit: Maximum number of results to return.
+
+        Returns:
+            List[MemoryEntity]: List of matching knowledge graph entities.
+        """
+        return await self._memory_manager.search(query, MemoryTier.GRAPH, user_id, role, limit)
+
     async def store_knowledge(self, title: str, content: str, content_type: str, source: str,
                             metadata: Optional[Dict[str, Any]] = None,
                             user_id: str = "system", role: str = "agent") -> str:

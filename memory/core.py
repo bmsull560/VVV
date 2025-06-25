@@ -137,38 +137,59 @@ class MemoryManager:
     def _validate_entity(self, entity: MemoryEntity):
         """Validate entity fields and types according to schema."""
         # Basic type and required field checks for all entities
-        assert hasattr(entity, 'id') and isinstance(entity.id, str), "Entity must have string 'id'"
-        assert hasattr(entity, 'created_at'), "Entity must have 'created_at' timestamp"
-        assert hasattr(entity, 'updated_at'), "Entity must have 'updated_at' timestamp"
-        assert hasattr(entity, 'creator_id') and isinstance(entity.creator_id, str), "Entity must have string 'creator_id'"
-        assert hasattr(entity, 'sensitivity'), "Entity must have 'sensitivity'"
-        assert hasattr(entity, 'tier'), "Entity must have 'tier'"
-        # ContextMemoryEntity
+        if not hasattr(entity, 'id') or not isinstance(entity.id, str):
+            raise ValueError("Entity must have string 'id'")
+        if not hasattr(entity, 'created_at'):
+            raise ValueError("Entity must have 'created_at' timestamp")
+        if not hasattr(entity, 'updated_at'):
+            raise ValueError("Entity must have 'updated_at' timestamp")
+        if not hasattr(entity, 'creator_id') or not isinstance(entity.creator_id, str):
+            raise ValueError("Entity must have string 'creator_id'")
+        if not hasattr(entity, 'sensitivity'):
+            raise ValueError("Entity must have 'sensitivity'")
+        if not hasattr(entity, 'tier'):
+            raise ValueError("Entity must have 'tier'")
+
         if isinstance(entity, ContextMemoryEntity):
-            assert hasattr(entity, 'workflow_id') and isinstance(entity.workflow_id, str), "Context must have workflow_id as str"
-            assert hasattr(entity, 'version') and isinstance(entity.version, int), "Context must have version as int"
-            assert hasattr(entity, 'context_data') and isinstance(entity.context_data, dict), "Context must have context_data as dict"
-        # WorkflowMemoryEntity
-        if isinstance(entity, WorkflowMemoryEntity):
-            assert hasattr(entity, 'workflow_id') and isinstance(entity.workflow_id, str), "Workflow must have workflow_id as str"
-            assert hasattr(entity, 'workflow_name') and isinstance(entity.workflow_name, str), "Workflow must have workflow_name as str"
-            assert hasattr(entity, 'workflow_status') and isinstance(entity.workflow_status, str), "Workflow must have workflow_status as str"
-            assert hasattr(entity, 'start_time'), "Workflow must have start_time"
-        # KnowledgeEntity
-        if isinstance(entity, KnowledgeEntity):
-            assert hasattr(entity, 'content') and isinstance(entity.content, str), "Knowledge must have content as str"
-            assert hasattr(entity, 'content_type') and isinstance(entity.content_type, str), "Knowledge must have content_type as str"
-            assert hasattr(entity, 'source') and isinstance(entity.source, str), "Knowledge must have source as str"
-            assert hasattr(entity, 'confidence') and isinstance(entity.confidence, float), "Knowledge must have confidence as float"
-            assert hasattr(entity, 'references') and isinstance(entity.references, list), "Knowledge must have references as list"
-        # RelationshipEntity
-        if isinstance(entity, RelationshipEntity):
-            assert hasattr(entity, 'from_id') and isinstance(entity.from_id, str), "Relationship must have from_id as str"
-            assert hasattr(entity, 'to_id') and isinstance(entity.to_id, str), "Relationship must have to_id as str"
-            assert hasattr(entity, 'relation_type') and isinstance(entity.relation_type, str), "Relationship must have relation_type as str"
-            assert hasattr(entity, 'strength') and isinstance(entity.strength, float), "Relationship must have strength as float"
-            assert hasattr(entity, 'bidirectional') and isinstance(entity.bidirectional, bool), "Relationship must have bidirectional as bool"
-            assert hasattr(entity, 'properties') and isinstance(entity.properties, dict), "Relationship must have properties as dict"
+            if not hasattr(entity, 'workflow_id') or not isinstance(entity.workflow_id, str):
+                raise ValueError("Context must have workflow_id as str")
+            if not hasattr(entity, 'version') or not isinstance(entity.version, int):
+                raise ValueError("Context must have version as int")
+            if not hasattr(entity, 'context_data') or not isinstance(entity.context_data, dict):
+                raise ValueError("Context must have context_data as dict")
+        elif isinstance(entity, WorkflowMemoryEntity):
+            if not hasattr(entity, 'workflow_id') or not isinstance(entity.workflow_id, str):
+                raise ValueError("Workflow must have workflow_id as str")
+            if not hasattr(entity, 'workflow_name') or not isinstance(entity.workflow_name, str):
+                raise ValueError("Workflow must have workflow_name as str")
+            if not hasattr(entity, 'workflow_status') or not isinstance(entity.workflow_status, str):
+                raise ValueError("Workflow must have workflow_status as str")
+            if not hasattr(entity, 'start_time'):
+                raise ValueError("Workflow must have start_time")
+        elif isinstance(entity, KnowledgeEntity):
+            if not hasattr(entity, 'content') or not isinstance(entity.content, str):
+                raise ValueError("Knowledge must have content as str")
+            if not hasattr(entity, 'content_type') or not isinstance(entity.content_type, str):
+                raise ValueError("Knowledge must have content_type as str")
+            if not hasattr(entity, 'source') or not isinstance(entity.source, str):
+                raise ValueError("Knowledge must have source as str")
+            if not hasattr(entity, 'confidence') or not isinstance(entity.confidence, float):
+                raise ValueError("Knowledge must have confidence as float")
+            if not hasattr(entity, 'references') or not isinstance(entity.references, list):
+                raise ValueError("Knowledge must have references as list")
+        elif isinstance(entity, RelationshipEntity):
+            if not hasattr(entity, 'from_id') or not isinstance(entity.from_id, str):
+                raise ValueError("Relationship must have from_id as str")
+            if not hasattr(entity, 'to_id') or not isinstance(entity.to_id, str):
+                raise ValueError("Relationship must have to_id as str")
+            if not hasattr(entity, 'relation_type') or not isinstance(entity.relation_type, str):
+                raise ValueError("Relationship must have relation_type as str")
+            if not hasattr(entity, 'strength') or not isinstance(entity.strength, float):
+                raise ValueError("Relationship must have strength as float")
+            if not hasattr(entity, 'bidirectional') or not isinstance(entity.bidirectional, bool):
+                raise ValueError("Relationship must have bidirectional as bool")
+            if not hasattr(entity, 'properties') or not isinstance(entity.properties, dict):
+                raise ValueError("Relationship must have properties as dict")
         # Add more entity-type checks as needed
         # (See docs/entity_schemas.md for full schema)
     
