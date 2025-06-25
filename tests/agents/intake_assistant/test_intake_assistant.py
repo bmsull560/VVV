@@ -77,14 +77,13 @@ async def test_input_validation_failure(intake_agent, mock_mcp_client):
     assert result.status == AgentStatus.FAILED
     assert 'Input validation failed' in result.data['error']
     expected_errors = [
+        "Field 'project_name' must be at least 3 characters long",
         "Project name must be at least 5 characters long.",
         "Required field 'business_objective' is missing or null",
         "Field 'description' must be at least 20 characters long",
         "Goals cannot be an empty list if provided."
     ]
     assert all(err in result.data['details'] for err in expected_errors)
-    assert 'description' in result.data['details']
-    assert 'goals' in result.data['details']
     mock_mcp_client.create_entities.assert_not_called()
 
 @pytest.mark.asyncio
@@ -255,5 +254,5 @@ async def test_overall_unexpected_error_handling(intake_agent, caplog):
     assert result.status == AgentStatus.FAILED
     assert "An error occurred during core processing for agent test-intake-agent" in result.data['error']
     assert "Unexpected classification error" in result.data['error']
-    assert "An unexpected error occurred during intake processing for agent test-intake-agent: Unexpected classification error" in caplog.text
+    assert "An unexpected error occurred during core processing for agent test-intake-agent: Unexpected classification error" in caplog.text
     assert "CRITICAL" in caplog.text

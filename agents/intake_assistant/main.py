@@ -203,6 +203,18 @@ class IntakeAssistantAgent(BaseAgent):
                     execution_time_ms=int((time.time() - start_time) * 1000)
                 )
 
+            # 2. Check for existing similar projects
+            project_name = inputs.get('project_name', '')
+            if project_name:
+                existing_projects = await self._check_existing_projects(project_name)
+                if existing_projects:
+                    logger.warning(f"[{self.agent_id}] Similar projects found for {project_id}: {existing_projects}")
+                    return AgentResult(
+                        status=AgentStatus.FAILED,
+                        data={'error': 'Similar project already exists', 'details': f"Found existing projects: {', '.join(existing_projects)}. Please choose a unique project name or update the existing one."}, 
+                        execution_time_ms=int((time.time() - start_time) * 1000)
+                    )
+
             # 2. Data Structuring and Normalization
             structured_data = self._structure_data(inputs)
             logger.info(f"[{self.agent_id}] Structured data for project {project_id}")
