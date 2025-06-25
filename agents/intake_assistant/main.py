@@ -349,7 +349,6 @@ class IntakeAssistantAgent(BaseAgent):
         try:
             logger.debug(f"Searching MCP for existing projects with query: '{project_name}'")
             search_results = await self.mcp_client.search_nodes(query=project_name)
-            # Debug print for pytest visibility
             print(f"[DEBUG] search_results for '{project_name}': {search_results}")
 
             existing_project_names: List[str] = []
@@ -368,44 +367,13 @@ class IntakeAssistantAgent(BaseAgent):
                         logger.debug(f"Found existing project by observation: {name}")
                         break
 
-            # Debug print before returning
             print(f"[DEBUG] existing_project_names: {existing_project_names}")
-            # Deduplicate preserving order
             return list(dict.fromkeys(existing_project_names))
         except Exception as e:
             logger.error(f"Error checking existing projects: {e}", exc_info=True)
             return []
 
-    
 
-    
-
-        """Check for existing projects with similar names in MCP."""
-        try:
-            logger.debug(f"Searching MCP for existing projects with query: '{project_name}'")
-            search_results = await self.mcp_client.search_nodes(query=project_name)
-            print(f"[DEBUG] search_results for '{project_name}': {search_results}")
-            logger.debug(f"[DEBUG] Checking for duplicates: project_name='{project_name}', search_results={search_results}")
-            existing_project_names = []
-            for result in search_results:
-                node_name = result.get('name', '').lower()
-                if project_name.lower() in node_name:
-                    existing_project_names.append(result.get('name'))
-                    logger.debug(f"Found existing project by node name: {result.get('name')}")
-                    continue  # Move to the next result once found in name
-
-                node_observations = result.get('observations', [])
-                for obs in node_observations:
-                    if isinstance(obs, str) and project_name.lower() in obs.lower():
-                        existing_project_names.append(result.get('name'))
-                        logger.debug(f"Found existing project by observation content: {result.get('name')}")
-                        break  # Break from inner loop, move to next search result
-
-            # Filter out duplicates and None values
-            logger.debug(f"[DEBUG] Duplicates found: {existing_project_names}")
-            print(f"[DEBUG] existing_project_names: {existing_project_names}")
-            return list(set([name for name in existing_project_names if name is not None]))
-        except Exception as e:
             logger.error(f"Error checking existing projects in MCP with query '{project_name}': {e}", exc_info=True)
             # Return empty list on error to avoid blocking validation, but log the error.
             return []
