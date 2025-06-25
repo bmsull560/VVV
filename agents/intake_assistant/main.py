@@ -344,7 +344,7 @@ class IntakeAssistantAgent(BaseAgent):
         
         return errors
 
-           async def _check_existing_projects(self, project_name: str) -> List[str]:
+async def _check_existing_projects(self, project_name: str) -> List[str]:
             """Check for existing projects with similar names in MCP."""
             try:
                 logger.debug(f"Searching MCP for existing projects with query: '{project_name}'")
@@ -375,7 +375,7 @@ class IntakeAssistantAgent(BaseAgent):
             except Exception as e:
                 logger.error(f"Error checking existing projects: {e}", exc_info=True)
                 return []
-                
+
     def _classify_project_type(self, inputs: Dict[str, Any]) -> List[str]:
             """Check for existing projects with similar names in MCP."""
             try:
@@ -407,6 +407,8 @@ class IntakeAssistantAgent(BaseAgent):
             except Exception as e:
                 logger.error(f"Error checking existing projects: {e}", exc_info=True)
                 return []
+
+    def _classify_project_type(self, inputs: Dict[str, Any]) -> List[str]:
             """Check for existing projects with similar names in MCP."""
             try:
                 logger.debug(f"Searching MCP for existing projects with query: '{project_name}'")
