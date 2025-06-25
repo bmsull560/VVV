@@ -65,7 +65,7 @@ async def test_successful_intake(intake_agent, mock_mcp_client):
 async def test_input_validation_failure(intake_agent, mock_mcp_client):
     """Test that the agent fails if input validation fails."""
     inputs = {
-        'project_name': 'Too Short',
+        'project_name': 'a',
         'description': 'a',
         'goals': []
     } # These inputs will fail validation
@@ -76,7 +76,13 @@ async def test_input_validation_failure(intake_agent, mock_mcp_client):
 
     assert result.status == AgentStatus.FAILED
     assert 'Input validation failed' in result.data['error']
-    assert 'project_name' in result.data['details']
+    expected_errors = [
+        "Project name must be at least 5 characters long.",
+        "Required field 'business_objective' is missing or null",
+        "Field 'description' must be at least 20 characters long",
+        "Goals cannot be an empty list if provided."
+    ]
+    assert all(err in result.data['details'] for err in expected_errors)
     assert 'description' in result.data['details']
     assert 'goals' in result.data['details']
     mock_mcp_client.create_entities.assert_not_called()
@@ -243,7 +249,7 @@ async def test_overall_unexpected_error_handling(intake_agent, caplog):
     # Mock validate_inputs to allow the process to proceed to the error point
     intake_agent.validate_inputs = AsyncMock(return_value=ValidationResult(is_valid=True, errors=[]))
 
-    with caplog.at_level(logging.CRITICAL):
+    with caplog.at_level(logging.ERROR):
         result = await intake_agent.execute(inputs)
 
     assert result.status == AgentStatus.FAILED
