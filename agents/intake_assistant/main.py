@@ -344,38 +344,63 @@ class IntakeAssistantAgent(BaseAgent):
         
         return errors
 
-    async def _check_existing_projects(self, project_name: str) -> List[str]:
-        """Check if a project with a similar name already exists in MCP memory using mcp2_search_nodes."""
+        async def _check_existing_projects(self, project_name: str) -> List[str]:
+        """Check for existing projects with similar names in MCP."""
         try:
-            # Use mcp2_search_nodes to search for entities that match the project name
-            # The query will search across entity names, types, and observation content.
             logger.debug(f"Searching MCP for existing projects with query: '{project_name}'")
             search_results = await self.mcp_client.search_nodes(query=project_name)
+            # Debug print for test visibility
+            print(f"[DEBUG] search_results for '{project_name}': {search_results}")
 
+            existing_project_names: List[str] = []
+            for result in search_results:
+                name = result.get('name') or ''
+                observations = result.get('observations') or []
+
+                if project_name.lower() in name.lower():
+                    existing_project_names.append(name)
+                    logger.debug(f"Found existing project by name: {name}")
+                    continue
+
+                for obs in observations:
+                    if isinstance(obs, str) and project_name.lower() in obs.lower():
+                        existing_project_names.append(name)
+                        logger.debug(f"Found existing project by observation: {name}")
+                        break
+
+            # Debug print before returning
+            print(f"[DEBUG] existing_project_names: {existing_project_names}")
+            # Deduplicate preserving order
+            return list(dict.fromkeys(existing_project_names))
+        except Exception as e:
+            logger.error(f"Error checking existing projects: {e}", exc_info=True)
+            return []
+
+        """Check for existing projects with similar names in MCP."""
+        try:
+            logger.debug(f"Searching MCP for existing projects with query: '{project_name}'")
+            search_results = await self.mcp_client.search_nodes(query=project_name)
+        print(f"[DEBUG] search_results for '{project_name}': {search_results}")
+            logger.debug(f"[DEBUG] Checking for duplicates: project_name='{project_name}', search_results={search_results}")
             existing_project_names = []
             for result in search_results:
-                # The search_nodes tool returns a list of nodes, where each node is a dictionary.
-                # We need to inspect the 'name' and 'observations' fields for project names.
                 node_name = result.get('name', '').lower()
-                node_observations = result.get('observations', [])
-                
-                # Check if the node name itself contains the project name
                 if project_name.lower() in node_name:
                     existing_project_names.append(result.get('name'))
                     logger.debug(f"Found existing project by node name: {result.get('name')}")
-                    continue # Move to the next result once found in name
+                    continue  # Move to the next result once found in name
 
-                # Check if any observation contains the project name
+                node_observations = result.get('observations', [])
                 for obs in node_observations:
                     if isinstance(obs, str) and project_name.lower() in obs.lower():
-                        # If the observation contains the project name, we can consider the node's name as a match
                         existing_project_names.append(result.get('name'))
                         logger.debug(f"Found existing project by observation content: {result.get('name')}")
-                        break # Break from inner loop, move to next search result
+                        break  # Break from inner loop, move to next search result
 
             # Filter out duplicates and None values
-            return list(set([name for name in existing_project_names if name is not None]))
-
+            logger.debug(f"[DEBUG] Duplicates found: {existing_project_names}")
+            print(f"[DEBUG] existing_project_names: {existing_project_names}")
+        return list(set([name for name in existing_project_names if name is not None]))
         except Exception as e:
             logger.error(f"Error checking existing projects in MCP with query '{project_name}': {e}", exc_info=True)
             # Return empty list on error to avoid blocking validation, but log the error.
