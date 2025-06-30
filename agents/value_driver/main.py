@@ -313,7 +313,6 @@ class ValueDriverAgent(BaseAgent):
     async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
         """Enhanced validation for value driver analysis inputs."""
         errors = []
-        print(f"[DEBUG] ValueDriverAgent custom_validations called with inputs: {inputs.keys()}")
         
         # Validate user query content
         user_query = inputs.get('user_query', '').strip()
@@ -333,7 +332,6 @@ class ValueDriverAgent(BaseAgent):
         if not isinstance(min_confidence, (int, float)) or not 0.0 <= min_confidence <= 1.0:
             errors.append("Minimum confidence must be a number between 0.0 and 1.0")
         
-        print(f"[DEBUG] ValueDriverAgent custom_validations errors: {errors}")
         return errors
 
     def _extract_keywords_with_context(self, text: str, keywords: List[str]) -> List[Dict[str, Any]]:
