@@ -14,11 +14,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 from agents.core.agent_base import AgentStatus
 from agents.template_selector.main import (
-    TemplateSelectorAgent,
-    IndustryType,
-    ComplexityLevel,
+    TemplateSelectorAgent, 
+    IndustryType, 
+    ComplexityLevel, 
     TemplateSelectorResult
 )
+
+from datetime import datetime, timezone
 
 # --- Test Fixtures ---
 
@@ -155,10 +157,15 @@ async def test_mcp_audit_recording(template_agent, mock_mcp_client):
     await template_agent.execute(valid_input)
 
     mock_mcp_client.memory.create_entity.assert_called_once()
-    call_args = mock_mcp_client.memory.create_entity.call_args.kwargs
-    assert call_args["entity_type"] == "Analysis"
-    assert "Agent 'test-selector-agent-001' performed template selection." in call_args["observations"]
-    assert "Selected Template: Tech Growth Business Case" in call_args["observations"][1]
+    mock_mcp_client.create_entities.assert_called_once()
+    # Get the first argument (list of entities) from the call
+    entity_list = mock_mcp_client.create_entities.call_args.args[0]
+    assert len(entity_list) == 1
+    entity = entity_list[0]
+    assert entity.entity_type == "template_selection_analysis"
+    assert entity.data["selected_template"]["template_name"] == "Tech Growth Business Case"
+    assert entity.data["input_data"]["industry"] == "technology"
+    assert entity.data["input_data"]["business_objective"] == "product_launch"
 
 @pytest.mark.asyncio
 async def test_graceful_handling_of_unexpected_error(template_agent):

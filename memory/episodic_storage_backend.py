@@ -3,8 +3,8 @@ Specialized PostgreSQL storage backend for Episodic Memory using SQLAlchemy.
 """
 
 import logging
-import functools # New import
-from collections import OrderedDict # New import for LRU cache
+import functools
+from collections import OrderedDict
 try:
     import orjson
 except ImportError:
@@ -12,7 +12,7 @@ except ImportError:
     class orjson:
         @staticmethod
         def dumps(v):
-            return json.dumps(v).encode("utf-8")
+            return json.dumps(v, default=str).encode("utf-8")
         @staticmethod
         def loads(v):
             return json.loads(v)

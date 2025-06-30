@@ -1,0 +1,95 @@
+# agents/report_builder_agent.yaml
+
+agent_id: report_builder_agent
+name: "Report Builder Agent"
+description: "Generates comprehensive reports and visualizations based on business case data with support for multiple formats and templates."
+purpose: "To create professional, customizable reports that effectively communicate business value analysis to different stakeholders."
+
+# MCP Compliance
+model_context_protocol:
+  input_validation_rules: "strict"
+  output_validation_rules: "strict"
+
+# Orchestration Compliance
+orchestration:
+  execution_trigger: "orchestrator_only"
+  dependency_check: "required"
+
+# Logging
+logging:
+  level: "standard"
+  audit_trail: true
+
+inputs:
+  - name: "report_type"
+    source: "model_context.report_request"
+    description: "Type of report to generate (business_case, roi_analysis, risk_assessment, value_driver_analysis, custom)"
+    validation_rules: { required: true }
+  
+  - name: "data_sources"
+    source: "model_context.data_sources"
+    description: "List of data sources to use for report generation"
+    validation_rules: { required: true }
+  
+  - name: "output_format"
+    source: "model_context.report_request"
+    description: "Desired output format (pdf, html, markdown, json, excel, powerpoint)"
+    validation_rules: { enum: ["pdf", "html", "markdown", "json", "excel", "powerpoint"] }
+  
+  - name: "template"
+    source: "model_context.report_request"
+    description: "Report template to use"
+    validation_rules: { enum: ["executive_summary", "detailed_analysis", "financial_dashboard", "technical_deep_dive", "stakeholder_presentation", "custom"] }
+  
+  - name: "sections"
+    source: "model_context.report_request"
+    description: "List of sections to include in the report"
+    validation_rules: { type: "array" }
+  
+  - name: "charts"
+    source: "model_context.report_request"
+    description: "List of charts to include in the report"
+    validation_rules: { type: "array" }
+  
+  - name: "filters"
+    source: "model_context.report_request"
+    description: "Filters to apply to the data"
+    validation_rules: { type: "object" }
+  
+  - name: "custom_styles"
+    source: "model_context.report_request"
+    description: "Custom styling options"
+    validation_rules: { type: "object" }
+
+outputs:
+  - name: "report"
+    destination: "model_context.generated_report"
+    schema: {
+      "report_id": "string",
+      "format": "string",
+      "title": "string",
+      "content": "any",
+      "metadata": "object"
+    }
+
+# Error Handling
+error_handling:
+  retry_policy:
+    max_retries: 1
+    fallback: "Human Review Agent"
+
+# Security
+security:
+  access_level: "Editors+"
+  data_sensitivity: "medium"
+
+tools:
+  - tool_id: "file"
+  - tool_id: "memory"
+  - tool_id: "chart_renderer"
+
+implementation:
+  model: "gpt-4"
+  prompt_strategy: "Composition"
+  initial_prompt: |
+    "You are the Report Builder Agent. Your task is to generate comprehensive, professional reports based on business case data. Use a Composition strategy to assemble the report from various data sources, applying the appropriate template and formatting for the target audience. Include relevant visualizations and ensure the report effectively communicates the business value analysis."
