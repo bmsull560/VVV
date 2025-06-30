@@ -27,17 +27,28 @@ async def test_template_to_valuedriver_workflow(mcp_client: MCPClient):
 
     # 2. Define Inputs (simulating a selected template)
     template_name = "SaaS_CRM_Implementation"
-    value_driver_inputs = {"template_name": template_name}
+    
+    # Create structured data that would come from a template selection
+    structured_data = {
+        "industry": "technology",
+        "business_objective": "Implement a new CRM system to improve sales efficiency",
+        "stakeholder_types": ["sales_manager", "cto", "cfo"],
+        "complexity_level": "medium",
+        "primary_value_drivers": [
+            "Sales productivity improvement",
+            "Customer data consolidation",
+            "Process automation"
+        ]
+    }
 
-    # 3. Execute Value Driver Agent
-    # 4. Execute Value Driver Agent with the selected template
+    # 3. Execute Value Driver Agent with the selected template
     value_driver_inputs = {
         "structured_data": structured_data,
         "template_name": template_name
     }
     value_driver_result = await value_driver_agent.execute(value_driver_inputs)
 
-    # 5. Assert Value Driver Success
+    # 4. Assert Value Driver Success
     assert value_driver_result.status == AgentStatus.COMPLETED, f"Value Driver agent failed: {value_driver_result.data.get('message')}"
     assert "value_drivers" in value_driver_result.data, "Value Driver agent did not produce 'value_drivers'"
     
