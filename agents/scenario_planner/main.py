@@ -8,14 +8,13 @@ business cases.
 
 import logging
 import time
-import json
 from typing import Dict, Any, List, Optional, Tuple, Union
-from enum import Enum
+from enum import Enum, auto
 from datetime import datetime, timezone
 import statistics
 import math
 import random
-import hashlib
+import json
 from decimal import Decimal
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
@@ -36,13 +35,10 @@ class ScenarioType(str, Enum):
     MONTE_CARLO = "monte_carlo"
     SENSITIVITY = "sensitivity"
     STRESS_TEST = "stress_test"
-    WHAT_IF = "what_if" 
-    RECESSION = "recession"
-    MARKET_ENTRY = "market_entry"
-    COMPETITIVE_RESPONSE = "competitive_response"
+    WHAT_IF = "what_if"
 
 class VariableType(str, Enum):
-    """Types of scenario variables."""
+    """Types of scenario variables with enhanced categorization."""
     REVENUE = "revenue"
     COST = "cost"
     GROWTH_RATE = "growth_rate"
@@ -54,11 +50,29 @@ class VariableType(str, Enum):
     RISK_PROBABILITY = "risk_probability"
     RISK_IMPACT = "risk_impact"
     CUSTOM = "custom"
-    MARKET_GROWTH = "market_growth"
     INFLATION = "inflation"
     COMPETITIVE_PRESSURE = "competitive_pressure"
-    ADOPTION_RATE = "adoption_rate"
+    MARKET_ENTRY = "market_entry"
     REGULATORY_CHANGE = "regulatory_change"
+    TECHNOLOGY_DISRUPTION = "technology_disruption"
+
+class ScenarioProbability(Enum):
+    """Probability levels for scenarios."""
+    VERY_UNLIKELY = auto()  # < 10%
+    UNLIKELY = auto()       # 10-30%
+    POSSIBLE = auto()       # 30-50%
+    LIKELY = auto()         # 50-70%
+    VERY_LIKELY = auto()    # 70-90%
+    ALMOST_CERTAIN = auto() # > 90%
+
+class RecommendationType(Enum):
+    """Types of strategic recommendations."""
+    STRATEGIC_PIVOT = auto()
+    RISK_MITIGATION = auto()
+    OPPORTUNITY_LEVERAGE = auto()
+    CONTINGENCY_PLAN = auto()
+    RESOURCE_ALLOCATION = auto()
+    TIMING_ADJUSTMENT = auto()
 
 class ScenarioPlannerAgent(BaseAgent):
     """
@@ -105,105 +119,16 @@ class ScenarioPlannerAgent(BaseAgent):
         self.default_time_horizon = config.get('default_time_horizon', 5)
         self.default_discount_rate = config.get('default_discount_rate', 0.1)
         self.confidence_threshold = config.get('confidence_threshold', 0.8)
-        self.risk_tolerance = config.get('risk_tolerance', 'medium') 
-        self.scenario_templates = self._initialize_scenario_templates()
-        self.dependency_mappings = self._initialize_dependency_mappings()
-        self.recommendation_templates = self._initialize_recommendation_templates()
-    
-    def _initialize_scenario_templates(self) -> Dict[str, Dict[str, Any]]:
-        """Initialize predefined scenario templates."""
-        return {
-            ScenarioType.RECESSION.value: {
-                "name": "Economic Recession",
-                "description": "Simulates business performance during economic downturn",
-                "variable_adjustments": {
-                    VariableType.MARKET_GROWTH.value: -0.3,  # 30% reduction
-                    VariableType.REVENUE.value: -0.25,       # 25% reduction
-                    VariableType.COST.value: 0.1,            # 10% increase
-                    VariableType.ADOPTION_RATE.value: -0.4   # 40% reduction
-                },
-                "probability": 0.15,  # 15% chance of recession
-                "risk_level": "high"
-            },
-            ScenarioType.MARKET_ENTRY.value: {
-                "name": "New Market Entry",
-                "description": "Simulates expansion into new market segments",
-                "variable_adjustments": {
-                    VariableType.MARKET_GROWTH.value: 0.4,   # 40% increase
-                    VariableType.REVENUE.value: 0.3,         # 30% increase
-                    VariableType.COST.value: 0.25,           # 25% increase
-                    VariableType.ADOPTION_RATE.value: -0.2   # 20% reduction (slower adoption in new markets)
-                },
-                "probability": 0.25,  # 25% chance of market entry
-                "risk_level": "medium"
-            },
-            ScenarioType.COMPETITIVE_RESPONSE.value: {
-                "name": "Competitive Response",
-                "description": "Simulates impact of competitive actions",
-                "variable_adjustments": {
-                    VariableType.MARKET_GROWTH.value: -0.1,  # 10% reduction
-                    VariableType.REVENUE.value: -0.15,       # 15% reduction
-                    VariableType.COMPETITIVE_PRESSURE.value: 0.5,  # 50% increase
-                    VariableType.ADOPTION_RATE.value: -0.25  # 25% reduction
-                },
-                "probability": 0.35,  # 35% chance of competitive response
-                "risk_level": "medium"
-            }
-        }
-    
-    def _initialize_dependency_mappings(self) -> Dict[str, Dict[str, float]]:
-        """Initialize variable dependency mappings for more realistic scenario modeling."""
-        return {
-            VariableType.MARKET_GROWTH.value: {
-                VariableType.REVENUE.value: 0.7,  # Strong positive correlation
-                VariableType.ADOPTION_RATE.value: 0.5  # Moderate positive correlation
-            },
-            VariableType.INFLATION.value: {
-                VariableType.COST.value: 0.8,  # Strong positive correlation
-                VariableType.REVENUE.value: 0.3  # Weak positive correlation (price increases)
-            },
-            VariableType.COMPETITIVE_PRESSURE.value: {
-                VariableType.REVENUE.value: -0.6,  # Strong negative correlation
-                VariableType.ADOPTION_RATE.value: -0.4  # Moderate negative correlation
-            },
-            VariableType.REGULATORY_CHANGE.value: {
-                VariableType.COST.value: 0.4,  # Moderate positive correlation
-                VariableType.RISK_PROBABILITY.value: 0.5  # Moderate positive correlation
-            }
-        }
-    
-    def _initialize_recommendation_templates(self) -> Dict[str, List[str]]:
-        """Initialize recommendation templates for different scenario outcomes."""
-        return {
-            "high_risk": [
-                "Implement phased deployment to limit initial investment exposure",
-                "Develop detailed contingency plans for each major risk factor",
-                "Consider strategic partnerships to share risk burden",
-                "Establish clear exit criteria and decision points",
-                "Increase monitoring frequency for early warning indicators"
-            ],
-            "high_opportunity": [
-                "Prepare scalability plans to capitalize on potential upside",
-                "Secure additional resources that can be rapidly deployed",
-                "Develop accelerated timeline options for faster market penetration",
-                "Identify potential strategic acquisitions to enhance growth",
-                "Create incentive structures tied to exceeding baseline projections"
-            ],
-            "high_volatility": [
-                "Implement flexible resource allocation mechanisms",
-                "Develop modular implementation approach for rapid pivoting",
-                "Create scenario-specific response playbooks",
-                "Establish regular scenario reassessment checkpoints",
-                "Diversify strategic approaches to hedge against uncertainty"
-            ],
-            "stable_outlook": [
-                "Focus on operational excellence and efficiency gains",
-                "Implement continuous improvement processes",
-                "Develop deeper market penetration strategies",
-                "Invest in capability building for long-term advantage",
-                "Consider strategic expansions from position of stability"
-            ]
-        }
+        self.risk_tolerance = config.get('risk_tolerance', 'medium')
+        self.probability_thresholds = config.get('probability_thresholds', {
+            'very_unlikely': 0.1,
+            'unlikely': 0.3,
+            'possible': 0.5,
+            'likely': 0.7,
+            'very_likely': 0.9,
+            'almost_certain': 0.95
+        })
+        self.dependency_matrix = {}  # Will store variable interdependencies
 
     async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
         """Enhanced validation for scenario planner inputs."""
@@ -270,7 +195,7 @@ class ScenarioPlannerAgent(BaseAgent):
         if scenario_type == ScenarioType.MONTE_CARLO.value:
             if 'variables' not in inputs or not inputs['variables']:
                 errors.append("Monte Carlo simulation requires at least one variable")
-            
+
             for variable in variables:
                 if 'distribution' not in variable:
                     errors.append(f"Variable '{variable.get('name', 'unknown')}' missing required field for Monte Carlo: distribution")
@@ -279,10 +204,19 @@ class ScenarioPlannerAgent(BaseAgent):
             if 'variables' not in inputs or not inputs['variables']:
                 errors.append("Sensitivity analysis requires at least one variable")
         
-        elif scenario_type in [ScenarioType.WHAT_IF.value, ScenarioType.RECESSION.value, 
-                              ScenarioType.MARKET_ENTRY.value, ScenarioType.COMPETITIVE_RESPONSE.value]:
+        elif scenario_type == ScenarioType.WHAT_IF.value:
             if 'custom_scenarios' not in inputs or not inputs['custom_scenarios']:
                 errors.append("What-if analysis requires at least one custom scenario")
+
+        # Validate dependency matrix if provided
+        if 'dependency_matrix' in inputs:
+            dependency_matrix = inputs['dependency_matrix']
+            if not isinstance(dependency_matrix, dict):
+                errors.append("Dependency matrix must be an object")
+            else:
+                for var_name, dependencies in dependency_matrix.items():
+                    if not isinstance(dependencies, dict):
+                        errors.append(f"Dependencies for variable '{var_name}' must be an object")
         
         return errors
 
@@ -297,16 +231,14 @@ class ScenarioPlannerAgent(BaseAgent):
         # Calculate financial metrics
         total_benefit = annual_benefit * time_horizon
         net_benefit = total_benefit - investment
-        roi_percentage = (net_benefit / investment * 100) if investment > 0 else 0
-        payback_period = investment / annual_benefit if annual_benefit > 0 else float('inf')
+        roi_percentage = calculate_roi_percentage(annual_benefit, investment, time_horizon)
+        payback_period = calculate_payback_period(annual_benefit, investment)
         
         # Calculate NPV
-        npv = -investment
-        for year in range(1, time_horizon + 1):
-            npv += annual_benefit / ((1 + discount_rate) ** year)
+        npv = calculate_npv(annual_benefit, investment, time_horizon, discount_rate)
         
         # Calculate IRR (simplified approximation)
-        irr = (annual_benefit / investment) - 1 if investment > 0 else 0
+        irr = calculate_irr(annual_benefit, investment, time_horizon)
         
         # Create base scenario
         base_scenario = {
@@ -321,10 +253,10 @@ class ScenarioPlannerAgent(BaseAgent):
             'outputs': {
                 'total_benefit': total_benefit,
                 'net_benefit': net_benefit,
-                'roi_percentage': roi_percentage,
+                'roi_percentage': round(roi_percentage, 2),
                 'payback_period': payback_period,
-                'npv': npv,
-                'irr': irr
+                'npv': round(npv, 2),
+                'irr': round(irr * 100, 2)  # Convert to percentage
             },
             'confidence': 1.0,
             'risk_level': 'medium'
@@ -346,34 +278,59 @@ class ScenarioPlannerAgent(BaseAgent):
         # Apply optimistic adjustments
         if variables:
             # Use variable-specific adjustments
+            adjusted_values = {}
             for variable in variables:
                 var_name = variable['name']
                 var_type = variable['type']
                 base_value = variable['base_value']
+                adjustment_factor = 1.0
                 
                 # Calculate optimistic value based on variable type
                 if var_type == VariableType.REVENUE.value:
                     # Increase revenue by 20%
-                    optimistic_value = base_value * 1.2
+                    adjustment_factor = 1.2
                 elif var_type == VariableType.COST.value:
                     # Decrease cost by 15%
-                    optimistic_value = base_value * 0.85
+                    adjustment_factor = 0.85
                 elif var_type == VariableType.GROWTH_RATE.value:
                     # Increase growth rate by 30%
-                    optimistic_value = base_value * 1.3
+                    adjustment_factor = 1.3
                 elif var_type == VariableType.ADOPTION_RATE.value:
                     # Increase adoption rate by 25%
-                    optimistic_value = min(base_value * 1.25, 1.0)
+                    adjustment_factor = 1.25
+                    base_value = min(base_value * adjustment_factor, 1.0)
                 elif var_type == VariableType.EFFICIENCY_GAIN.value:
                     # Increase efficiency gain by 25%
-                    optimistic_value = base_value * 1.25
+                    adjustment_factor = 1.25
+                elif var_type == VariableType.INFLATION.value:
+                    # Decrease inflation by 20% (favorable)
+                    adjustment_factor = 0.8
+                elif var_type == VariableType.COMPETITIVE_PRESSURE.value:
+                    # Decrease competitive pressure by 30% (favorable)
+                    adjustment_factor = 0.7
+                elif var_type == VariableType.MARKET_ENTRY.value:
+                    # Increase market entry success by 25%
+                    adjustment_factor = 1.25
+                elif var_type == VariableType.REGULATORY_CHANGE.value:
+                    # Decrease regulatory burden by 15% (favorable)
+                    adjustment_factor = 0.85
+                elif var_type == VariableType.TECHNOLOGY_DISRUPTION.value:
+                    # Increase positive technology impact by 30%
+                    adjustment_factor = 1.3
                 else:
                     # Default 20% improvement
-                    optimistic_value = base_value * 1.2
+                    adjustment_factor = 1.2
+                
+                optimistic_value = base_value * adjustment_factor
+                adjusted_values[var_name] = optimistic_value
                 
                 # Apply to inputs
                 if var_name in optimistic_scenario['inputs']:
                     optimistic_scenario['inputs'][var_name] = optimistic_value
+            
+            # Apply variable dependencies if defined
+            if hasattr(self, 'dependency_matrix') and self.dependency_matrix:
+                self._apply_dependencies(optimistic_scenario['inputs'], adjusted_values)
         else:
             # Use default optimistic adjustments
             optimistic_scenario['inputs']['annual_benefit'] = base_scenario['inputs']['annual_benefit'] * 1.2
@@ -423,34 +380,58 @@ class ScenarioPlannerAgent(BaseAgent):
         # Apply pessimistic adjustments
         if variables:
             # Use variable-specific adjustments
+            adjusted_values = {}
             for variable in variables:
                 var_name = variable['name']
                 var_type = variable['type']
                 base_value = variable['base_value']
+                adjustment_factor = 1.0
                 
                 # Calculate pessimistic value based on variable type
                 if var_type == VariableType.REVENUE.value:
                     # Decrease revenue by 15%
-                    pessimistic_value = base_value * 0.85
+                    adjustment_factor = 0.85
                 elif var_type == VariableType.COST.value:
                     # Increase cost by 20%
-                    pessimistic_value = base_value * 1.2
+                    adjustment_factor = 1.2
                 elif var_type == VariableType.GROWTH_RATE.value:
                     # Decrease growth rate by 25%
-                    pessimistic_value = base_value * 0.75
+                    adjustment_factor = 0.75
                 elif var_type == VariableType.ADOPTION_RATE.value:
                     # Decrease adoption rate by 20%
-                    pessimistic_value = base_value * 0.8
+                    adjustment_factor = 0.8
                 elif var_type == VariableType.EFFICIENCY_GAIN.value:
                     # Decrease efficiency gain by 20%
-                    pessimistic_value = base_value * 0.8
+                    adjustment_factor = 0.8
+                elif var_type == VariableType.INFLATION.value:
+                    # Increase inflation by 30% (unfavorable)
+                    adjustment_factor = 1.3
+                elif var_type == VariableType.COMPETITIVE_PRESSURE.value:
+                    # Increase competitive pressure by 40% (unfavorable)
+                    adjustment_factor = 1.4
+                elif var_type == VariableType.MARKET_ENTRY.value:
+                    # Decrease market entry success by 25%
+                    adjustment_factor = 0.75
+                elif var_type == VariableType.REGULATORY_CHANGE.value:
+                    # Increase regulatory burden by 25% (unfavorable)
+                    adjustment_factor = 1.25
+                elif var_type == VariableType.TECHNOLOGY_DISRUPTION.value:
+                    # Decrease positive technology impact by 20%
+                    adjustment_factor = 0.8
                 else:
                     # Default 15% deterioration
-                    pessimistic_value = base_value * 0.85
+                    adjustment_factor = 0.85
+                
+                pessimistic_value = base_value * adjustment_factor
+                adjusted_values[var_name] = pessimistic_value
                 
                 # Apply to inputs
                 if var_name in pessimistic_scenario['inputs']:
                     pessimistic_scenario['inputs'][var_name] = pessimistic_value
+            
+            # Apply variable dependencies if defined
+            if hasattr(self, 'dependency_matrix') and self.dependency_matrix:
+                self._apply_dependencies(pessimistic_scenario['inputs'], adjusted_values)
         else:
             # Use default pessimistic adjustments
             pessimistic_scenario['inputs']['annual_benefit'] = base_scenario['inputs']['annual_benefit'] * 0.8
@@ -500,8 +481,11 @@ class ScenarioPlannerAgent(BaseAgent):
         # Apply custom variable values
         custom_variables = scenario_config.get('variables', {})
         for var_name, var_value in custom_variables.items():
-            if var_name in custom_scenario['inputs']:
-                custom_scenario['inputs'][var_name] = var_value
+            custom_scenario['inputs'][var_name] = var_value
+        
+        # Apply variable dependencies if defined
+        if hasattr(self, 'dependency_matrix') and self.dependency_matrix:
+            self._apply_dependencies(custom_scenario['inputs'], custom_variables)
         
         # Recalculate outputs
         investment = custom_scenario['inputs']['investment']
@@ -552,7 +536,6 @@ class ScenarioPlannerAgent(BaseAgent):
             
             for variable in variables:
                 var_name = variable['name']
-                var_type = variable['type']
                 base_value = variable['base_value']
                 distribution = variable.get('distribution', 'normal')
                 
@@ -798,7 +781,10 @@ class ScenarioPlannerAgent(BaseAgent):
         # Calculate overall sensitivity summary
         if results['variable_sensitivities']:
             # Sort variables by sensitivity score
-            results['variable_sensitivities'].sort(key=lambda x: x['metrics']['sensitivity_score'], reverse=True)
+            results['variable_sensitivities'].sort(
+                key=lambda x: x['metrics']['sensitivity_score'], 
+                reverse=True
+            )
             
             # Identify most sensitive variables
             most_sensitive = results['variable_sensitivities'][0]
@@ -872,7 +858,9 @@ class ScenarioPlannerAgent(BaseAgent):
         # Run each stress scenario
         for scenario in stress_scenarios:
             # Create scenario inputs
-            scenario_inputs = base_scenario['inputs'].copy()
+            scenario_inputs = {}
+            for key, value in base_scenario['inputs'].items():
+                scenario_inputs[key] = value
             
             # Apply adjustments
             for var_name, adjustment in scenario['adjustments'].items():
@@ -996,6 +984,66 @@ class ScenarioPlannerAgent(BaseAgent):
         
         return results
 
+    def _apply_dependencies(self, inputs: Dict[str, Any], adjusted_values: Dict[str, Any]) -> None:
+        """Apply variable dependencies to ensure realistic scenarios."""
+        if not self.dependency_matrix:
+            return
+        
+        # Apply dependencies in multiple passes to handle chains of dependencies
+        for _ in range(3):  # Limit to 3 passes to prevent infinite loops
+            for var_name, dependencies in self.dependency_matrix.items():
+                if var_name not in inputs:
+                    continue
+                
+                for dep_var, relationship in dependencies.items():
+                    if dep_var not in adjusted_values:
+                        continue
+                    
+                    # Apply the relationship
+                    if relationship['type'] == 'proportional':
+                        # Direct proportional relationship
+                        factor = relationship['factor']
+                        change_pct = (adjusted_values[dep_var] / relationship['base_value']) - 1
+                        inputs[var_name] = inputs[var_name] * (1 + change_pct * factor)
+                    
+                    elif relationship['type'] == 'inverse':
+                        # Inverse relationship
+                        factor = relationship['factor']
+                        change_pct = (adjusted_values[dep_var] / relationship['base_value']) - 1
+                        inputs[var_name] = inputs[var_name] * (1 - change_pct * factor)
+                    
+                    elif relationship['type'] == 'threshold':
+                        # Threshold-based relationship
+                        threshold = relationship['threshold']
+                        if adjusted_values[dep_var] > threshold:
+                            inputs[var_name] = inputs[var_name] * relationship['above_factor']
+                        else:
+                            inputs[var_name] = inputs[var_name] * relationship['below_factor']
+
+    async def _retrieve_historical_scenarios(self, industry: str, scenario_type: str) -> List[Dict[str, Any]]:
+        """Retrieve historical scenarios from MCP memory for reference."""
+        try:
+            # Search for similar scenarios in episodic memory
+            query = {
+                "entity_type": "scenario_analysis",
+                "metadata.industry": industry,
+                "metadata.scenario_type": scenario_type
+            }
+            
+            historical_entities = await self.mcp_client.search_knowledge_graph_nodes(query, limit=5)
+            
+            historical_scenarios = []
+            for entity in historical_entities:
+                if hasattr(entity, 'data') and 'results' in entity.data:
+                    historical_scenarios.append(entity.data['results'])
+            
+            logger.info(f"Retrieved {len(historical_scenarios)} historical scenarios for {industry}/{scenario_type}")
+            return historical_scenarios
+            
+        except Exception as e:
+            logger.warning(f"Failed to retrieve historical scenarios: {e}")
+            return []
+
     async def _store_scenario_analysis(self, analysis_data: Dict[str, Any]) -> str:
         """Store scenario analysis results in MCP."""
         entity = KnowledgeEntity(
@@ -1099,7 +1147,7 @@ class ScenarioPlannerAgent(BaseAgent):
                     'monte_carlo_results': monte_carlo_results
                 }
             
-            elif scenario_type == ScenarioType.SENSITIVITY.value: 
+            elif scenario_type == ScenarioType.SENSITIVITY.value:
                 # Run sensitivity analysis
                 sensitivity_results = self._run_sensitivity_analysis(base_scenario, variables, sensitivity_range, sensitivity_steps)
                 
@@ -1128,51 +1176,6 @@ class ScenarioPlannerAgent(BaseAgent):
                     'base_scenario': base_scenario,
                     'what_if_results': what_if_results
                 }
-
-            elif scenario_type in [ScenarioType.RECESSION.value, ScenarioType.MARKET_ENTRY.value, 
-                                  ScenarioType.COMPETITIVE_RESPONSE.value]:
-                # Run predefined scenario analysis
-                scenario_template = self.scenario_templates.get(scenario_type, {})
-                if not scenario_template:
-                    raise ValueError(f"No template found for scenario type: {scenario_type}")
-                    
-                # Create custom scenario based on template
-                custom_scenario = {
-                    "name": scenario_template["name"],
-                    "description": scenario_template["description"],
-                    "variables": {}
-                }
-                
-                # Apply template adjustments to base scenario
-                for var_type, adjustment in scenario_template["variable_adjustments"].items():
-                    # Find matching variables in the model
-                    matching_vars = [v for v in variables if v.get('type') == var_type]
-                    for var in matching_vars:
-                        var_name = var.get('name')
-                        base_value = var.get('base_value', 0)
-                        custom_scenario["variables"][var_name] = base_value * (1 + adjustment)
-                
-                # Apply dependency effects for more realistic modeling
-                self._apply_variable_dependencies(custom_scenario["variables"], variables)
-                
-                # Run the predefined scenario
-                predefined_scenario = self._create_custom_scenario(base_scenario, custom_scenario)
-                
-                # Add probability and risk level from template
-                predefined_scenario["probability"] = scenario_template.get("probability", 0.5)
-                predefined_scenario["risk_level"] = scenario_template.get("risk_level", "medium")
-                
-                # Generate strategic recommendations based on scenario outcomes
-                recommendations = self._generate_strategic_recommendations(
-                    base_scenario, predefined_scenario, scenario_template
-                )
-                
-                analysis_results = {
-                    'type': scenario_type,
-                    'base_scenario': base_scenario,
-                    'predefined_scenario': predefined_scenario,
-                    'recommendations': recommendations
-                }
             
             else:
                 # Create standard scenario set (base, optimistic, pessimistic)
@@ -1188,9 +1191,8 @@ class ScenarioPlannerAgent(BaseAgent):
             # Store analysis results in MCP
             analysis_id = await self._store_scenario_analysis(analysis_results)
             
-            # Add analysis ID and timestamp to results
+            # Add analysis ID to results
             analysis_results['analysis_id'] = analysis_id
-            analysis_results['timestamp'] = datetime.now(timezone.utc).isoformat()
             
             execution_time_ms = int((time.monotonic() - start_time) * 1000)
             logger.info(f"Scenario analysis completed in {execution_time_ms}ms")
@@ -1203,149 +1205,9 @@ class ScenarioPlannerAgent(BaseAgent):
             
         except Exception as e:
             execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            logger.error(f"Scenario analysis failed: {str(e)}", exc_info=True) 
+            logger.error(f"Scenario analysis failed: {str(e)}", exc_info=True)
             return AgentResult(
                 status=AgentStatus.FAILED,
                 data={"error": f"Scenario analysis failed: {str(e)}"},
                 execution_time_ms=execution_time_ms
             )
-
-    def _apply_variable_dependencies(self, scenario_variables: Dict[str, float], 
-                                   all_variables: List[Dict[str, Any]]) -> None:
-        """Apply variable dependencies to create more realistic scenarios."""
-        # Map variable names to their types
-        var_name_to_type = {}
-        for var in all_variables:
-            var_name_to_type[var.get('name')] = var.get('type')
-        
-        # Track which variables have been modified to avoid circular dependencies
-        modified_vars = set(scenario_variables.keys())
-        
-        # Apply dependencies
-        for var_name, var_value in list(scenario_variables.items()):
-            var_type = var_name_to_type.get(var_name)
-            if not var_type or var_type not in self.dependency_mappings:
-                continue
-                
-            # Get dependencies for this variable type
-            dependencies = self.dependency_mappings[var_type]
-            
-            # Calculate the change from base value
-            base_var = next((v for v in all_variables if v.get('name') == var_name), None)
-            if not base_var:
-                continue
-                
-            base_value = base_var.get('base_value', 0)
-            change_ratio = (var_value - base_value) / base_value if base_value != 0 else 0
-            
-            # Apply effects to dependent variables
-            for dep_type, correlation in dependencies.items():
-                # Find variables of the dependent type
-                dep_vars = [v for v in all_variables if v.get('type') == dep_type]
-                
-                for dep_var in dep_vars:
-                    dep_name = dep_var.get('name')
-                    if dep_name in modified_vars:
-                        continue  # Skip if already modified
-                        
-                    dep_base = dep_var.get('base_value', 0)
-                    # Calculate effect based on correlation and change ratio
-                    effect = dep_base * (1 + (change_ratio * correlation))
-                    scenario_variables[dep_name] = effect
-                    modified_vars.add(dep_name)
-    
-    def _generate_strategic_recommendations(self, base_scenario: Dict[str, Any], 
-                                          scenario: Dict[str, Any],
-                                          scenario_template: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Generate strategic recommendations based on scenario outcomes."""
-        # Calculate key metrics differences
-        base_roi = base_scenario['outputs']['roi_percentage']
-        scenario_roi = scenario['outputs']['roi_percentage']
-        roi_change = scenario_roi - base_roi
-        
-        base_npv = base_scenario['outputs']['npv']
-        scenario_npv = scenario['outputs']['npv']
-        npv_change = scenario_npv - base_npv
-        
-        # Determine scenario characteristics
-        is_high_risk = scenario_template.get('risk_level') == 'high' or roi_change < -20
-        is_high_opportunity = roi_change > 20 and scenario_npv > 0
-        is_high_volatility = abs(roi_change) > 30
-        is_stable = abs(roi_change) < 10
-        
-        # Select appropriate recommendation templates
-        recommendation_categories = []
-        if is_high_risk:
-            recommendation_categories.append("high_risk")
-        if is_high_opportunity:
-            recommendation_categories.append("high_opportunity")
-        if is_high_volatility:
-            recommendation_categories.append("high_volatility")
-        if is_stable:
-            recommendation_categories.append("stable_outlook")
-            
-        # Default to high_risk if no categories matched
-        if not recommendation_categories:
-            recommendation_categories = ["high_risk"]
-            
-        # Generate recommendations
-        recommendations = []
-        for category in recommendation_categories:
-            templates = self.recommendation_templates.get(category, [])
-            for template in templates:
-                recommendations.append({
-                    "category": category,
-                    "recommendation": template,
-                    "impact_area": "strategic",
-                    "priority": "high" if category == "high_risk" else "medium"
-                })
-                
-        # Add scenario-specific recommendations
-        if scenario_roi < 0:
-            recommendations.append({
-                "category": "financial_viability",
-                "recommendation": "Reconsider project viability under this scenario or identify additional value drivers",
-                "impact_area": "financial",
-                "priority": "critical"
-            })
-            
-        if scenario_template.get('risk_level') == 'high' and scenario_template.get('probability', 0) > 0.2:
-            recommendations.append({
-                "category": "risk_mitigation",
-                "recommendation": f"Develop specific contingency plans for {scenario_template['name']} scenario due to high probability and impact",
-                "impact_area": "risk",
-                "priority": "high"
-            })
-            
-        return recommendations
-
-    async def retrieve_historical_scenarios(self, industry: str, project_type: str) -> List[Dict[str, Any]]:
-        """Retrieve historical scenario analyses from MCP memory to inform current analysis."""
-        try:
-            # Search for relevant historical scenario analyses
-            query = {
-                "entity_type": "scenario_analysis",
-                "metadata.industry": industry,
-                "metadata.project_type": project_type
-            }
-            
-            historical_entities = await self.mcp_client.search_knowledge_graph_nodes(query, limit=5)
-            
-            historical_scenarios = []
-            for entity in historical_entities:
-                if hasattr(entity, 'data') and isinstance(entity.data, dict):
-                    scenario_data = entity.data.get('results', {})
-                    if scenario_data:
-                        historical_scenarios.append({
-                            "scenario_id": entity.data.get('scenario_analysis_id', 'unknown'),
-                            "scenario_type": scenario_data.get('type', 'unknown'),
-                            "base_scenario": scenario_data.get('base_scenario', {}),
-                            "results": scenario_data,
-                            "timestamp": entity.data.get('timestamp', 'unknown')
-                        })
-            
-            return historical_scenarios
-            
-        except Exception as e:
-            logger.error(f"Failed to retrieve historical scenarios: {str(e)}")
-            return []
