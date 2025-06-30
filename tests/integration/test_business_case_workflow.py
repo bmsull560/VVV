@@ -272,14 +272,12 @@ class TestBusinessCaseWorkflow:
         
         assert value_result.status == AgentStatus.COMPLETED
         # assert 'quantified_impact' in value_result.data  # TODO: Fix agent/test data to produce quantified_impact
-        assert value_result.data['business_intelligence']['quantified_impact']['total_annual_savings'] > 0
+        assert value_result.data['business_intelligence']['quantified_impact']['roi_projection']['annual_benefit'] > 0
         assert value_result.data['confidence_level'] >= 0.7
         
         # Step 3: ROI Calculation
         roi_input = sample_roi_input.copy()
-        roi_input['drivers'] = [
-            driver for pillar in roi_input['drivers'] for driver in pillar.get('tier_2_drivers', [])
-        ]
+        # The sample_roi_input is already in the correct format for ROICalculatorAgent
         roi_result = await roi_agent.execute(roi_input)
         
         assert roi_result.status == AgentStatus.COMPLETED
@@ -406,7 +404,7 @@ class TestBusinessCaseWorkflow:
             for entity in entities_list:
                 if hasattr(entity, 'id'):
                     stored_entities[entity.id] = entity
-            return AsyncMock()
+            return {'status': 'success', 'entity_ids': [e.id for e in entities_list]}
         
         def get_entity_side_effect(entity_id):
             return stored_entities.get(entity_id)

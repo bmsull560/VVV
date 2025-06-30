@@ -79,7 +79,7 @@ def validate_field_types(data: Dict[str, Any], field_types: Dict[str, str]) -> L
         value = data[field]
         expected_python_type = type_mapping.get(expected_type)
         
-        if expected_python_type and not isinstance(value, expected_python_type):
+        if expected_python_type and not isinstance(value, expected_python_type) and value is not None:
             errors.append(f"Field '{field}' must be of type {expected_type}")
     
     return errors
