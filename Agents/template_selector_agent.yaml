@@ -1,104 +1,9 @@
 # agents/template_selector_agent.yaml
-agent_id: template_selector
-class_name: TemplateSelectorAgent
-module_name: agents.template_selector.main
 
-config:
-  description: "Selects the most appropriate business case template based on user inputs, industry context, and business objectives using a configurable, weighted scoring model."
-  
-  # Scoring weights for different criteria in the template matching algorithm.
-  scoring_weights:
-    industry_match: 0.25
-    objective_alignment: 0.30
-    stakeholder_fit: 0.15
-    complexity_match: 0.15
-    value_driver_alignment: 0.15
-
-  # Database of available business case templates.
-  template_database:
-    standard_roi:
-      name: "Standard ROI Business Case"
-      description: "A comprehensive ROI analysis with financial projections, suitable for a wide range of projects."
-      industries: ["generic", "technology", "manufacturing"]
-      objectives: ["cost_reduction", "productivity_improvement", "efficiency_gains"]
-      stakeholders: ["financial_buyer", "executive", "operations"]
-      complexity: ["medium", "high"]
-      value_drivers: ["cost_savings", "productivity", "automation", "efficiency"]
-      sections: ["executive_summary", "problem_statement", "solution_overview", "financial_analysis", "implementation_plan", "risk_assessment"]
-
-    cost_reduction:
-      name: "Cost Reduction Focused Business Case"
-      description: "A targeted analysis focused on identifying and quantifying cost reduction and operational savings opportunities."
-      industries: ["manufacturing", "retail", "financial_services"]
-      objectives: ["cost_reduction", "operational_efficiency", "waste_elimination"]
-      stakeholders: ["financial_buyer", "operations", "procurement"]
-      complexity: ["low", "medium"]
-      value_drivers: ["cost_savings", "waste_reduction", "process_optimization"]
-      sections: ["executive_summary", "current_costs", "cost_reduction_opportunities", "savings_analysis", "implementation_roadmap"]
-
-    revenue_growth:
-      name: "Revenue Growth Business Case"
-      description: "Focuses on initiatives aimed at driving revenue enhancement, market expansion, and customer acquisition."
-      industries: ["retail", "technology", "telecommunications"]
-      objectives: ["revenue_growth", "market_expansion", "customer_acquisition"]
-      stakeholders: ["executive", "sales", "marketing"]
-      complexity: ["medium", "high"]
-      value_drivers: ["revenue_increase", "customer_growth", "market_share"]
-      sections: ["executive_summary", "market_opportunity", "revenue_projections", "customer_analysis", "competitive_advantage"]
-
-    digital_transformation:
-      name: "Digital Transformation Business Case"
-      description: "For large-scale digital modernization and technology adoption initiatives."
-      industries: ["financial_services", "healthcare", "government"]
-      objectives: ["digital_transformation", "modernization", "technology_adoption"]
-      stakeholders: ["executive", "technical_buyer", "operations"]
-      complexity: ["high"]
-      value_drivers: ["automation", "efficiency", "innovation", "customer_experience"]
-      sections: ["executive_summary", "current_state_assessment", "transformation_roadmap", "technology_benefits", "change_management", "roi_analysis"]
-
-    operational_efficiency:
-      name: "Operational Efficiency Business Case"
-      description: "Concentrates on process optimization, quality enhancement, and operational improvements."
-      industries: ["manufacturing", "healthcare", "education"]
-      objectives: ["operational_efficiency", "process_improvement", "quality_enhancement"]
-      stakeholders: ["operations", "quality", "process_owners"]
-      complexity: ["low", "medium"]
-      value_drivers: ["efficiency", "quality", "throughput", "error_reduction"]
-      sections: ["executive_summary", "process_analysis", "efficiency_opportunities", "quality_improvements", "implementation_plan"]
-
-    compliance_security:
-      name: "Compliance & Security Business Case"
-      description: "Addresses projects driven by regulatory compliance, risk mitigation, and security enhancement needs."
-      industries: ["financial_services", "healthcare", "government"]
-      objectives: ["compliance", "security_enhancement", "risk_mitigation"]
-      stakeholders: ["compliance", "security", "risk_management", "executive"]
-      complexity: ["medium", "high"]
-      value_drivers: ["risk_reduction", "compliance_value", "security_improvement"]
-      sections: ["executive_summary", "compliance_requirements", "risk_assessment", "security_benefits", "regulatory_alignment"]
-
-    innovation_strategic:
-      name: "Innovation & Strategic Initiative Business Case"
-      description: "For high-impact, strategic innovation projects aimed at securing a competitive advantage."
-      industries: ["technology", "telecommunications", "energy"]
-      objectives: ["innovation", "strategic_advantage", "market_leadership"]
-      stakeholders: ["executive", "innovation", "strategy"]
-      complexity: ["high"]
-      value_drivers: ["innovation_value", "competitive_advantage", "strategic_positioning"]
-      sections: ["executive_summary", "strategic_context", "innovation_opportunity", "competitive_analysis", "strategic_value"]
-
-    infrastructure_upgrade:
-      name: "Infrastructure Upgrade Business Case"
-      description: "Supports infrastructure modernization, capacity enhancement, and reliability improvement projects."
-      industries: ["telecommunications", "energy", "government"]
-      objectives: ["infrastructure_upgrade", "capacity_enhancement", "reliability_improvement"]
-      stakeholders: ["technical_buyer", "operations", "infrastructure"]
-      complexity: ["medium", "high"]
-      value_drivers: ["reliability", "capacity", "performance", "maintenance_reduction"]
-      sections: ["executive_summary", "infrastructure_assessment", "upgrade_requirements", "capacity_analysis", "reliability_benefits"]
-
-
-description: "Recommends the optimal business case or slide deck template based on the context."
-purpose: "To ensure the final deliverable is presented in the most effective format for the target audience and industry."
+agent_id: template_selector_agent
+name: "Template Selector Agent"
+description: "Selects the most appropriate business case template based on user inputs, industry context, and business objectives using a configurable, weighted scoring model."
+purpose: "To recommend optimal business case or slide deck templates based on industry, business objective, and stakeholder needs."
 
 # MCP Compliance
 model_context_protocol:
@@ -115,10 +20,23 @@ logging:
   level: "standard"
 
 inputs:
-  - name: "company_profile"
-    source: "model_context.company_profile"
-  - name: "mapped_use_cases"
-    source: "model_context.mapped_use_cases"
+  - name: "business_objective"
+    source: "model_context.intake_data.business_objective"
+    description: "Primary business objective for the initiative."
+    validation_rules: { required: true }
+  - name: "industry"
+    source: "model_context.intake_data.industry"
+    description: "Industry classification for context."
+    validation_rules: { required: true }
+  - name: "stakeholder_types"
+    source: "model_context.intake_data.stakeholder_types"
+    description: "List of key stakeholder roles."
+  - name: "complexity_level"
+    source: "model_context.intake_data.complexity_level"
+    description: "Estimated project complexity."
+  - name: "primary_value_drivers"
+    source: "model_context.intake_data.primary_value_drivers"
+    description: "Key value drivers for the business case."
 
 outputs:
   - name: "selected_template"
@@ -148,4 +66,4 @@ implementation:
   model: "gpt-4"
   prompt_strategy: "Matching"
   initial_prompt: |
-    "You are the Template Selector. Your task is to choose the best presentation template. Analyze the user's industry, company size, and use cases. Use a Matching strategy to compare this context against the metadata of available templates in your library and select the most suitable one."
+    "You are the Template Selector Agent. Using a sophisticated weighted scoring algorithm, analyze the user's industry, business objective, and stakeholder context to select the most appropriate business case template from your template library. Consider factors like industry alignment, complexity fit, value driver relevance, and stakeholder preferences. Provide a confidence score based on input completeness and a clear rationale for your selection."

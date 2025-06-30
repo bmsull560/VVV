@@ -48,14 +48,14 @@ class ValidationType(Enum):
 
 def validate_required_fields(data: Dict[str, Any], required_fields: Dict[str, Tuple[type, str]]) -> Optional[str]:
     """
-    Validate that all required fields are present and of the correct type.
+    Validate that all required fields are present and of the correct type in a dictionary.
     
     Args:
         data: Dictionary of input values
         required_fields: Dictionary mapping field names to (expected_type, error_message) tuples
         
     Returns:
-        Error message string if validation fails, None if validation passes
+        Error message string if validation fails, None if all validations pass
     """
     for field, (expected_type, error_message) in required_fields.items():
         if field not in data:
