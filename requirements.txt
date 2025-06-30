@@ -1,18 +1,18 @@
-numpy==2.3.0
 fastapi==0.110.0
-uvicorn==0.29.0
+uvicorn[standard]==0.29.0
+pydantic
 PyYAML
-# To enable real semantic embeddings, install:
+SQLAlchemy
+psycopg2-binary==2.9.10
+passlib[bcrypt]
+numpy
+sentence-transformers==3.0.1
+python-dotenv
 langchain
 openai
-psycopg2-binary==2.9.10
 Flask==3.0.3
 Flask-Cors==4.0.1
-pytest==8.2.2
-pytest-asyncio==1.0.0
-aiosqlite==0.21.0
 greenlet==3.2.3
 orjson==3.10.18
-sentence-transformers==3.0.1
 simple-salesforce
 anthropic
