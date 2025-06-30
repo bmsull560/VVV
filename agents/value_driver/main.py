@@ -636,6 +636,7 @@ class ValueDriverAgent(BaseAgent):
         return recommendations
 
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
+        print("DEBUG: ValueDriverAgent execute method called.")
         """
         Analyzes input text to find and categorize value drivers based on a hierarchical model.
         Enhanced with business intelligence, quantification, and industry-specific analysis.
@@ -761,9 +762,11 @@ class ValueDriverAgent(BaseAgent):
                 return AgentResult(
                     status=AgentStatus.COMPLETED,
                     data={
-                        "drivers": [], 
                         "message": "No specific value drivers identified with sufficient confidence.",
-                        "suggestions": list(self.VALUE_HIERARCHY.keys())[:3],
+                        "suggestions": self._get_top_level_pillars(),
+                        "value_drivers": [],
+                        "quantified_impact": {},
+                        "business_recommendations": [],
                         "analysis_metadata": {
                             "query_length": len(user_query),
                             "analysis_type": analysis_type,
@@ -808,6 +811,40 @@ class ValueDriverAgent(BaseAgent):
                     'risk_assessment': self._assess_implementation_risk(identified_pillars, quantified_impact)
                 }
             }
+
+            logger.debug(f"include_quantification: {include_quantification}")
+            logger.debug(f"identified_pillars: {identified_pillars is not None and len(identified_pillars) > 0}")
+            if include_quantification and identified_pillars:
+                roi_value_drivers = []
+                for pillar_impact in quantified_impact.get('pillar_breakdown', []):
+                    if pillar_impact['cost_savings'] > 0:
+                        roi_value_drivers.append({
+                            "name": f"{pillar_impact['pillar']} - Cost Savings",
+                            "description": f"Quantified cost savings from {pillar_impact['pillar']}.",
+                            "financial_impact": {
+                                "type": "cost_savings",
+                                "value_usd_per_year": pillar_impact['cost_savings']
+                            }
+                        })
+                    if pillar_impact['productivity_value'] > 0:
+                        roi_value_drivers.append({
+                            "name": f"{pillar_impact['pillar']} - Productivity Gains",
+                            "description": f"Quantified productivity gains from {pillar_impact['pillar']}.",
+                            "financial_impact": {
+                                "type": "productivity_gain",
+                                "value_usd_per_year": pillar_impact['productivity_value']
+                            }
+                        })
+                    if pillar_impact['revenue_impact'] > 0:
+                        roi_value_drivers.append({
+                            "name": f"{pillar_impact['pillar']} - Revenue Impact",
+                            "description": f"Quantified revenue impact from {pillar_impact['pillar']}.",
+                            "financial_impact": {
+                                "type": "revenue_increase",
+                                "value_usd_per_year": pillar_impact['revenue_impact']
+                            }
+                        })
+                response_data['value_drivers'] = roi_value_drivers
             
             # Store comprehensive results in MCP episodic memory
             await self._store_value_driver_analysis(response_data, user_query)
@@ -817,7 +854,13 @@ class ValueDriverAgent(BaseAgent):
             
             return AgentResult(
                 status=AgentStatus.COMPLETED,
-                data=response_data,
+                data={
+                    "value_drivers": response_data.get('value_drivers', []),
+                    "quantified_impact": response_data['business_intelligence']['quantified_impact'],
+                    "business_recommendations": response_data['business_intelligence']['recommendations'],
+                    "message": "Value drivers identified and quantified successfully.",
+                    "analysis_metadata": response_data['analysis_summary']
+                },
                 execution_time_ms=execution_time_ms
             )
             
