@@ -19,10 +19,9 @@ class ValidationError(Exception):
 
 class ValidationResult:
     """Represents the result of a validation operation."""
-    def __init__(self, is_valid: bool, errors: Optional[List[str]] = None, validated_data: Optional[Dict[str, Any]] = None):
+    def __init__(self, is_valid: bool, errors: Optional[List[str]] = None):
         self.is_valid = is_valid
         self.errors = errors if errors is not None else []
-        self.validated_data = validated_data if validated_data is not None else {}
 
     def __bool__(self):
         return self.is_valid
@@ -46,23 +45,19 @@ class ValidationType(Enum):
 # BASIC TYPE VALIDATION
 # =============================================================================
 
-def validate_required_fields(data: Dict[str, Any], required_fields: Dict[str, Tuple[type, str]]) -> Optional[str]:
-    """
-    Validate that all required fields are present and of the correct type in a dictionary.
+def validate_required_fields(data: Dict[str, Any], required_fields: List[str]) -> List[str]:
+    """Validate that all required fields are present and not empty."""
+    errors = []
     
-    Args:
-        data: Dictionary of input values
-        required_fields: Dictionary mapping field names to (expected_type, error_message) tuples
-        
-    Returns:
-        Error message string if validation fails, None if all validations pass
-    """
-    for field, (expected_type, error_message) in required_fields.items():
+    for field in required_fields:
         if field not in data:
-            return error_message
-        if not isinstance(data[field], expected_type):
-            return f"{field} must be of type {expected_type.__name__}"
-    return None
+            errors.append(f"Missing required field: {field}")
+        elif data[field] is None:
+            errors.append(f"Field '{field}' cannot be null")
+        elif isinstance(data[field], str) and not data[field].strip():
+            errors.append(f"Field '{field}' cannot be empty")
+    
+    return errors
 
 def validate_field_types(data: Dict[str, Any], field_types: Dict[str, str]) -> List[str]:
     """Validate field types against expected types."""
@@ -84,7 +79,7 @@ def validate_field_types(data: Dict[str, Any], field_types: Dict[str, str]) -> L
         value = data[field]
         expected_python_type = type_mapping.get(expected_type)
         
-        if expected_python_type and not isinstance(value, expected_python_type):
+        if expected_python_type and not isinstance(value, expected_python_type) and value is not None:
             errors.append(f"Field '{field}' must be of type {expected_type}")
     
     return errors
