@@ -374,34 +374,36 @@ class ValueDriverAgent(BaseAgent):
         sorted_keywords = sorted(keywords, key=len, reverse=True)
 
         for keyword in sorted_keywords:
-        keyword_lower = keyword.lower()
-        
-        # Use regex for more robust matching, including word boundaries
-        # This handles cases where keywords might be part of other words, e.g., 'man' in 'manual'
-        # but also allows for partial matches if not strict word boundaries
-        import re
-        for match in re.finditer(r'\b' + re.escape(keyword_lower) + r'\b', text):
-        start, end = match.span()
-        
-        # Check for overlap with already matched portions
-        overlap = False
-        for matched_start, matched_end in matched_indices:
-            if max(start, matched_start) < min(end, matched_end):
-                    overlap = True
-                    break
+            keyword_lower = keyword.lower()
             
-        if not overlap:
-            context_start = max(0, start - 50)
-        context_end = min(len(text), end + 50)
-        context = text[context_start:context_end].strip()
-        
-        matches.append({
-            'keyword': keyword,
-            'context': context,
-        'position': start,
-        'match_type': 'exact'
-        })
-        matched_indices.append((start, end))
+            # Use regex for more robust matching, including word boundaries
+            # This handles cases where keywords might be part of other words, e.g., 'man' in 'manual'
+            # but also allows for partial matches if not strict word boundaries
+            import re
+            # Use a more flexible regex that doesn't strictly require word boundaries
+        # This allows for keywords to be part of larger words or to handle variations
+        for match in re.finditer(re.escape(keyword_lower), text):
+                start, end = match.span()
+                
+                # Check for overlap with already matched portions
+                overlap = False
+                for matched_start, matched_end in matched_indices:
+                    if max(start, matched_start) < min(end, matched_end):
+                        overlap = True
+                        break
+                
+                if not overlap:
+                    context_start = max(0, start - 50)
+                    context_end = min(len(text), end + 50)
+                    context = text[context_start:context_end].strip()
+                    
+                    matches.append({
+                        'keyword': keyword,
+                        'context': context,
+                        'position': start,
+                        'match_type': 'exact'
+                    })
+                    matched_indices.append((start, end))
 
         return matches
 
@@ -412,16 +414,16 @@ class ValueDriverAgent(BaseAgent):
         
         # Base score from keyword ratio
         keyword_ratio = len(keywords_found) / total_keywords
-        base_score = min(keyword_ratio * 0.8, 0.8)  # Max 80% from keywords
+        base_score = min(keyword_ratio * 1.0, 1.0)  # Max 100% from keywords
         
         # Bonus for multiple keyword matches
         if len(keywords_found) > 1:
-            base_score += 0.1
+            base_score += 0.15  # Increased bonus
         
         # Bonus for high-confidence keywords (longer matches)
         for kw in keywords_found:
             if len(kw['keyword']) > 8:  # Longer, more specific keywords
-                base_score += 0.05
+                base_score += 0.07  # Increased bonus
         
         return min(base_score, 1.0)
 

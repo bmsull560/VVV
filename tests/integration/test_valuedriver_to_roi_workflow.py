@@ -47,7 +47,7 @@ async def test_valuedriver_to_roi_workflow(mcp_client: MCPClient):
     extracted_value_drivers = value_driver_result.data["value_drivers"]
     
     roi_inputs = {
-        "value_drivers": extracted_value_drivers,
+        "drivers": extracted_value_drivers,
         "investment_cost": 25000 # Keep investment cost fixed for this test
     }
 
