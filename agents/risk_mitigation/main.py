@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
-from memory.types import KnowledgeEntity
+from memory.memory_types import KnowledgeEntity
 
 logger = logging.getLogger(__name__)
 
@@ -460,7 +460,7 @@ class RiskMitigationAgent(BaseAgent):
             logger.info(f"Risk mitigation analysis completed in {execution_time_ms}ms")
             
             return AgentResult(
-                status=AgentStatus.SUCCESS,
+                status=AgentStatus.COMPLETED,
                 data=response_data,
                 execution_time_ms=execution_time_ms
             )

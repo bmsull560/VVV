@@ -22,7 +22,7 @@ from agents.utils.calculations import (
     detect_outliers_iqr,
     safe_divide
 )
-from memory.types import KnowledgeEntity
+from memory.memory_types import KnowledgeEntity
 
 logger = logging.getLogger(__name__)
 
@@ -356,7 +356,7 @@ class SensitivityAnalysisAgent(BaseAgent):
             logger.info(f"Sensitivity analysis completed in {execution_time_ms}ms")
             
             return AgentResult(
-                status=AgentStatus.SUCCESS,
+                status=AgentStatus.COMPLETED,
                 data=response_data,
                 execution_time_ms=execution_time_ms
             )

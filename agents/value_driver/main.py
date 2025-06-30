@@ -7,15 +7,16 @@ with specific metrics for quantitative analysis.
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Tuple
 import time
+from typing import Dict, Any, List, Optional, Tuple
 import re
 from enum import Enum
 from datetime import datetime
 import statistics
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
-from memory.types import KnowledgeEntity
+from memory.memory_types import KnowledgeEntity
+from agents.utils.validation import validate_comprehensive_input, format_validation_errors
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +235,32 @@ class ValueDriverAgent(BaseAgent):
                     ]
                 }
             ]
+        }
+    }
+
+    ANALYSIS_SCHEMA = {
+        'required_fields': ['agent_id', 'analysis_type', 'pillars_identified', 'average_confidence', 'timestamp'],
+        'field_types': {
+            'agent_id': 'string',
+            'analysis_type': 'string',
+            'pillars_identified': 'number',
+            'average_confidence': 'number',
+            'industry_context': 'string',
+            'company_size': 'string',
+            'timestamp': 'number'
+        }
+    }
+    
+    QUANT_SCHEMA = {
+        'required_fields': ['agent_id', 'annual_cost_savings', 'annual_productivity_gains', 'annual_revenue_impact', 'roi_percentage', 'payback_months', 'timestamp'],
+        'field_types': {
+            'agent_id': 'string',
+            'annual_cost_savings': 'number',
+            'annual_productivity_gains': 'number',
+            'annual_revenue_impact': 'number',
+            'roi_percentage': 'number',
+            'payback_months': 'number',
+            'timestamp': 'number'
         }
     }
 
@@ -614,7 +641,6 @@ class ValueDriverAgent(BaseAgent):
         Enhanced with business intelligence, quantification, and industry-specific analysis.
         """
         start_time = time.monotonic()
-        
         try:
             logger.info(f"Starting value driver analysis for agent {self.agent_id}")
             
@@ -733,7 +759,7 @@ class ValueDriverAgent(BaseAgent):
             if not identified_pillars:
                 logger.info("No value drivers identified with sufficient confidence")
                 return AgentResult(
-                    status=AgentStatus.SUCCESS,
+                    status=AgentStatus.COMPLETED,
                     data={
                         "drivers": [], 
                         "message": "No specific value drivers identified with sufficient confidence.",
@@ -790,7 +816,7 @@ class ValueDriverAgent(BaseAgent):
             logger.info(f"Value driver analysis completed in {execution_time_ms}ms. Identified {len(identified_pillars)} pillars")
             
             return AgentResult(
-                status=AgentStatus.SUCCESS,
+                status=AgentStatus.COMPLETED,
                 data=response_data,
                 execution_time_ms=execution_time_ms
             )
@@ -902,51 +928,63 @@ class ValueDriverAgent(BaseAgent):
         }
 
     async def _store_value_driver_analysis(self, analysis_data: Dict[str, Any], original_query: str) -> None:
-        """Store comprehensive value driver analysis in MCP episodic memory."""
+        """Store comprehensive value driver analysis in MCP episodic memory with validation."""
         try:
-            # Create primary analysis entity
-            analysis_entity = KnowledgeEntity(
-                entity_id=f"value_driver_analysis_{int(time.time())}",
-                entity_type="value_driver_analysis",
-                attributes={
-                    "agent_id": self.agent_id,
-                    "analysis_type": analysis_data['analysis_summary']['analysis_type'],
-                    "pillars_identified": analysis_data['analysis_summary']['total_pillars_identified'],
-                    "average_confidence": analysis_data['analysis_summary']['average_confidence'],
-                    "industry_context": analysis_data['analysis_summary']['industry_context'],
-                    "company_size": analysis_data['analysis_summary']['company_size'],
-                    "timestamp": time.time()
-                },
-                content=f"Value driver analysis of '{original_query[:200]}...' identified "
-                       f"{analysis_data['analysis_summary']['total_pillars_identified']} value pillars "
-                       f"with {analysis_data['analysis_summary']['average_confidence']:.2f} average confidence"
-            )
+            # 1. Create and Validate primary analysis entity
+            analysis_attributes = {
+                "agent_id": self.agent_id,
+                "analysis_type": analysis_data['analysis_summary']['analysis_type'],
+                "pillars_identified": analysis_data['analysis_summary']['total_pillars_identified'],
+                "average_confidence": analysis_data['analysis_summary']['average_confidence'],
+                "industry_context": analysis_data['analysis_summary'].get('industry_context'),
+                "company_size": analysis_data['analysis_summary'].get('company_size'),
+                "timestamp": time.time()
+            }
             
-            await self.mcp_client.store_memory(analysis_entity)
-            
-            # Store quantified impact if available
+            analysis_errors = validate_comprehensive_input(analysis_attributes, self.ANALYSIS_SCHEMA)
+            if not analysis_errors:
+                analysis_entity = KnowledgeEntity(
+                    entity_id=f"value_driver_analysis_{int(time.time())}",
+                    entity_type="value_driver_analysis",
+                    attributes=analysis_attributes,
+                    content=f"Value driver analysis of '{original_query[:200]}...' identified "
+                           f"{analysis_data['analysis_summary']['total_pillars_identified']} value pillars "
+                           f"with {analysis_data['analysis_summary']['average_confidence']:.2f} average confidence"
+                )
+                await self.mcp_client.store_memory(analysis_entity)
+            else:
+                error_str = format_validation_errors(analysis_errors, "value_driver_analysis entity")
+                logger.error(f"MCP validation failed, skipping storage. {error_str}")
+
+            # 2. Create and Validate quantified impact entity if available
             if analysis_data['business_intelligence']['quantified_impact']:
                 impact_data = analysis_data['business_intelligence']['quantified_impact']
-                impact_entity = KnowledgeEntity(
-                    entity_id=f"value_quantification_{int(time.time())}",
-                    entity_type="value_quantification",
-                    attributes={
-                        "agent_id": self.agent_id,
-                        "annual_cost_savings": impact_data.get('annual_cost_savings', 0),
-                        "annual_productivity_gains": impact_data.get('annual_productivity_gains', 0),
-                        "annual_revenue_impact": impact_data.get('annual_revenue_impact', 0),
-                        "roi_percentage": impact_data.get('roi_projection', {}).get('roi_percentage', 0),
-                        "payback_months": impact_data.get('roi_projection', {}).get('payback_months', 0),
-                        "timestamp": time.time()
-                    },
-                    content=f"Value quantification: ${impact_data.get('annual_cost_savings', 0):,.0f} cost savings, "
-                           f"${impact_data.get('annual_productivity_gains', 0):,.0f} productivity gains, "
-                           f"{impact_data.get('roi_projection', {}).get('roi_percentage', 0):.1f}% ROI"
-                )
+                impact_attributes = {
+                    "agent_id": self.agent_id,
+                    "annual_cost_savings": impact_data.get('annual_cost_savings', 0),
+                    "annual_productivity_gains": impact_data.get('annual_productivity_gains', 0),
+                    "annual_revenue_impact": impact_data.get('annual_revenue_impact', 0),
+                    "roi_percentage": impact_data.get('roi_projection', {}).get('roi_percentage', 0),
+                    "payback_months": impact_data.get('roi_projection', {}).get('payback_months', 0),
+                    "timestamp": time.time()
+                }
                 
-                await self.mcp_client.store_memory(impact_entity)
-            
-            logger.info("Value driver analysis results stored in MCP episodic memory")
+                quant_errors = validate_comprehensive_input(impact_attributes, self.QUANT_SCHEMA)
+                if not quant_errors:
+                    impact_entity = KnowledgeEntity(
+                        entity_id=f"value_quantification_{int(time.time())}",
+                        entity_type="value_quantification",
+                        attributes=impact_attributes,
+                        content=f"Value quantification: ${impact_data.get('annual_cost_savings', 0):,.0f} cost savings, "
+                               f"${impact_data.get('annual_productivity_gains', 0):,.0f} productivity gains, "
+                               f"{impact_data.get('roi_projection', {}).get('roi_percentage', 0):.1f}% ROI"
+                    )
+                    await self.mcp_client.store_memory(impact_entity)
+                else:
+                    error_str = format_validation_errors(quant_errors, "value_quantification entity")
+                    logger.error(f"MCP validation failed, skipping storage. {error_str}")
+
+            logger.info("Value driver analysis results processed for MCP episodic memory")
             
         except Exception as e:
-            logger.error(f"Failed to store value driver analysis in MCP memory: {e}")
+            logger.error(f"Failed to store value driver analysis in MCP memory: {e}", exc_info=True)

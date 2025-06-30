@@ -17,7 +17,7 @@ import hashlib
 import base64
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
-from memory.types import KnowledgeEntity
+from memory.memory_types import KnowledgeEntity
 
 try:
     from sqlalchemy import create_engine, text, MetaData, Table

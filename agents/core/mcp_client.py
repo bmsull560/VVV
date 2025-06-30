@@ -394,6 +394,32 @@ class MCPClient:
         """
         return await self._memory_manager.search(query, MemoryTier.GRAPH, user_id, role, limit)
 
+    async def create_entities(self, entities: List[MemoryEntity], user_id: str = "system", role: str = "agent") -> Dict[str, Any]:
+        """
+        Create multiple knowledge graph entities.
+
+        Args:
+            entities: A list of MemoryEntity objects to store.
+            user_id: ID of user performing the operation.
+            role: Role of the user.
+
+        Returns:
+            A dictionary with status and a list of entity IDs.
+        """
+        entity_ids = []
+        for entity in entities:
+            # Ensure it's a knowledge entity and set the tier
+            if isinstance(entity, KnowledgeEntity):
+                entity.tier = MemoryTier.GRAPH
+                entity_id = await self._memory_manager.store(entity, user_id, role)
+                if entity_id:
+                    entity_ids.append(entity_id)
+            else:
+                logger.warning(f"Attempted to store non-KnowledgeEntity via create_entities: {type(entity)}")
+
+        logger.info(f"Created {len(entity_ids)} entities in the knowledge graph.")
+        return {"status": "success", "entity_ids": entity_ids}
+
     async def store_knowledge(self, title: str, content: str, content_type: str, source: str,
                             metadata: Optional[Dict[str, Any]] = None,
                             user_id: str = "system", role: str = "agent") -> str:

@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 import statistics
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
-from memory.types import KnowledgeEntity
+from memory.memory_types import KnowledgeEntity
 
 logger = logging.getLogger(__name__)
 
@@ -452,7 +452,7 @@ class AnalyticsAggregatorAgent(BaseAgent):
             
             if not business_case_data:
                 return AgentResult(
-                    status=AgentStatus.SUCCESS,
+                    status=AgentStatus.COMPLETED,
                     data={"warning": "No data found matching the specified criteria"},
                     execution_time_ms=int((time.monotonic() - start_time) * 1000)
                 )
@@ -509,7 +509,7 @@ class AnalyticsAggregatorAgent(BaseAgent):
             logger.info(f"Analytics aggregation completed in {execution_time_ms}ms")
             
             return AgentResult(
-                status=AgentStatus.SUCCESS,
+                status=AgentStatus.COMPLETED,
                 data=response_data,
                 execution_time_ms=execution_time_ms
             )

@@ -109,7 +109,18 @@ class TemplateSelectorAgent(BaseAgent):
         start_time = time.monotonic()
         try:
             # 1. Validate and structure inputs
-            validated_inputs = TemplateSelectorInput(**inputs)
+            try:
+                validated_inputs = TemplateSelectorInput(**inputs)
+            except ValidationError as e:
+                # Check if the error is specifically for the 'industry' field
+                is_industry_error = any(err['loc'][0] == 'industry' for err in e.errors())
+                if is_industry_error and 'industry' in inputs:
+                    logger.warning(f"Unrecognized industry '{inputs['industry']}'. Falling back to generic.")
+                    inputs['industry'] = IndustryType.GENERIC
+                    validated_inputs = TemplateSelectorInput(**inputs) # Retry validation
+                else:
+                    raise # Re-raise if it's a different validation error
+
             logger.info(f"Input validation successful. Validated data: {validated_inputs.model_dump()}")
 
             # 2. Perform analysis
@@ -119,7 +130,7 @@ class TemplateSelectorAgent(BaseAgent):
 
             # 3. Format and return result
             result_data = self._format_result(recommendations, validated_inputs)
-            
+
             # 4. Record audit trail in MCP
             await self._record_mcp_audit(result_data, validated_inputs)
 
@@ -155,7 +166,7 @@ class TemplateSelectorAgent(BaseAgent):
 
         for template_id, template_def in self.template_database.items():
             match_score, _ = self._calculate_match_score(template_def, inputs)
-            
+
             logger.debug(f"Scoring template '{template_id}': Match={match_score:.2f}, Confidence={confidence_score:.2f}")
 
             # Combine match score and confidence score
@@ -226,12 +237,12 @@ class TemplateSelectorAgent(BaseAgent):
         """
         optional_fields = ['stakeholder_types', 'complexity_level', 'primary_value_drivers']
         provided_count = sum(1 for field in optional_fields if getattr(inputs, field) is not None)
-        
+
         total_optional = len(optional_fields)
         confidence = provided_count / total_optional if total_optional > 0 else 1.0
-        
+
         details = {field: (1.0 if getattr(inputs, field) is not None else 0.0) for field in optional_fields}
-        
+
         return confidence, details
 
     def _format_result(self, recommendations: List[SelectedTemplate], inputs: TemplateSelectorInput) -> TemplateSelectorResult:
@@ -239,7 +250,7 @@ class TemplateSelectorAgent(BaseAgent):
         selected = recommendations[0]
         alternatives = recommendations[1:3] # Return top 2 alternatives
         rationale = self._generate_selection_rationale(selected, inputs)
-        
+
         execution_metadata = {
             "input_parameters": inputs.model_dump(),
             "total_templates_evaluated": len(self.template_database),
@@ -263,7 +274,7 @@ class TemplateSelectorAgent(BaseAgent):
             parts.append(f"It is well-suited for stakeholders including: {', '.join(inputs.stakeholder_types)}.")
         if inputs.complexity_level:
             parts.append(f"The template matches the project's '{inputs.complexity_level.value}' complexity.")
-        
+
         return " ".join(parts)
 
     async def _record_mcp_audit(self, result: TemplateSelectorResult, inputs: TemplateSelectorInput):
@@ -284,4 +295,3 @@ class TemplateSelectorAgent(BaseAgent):
             logger.info(f"Successfully recorded analysis in MCP under entity '{entity_name}'.")
         except Exception as e:
             logger.error(f"Failed to record analysis in MCP: {e}")
-

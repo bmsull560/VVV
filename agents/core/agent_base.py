@@ -92,6 +92,60 @@ class BaseAgent(ABC):
             max_attempts=config.get('max_retries', 3),
             backoff_factor=config.get('backoff_factor', 2)
         )
+    async def validate_inputs(self, inputs: Dict[str, Any]) -> ValidationResult:
+        """
+        Performs generic input validation based on the agent's configuration.
+        Checks for required fields, correct types, and value constraints.
+        """
+        errors: List[str] = []
+        validation_rules = self.config.get('input_validation', {})
+        if not validation_rules:
+            return ValidationResult(is_valid=True, errors=[])
+
+        # 1. Check for required fields
+        required_fields = validation_rules.get('required_fields', [])
+        for field in required_fields:
+            if field not in inputs:
+                errors.append(f"'{field}' is a required property")
+
+        # 2. Check field constraints (length, value, etc.)
+        field_constraints = validation_rules.get('field_constraints', {})
+        for field, constraints in field_constraints.items():
+            if field in inputs and inputs[field] is not None:
+                value = inputs[field]
+                if 'min_length' in constraints and isinstance(value, (str, list, dict)):
+                    if len(value) < constraints['min_length']:
+                        errors.append(f"{field} must be at least {constraints['min_length']} characters")
+                if 'max_length' in constraints and isinstance(value, (str, list, dict)):
+                    if len(value) > constraints['max_length']:
+                        errors.append(f"{field} cannot exceed {constraints['max_length']} characters")
+                if 'min_value' in constraints and isinstance(value, (int, float)):
+                    if value < constraints['min_value']:
+                        errors.append(f"{field} must be at least {constraints['min_value']}")
+                if 'max_value' in constraints and isinstance(value, (int, float)):
+                    if value > constraints['max_value']:
+                        errors.append(f"{field} cannot exceed {constraints['max_value']}")
+                if 'allowed_values' in constraints:
+                    if value not in constraints['allowed_values']:
+                        errors.append(f"'{value}' is not a valid value for {field}")
+        
+        # 3. Check field types
+        field_types = validation_rules.get('field_types', {})
+        for field, expected_type in field_types.items():
+            if field in inputs and inputs[field] is not None:
+                type_map = {
+                    'string': str, 
+                    'number': (int, float, Decimal), 
+                    'array': list, 
+                    'object': dict,
+                    'boolean': bool
+                }
+                if expected_type in type_map:
+                    if not isinstance(inputs[field], type_map[expected_type]):
+                        errors.append(f"'{field}' must be of type {expected_type}, but got {type(inputs[field]).__name__}")
+
+        return ValidationResult(is_valid=not errors, errors=errors)
+
     @abstractmethod
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
         """The core logic of the agent.

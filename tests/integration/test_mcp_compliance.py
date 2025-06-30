@@ -21,7 +21,7 @@ from agents.analytics_aggregator.main import AnalyticsAggregatorAgent
 from agents.database_connector.main import DatabaseConnectorAgent
 from agents.data_correlator.main import DataCorrelatorAgent
 from agents.core.agent_base import AgentResult, AgentStatus
-from memory.types import KnowledgeEntity
+from memory.memory_types import KnowledgeEntity
 
 
 class TestMCPCompliance:

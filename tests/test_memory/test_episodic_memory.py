@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import uuid
 
 from memory.episodic import EpisodicMemory
-from memory.types import WorkflowMemoryEntity, DataSensitivity, MemoryTier
+from memory.memory_types import WorkflowMemoryEntity, DataSensitivity, MemoryTier
 
 # Use an in-memory SQLite database for testing
 TEST_DSN = "sqlite+aiosqlite:///:memory:"

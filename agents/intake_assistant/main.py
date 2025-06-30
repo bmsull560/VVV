@@ -72,8 +72,9 @@ class IntakeAssistantAgent(BaseAgent):
         # Set up comprehensive validation rules
         if 'input_validation' not in config:
             config['input_validation'] = {
-                'required_fields': ['project_name', 'description', 'business_objective'],
+                'required_fields': ['user_query', 'project_name', 'description', 'business_objective'],
                 'field_types': {
+                    'user_query': 'string',
                     'project_name': 'string',
                     'description': 'string',
                     'business_objective': 'string',
@@ -92,6 +93,7 @@ class IntakeAssistantAgent(BaseAgent):
                     'regulatory_requirements': 'array'
                 },
                 'field_constraints': {
+                    'user_query': {'min_length': 1},
                     'project_name': {'min_length': 3, 'max_length': 100},
                     'description': {'min_length': 20, 'max_length': 2000},
                     'business_objective': {'min_length': 10, 'max_length': 500},
@@ -171,22 +173,6 @@ class IntakeAssistantAgent(BaseAgent):
             ]
         }
 
-    async def validate_inputs(self, inputs: Dict[str, Any]) -> ValidationResult:
-        """Performs comprehensive validation of inputs using both base and custom rules."""
-        # Perform base validation inherited from AgentBase
-        base_validation_result = await super().validate_inputs(inputs)
-
-        # Perform custom validations specific to IntakeAssistantAgent
-        custom_errors = await self._custom_validations(inputs)
-
-        # Combine results
-        combined_errors = []
-        if not base_validation_result.is_valid:
-            combined_errors.extend(base_validation_result.errors)
-        combined_errors.extend(custom_errors)
-
-        return ValidationResult(is_valid=not combined_errors, errors=combined_errors)
-
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
         """Processes the project intake, validates, classifies, and stores data."""
         start_time = time.time()
@@ -196,8 +182,14 @@ class IntakeAssistantAgent(BaseAgent):
         try:
             # 1. Input Validation
             validation_result = await self.validate_inputs(inputs)
-            logger.debug(f"[{self.agent_id}] Input validation result: {validation_result.is_valid}, Errors: {validation_result.errors}")
             if not validation_result.is_valid:
+                error_message = f"Input validation failed: {', '.join(validation_result.errors)}"
+                logger.warning(f"[{self.agent_id}] Validation failed for project_id {project_id}: {error_message}")
+                return AgentResult(
+                    status=AgentStatus.FAILED,
+                    data={"message": error_message},
+                    execution_time_ms=int((time.time() - start_time) * 1000)
+                )
                 logger.warning(f"[{self.agent_id}] Input validation failed for project {project_id}: {validation_result.errors}")
                 return AgentResult(
                     status=AgentStatus.FAILED,

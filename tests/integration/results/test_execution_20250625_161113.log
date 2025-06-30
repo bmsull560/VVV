@@ -1,0 +1,11 @@
+2025-06-25 16:11:13,328 - integration_test_runner - INFO - Starting integration test execution: integration_test_20250625_161113
+2025-06-25 16:11:13,329 - integration_test_runner - INFO - Running test suite: business_case_workflow
+2025-06-25 16:11:25,163 - integration_test_runner - INFO - Completed business_case_workflow: 0/0 passed (0.0% success rate)
+2025-06-25 16:11:25,164 - integration_test_runner - INFO - Running test suite: mcp_compliance
+2025-06-25 16:11:33,357 - integration_test_runner - INFO - Completed mcp_compliance: 0/0 passed (0.0% success rate)
+2025-06-25 16:11:33,367 - integration_test_runner - INFO - Running test suite: load_performance
+2025-06-25 16:11:41,621 - integration_test_runner - INFO - Completed load_performance: 0/0 passed (0.0% success rate)
+2025-06-25 16:11:41,624 - integration_test_runner - INFO - Test report saved: C:\Users\bmsul\Documents\VVV\tests\integration\results\integration_test_20250625_161113_report.json
+2025-06-25 16:11:41,624 - integration_test_runner - INFO - HTML report saved: C:\Users\bmsul\Documents\VVV\tests\integration\results\integration_test_20250625_161113_report.html
+2025-06-25 16:11:41,625 - integration_test_runner - INFO - Integration test execution completed: passed
+2025-06-25 16:11:41,625 - integration_test_runner - INFO - Total: 0 tests, 0 passed, 0 failed, 0 errors (0.0% success rate)
