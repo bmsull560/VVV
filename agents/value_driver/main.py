@@ -418,12 +418,12 @@ class ValueDriverAgent(BaseAgent):
         
         # Bonus for multiple keyword matches
         if len(keywords_found) > 1:
-        base_score += 0.15  # Increased bonus
+            base_score += 0.15  # Increased bonus
         
         # Bonus for high-confidence keywords (longer matches)
         for kw in keywords_found:
-        if len(kw['keyword']) > 8:  # Longer, more specific keywords
-        base_score += 0.07  # Increased bonus
+            if len(kw['keyword']) > 8:  # Longer, more specific keywords
+                base_score += 0.07  # Increased bonus
         
         return min(base_score, 1.0)
 
