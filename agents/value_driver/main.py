@@ -944,7 +944,7 @@ class ValueDriverAgent(BaseAgent):
             analysis_errors = validate_comprehensive_input(analysis_attributes, self.ANALYSIS_SCHEMA)
             if not analysis_errors:
                 analysis_entity = KnowledgeEntity(
-                    entity_id=f"value_driver_analysis_{int(time.time())}",
+                    id=f"value_driver_analysis_{int(time.time())}",
                     entity_type="value_driver_analysis",
                     attributes=analysis_attributes,
                     content=f"Value driver analysis of '{original_query[:200]}...' identified "
@@ -972,7 +972,7 @@ class ValueDriverAgent(BaseAgent):
                 quant_errors = validate_comprehensive_input(impact_attributes, self.QUANT_SCHEMA)
                 if not quant_errors:
                     impact_entity = KnowledgeEntity(
-                        entity_id=f"value_quantification_{int(time.time())}",
+                        id=f"value_quantification_{int(time.time())}",
                         entity_type="value_quantification",
                         attributes=impact_attributes,
                         content=f"Value quantification: ${impact_data.get('annual_cost_savings', 0):,.0f} cost savings, "
