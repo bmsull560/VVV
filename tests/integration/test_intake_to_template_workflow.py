@@ -79,16 +79,20 @@ async def test_intake_to_template_selection_workflow(mcp_client: MCPClient, monk
     project_info = intake_result.data["project_data"]["basic_info"]
     template_inputs = {
         "industry": project_info.get("industry", "Technology"),  # Default to Technology for this test case
-        "business_objective": project_info["business_objective"]
+        "business_objective": project_info["business_objective"],
+        # Pass any other optional inputs that might be available
+        "stakeholder_types": project_info.get("stakeholder_types"),
+        "complexity_level": project_info.get("complexity_level"),
+        "primary_value_drivers": project_info.get("primary_value_drivers")
     }
     template_result = await template_agent.execute(template_inputs)
 
     # 6. Assert Template Selection Success
     assert template_result.status == AgentStatus.COMPLETED, f"Template agent failed: {template_result.error_details}"
-    assert "selected_template_id" in template_result.data, "Template agent did not select a template"
-    assert template_result.data["selected_template_id"] == "TPL-CRM-001"
+    assert "selected_template" in template_result.data, "Template agent did not select a template"
+    assert template_result.data["selected_template"]["template_id"] == "TPL-CRM-001"
 
-    print(f"Workflow successful: Selected template '{template_result.data['selected_template_id']}' for query.")
+    print(f"Workflow successful: Selected template '{template_result.data['selected_template']['template_id']}' for query.")
 
 
 @pytest.mark.asyncio

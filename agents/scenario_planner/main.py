@@ -9,14 +9,20 @@ business cases.
 import logging
 import time
 from typing import Dict, Any, List, Optional, Tuple, Union
-from enum import Enum
+from enum import Enum, auto
 from datetime import datetime, timezone
 import statistics
 import math
 import random
+import json
+from decimal import Decimal
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
 from memory.memory_types import KnowledgeEntity
+from agents.utils.calculations import (
+    calculate_npv, calculate_irr, calculate_payback_period, calculate_roi_percentage,
+    calculate_confidence_score, calculate_risk_score, classify_risk_level
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +38,7 @@ class ScenarioType(str, Enum):
     WHAT_IF = "what_if"
 
 class VariableType(str, Enum):
-    """Types of scenario variables."""
+    """Types of scenario variables with enhanced categorization."""
     REVENUE = "revenue"
     COST = "cost"
     GROWTH_RATE = "growth_rate"
@@ -44,6 +50,29 @@ class VariableType(str, Enum):
     RISK_PROBABILITY = "risk_probability"
     RISK_IMPACT = "risk_impact"
     CUSTOM = "custom"
+    INFLATION = "inflation"
+    COMPETITIVE_PRESSURE = "competitive_pressure"
+    MARKET_ENTRY = "market_entry"
+    REGULATORY_CHANGE = "regulatory_change"
+    TECHNOLOGY_DISRUPTION = "technology_disruption"
+
+class ScenarioProbability(Enum):
+    """Probability levels for scenarios."""
+    VERY_UNLIKELY = auto()  # < 10%
+    UNLIKELY = auto()       # 10-30%
+    POSSIBLE = auto()       # 30-50%
+    LIKELY = auto()         # 50-70%
+    VERY_LIKELY = auto()    # 70-90%
+    ALMOST_CERTAIN = auto() # > 90%
+
+class RecommendationType(Enum):
+    """Types of strategic recommendations."""
+    STRATEGIC_PIVOT = auto()
+    RISK_MITIGATION = auto()
+    OPPORTUNITY_LEVERAGE = auto()
+    CONTINGENCY_PLAN = auto()
+    RESOURCE_ALLOCATION = auto()
+    TIMING_ADJUSTMENT = auto()
 
 class ScenarioPlannerAgent(BaseAgent):
     """
@@ -91,6 +120,15 @@ class ScenarioPlannerAgent(BaseAgent):
         self.default_discount_rate = config.get('default_discount_rate', 0.1)
         self.confidence_threshold = config.get('confidence_threshold', 0.8)
         self.risk_tolerance = config.get('risk_tolerance', 'medium')
+        self.probability_thresholds = config.get('probability_thresholds', {
+            'very_unlikely': 0.1,
+            'unlikely': 0.3,
+            'possible': 0.5,
+            'likely': 0.7,
+            'very_likely': 0.9,
+            'almost_certain': 0.95
+        })
+        self.dependency_matrix = {}  # Will store variable interdependencies
 
     async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
         """Enhanced validation for scenario planner inputs."""
@@ -157,7 +195,7 @@ class ScenarioPlannerAgent(BaseAgent):
         if scenario_type == ScenarioType.MONTE_CARLO.value:
             if 'variables' not in inputs or not inputs['variables']:
                 errors.append("Monte Carlo simulation requires at least one variable")
-            
+
             for variable in variables:
                 if 'distribution' not in variable:
                     errors.append(f"Variable '{variable.get('name', 'unknown')}' missing required field for Monte Carlo: distribution")
@@ -169,6 +207,16 @@ class ScenarioPlannerAgent(BaseAgent):
         elif scenario_type == ScenarioType.WHAT_IF.value:
             if 'custom_scenarios' not in inputs or not inputs['custom_scenarios']:
                 errors.append("What-if analysis requires at least one custom scenario")
+
+        # Validate dependency matrix if provided
+        if 'dependency_matrix' in inputs:
+            dependency_matrix = inputs['dependency_matrix']
+            if not isinstance(dependency_matrix, dict):
+                errors.append("Dependency matrix must be an object")
+            else:
+                for var_name, dependencies in dependency_matrix.items():
+                    if not isinstance(dependencies, dict):
+                        errors.append(f"Dependencies for variable '{var_name}' must be an object")
         
         return errors
 
@@ -183,16 +231,14 @@ class ScenarioPlannerAgent(BaseAgent):
         # Calculate financial metrics
         total_benefit = annual_benefit * time_horizon
         net_benefit = total_benefit - investment
-        roi_percentage = (net_benefit / investment * 100) if investment > 0 else 0
-        payback_period = investment / annual_benefit if annual_benefit > 0 else float('inf')
+        roi_percentage = calculate_roi_percentage(annual_benefit, investment, time_horizon)
+        payback_period = calculate_payback_period(annual_benefit, investment)
         
         # Calculate NPV
-        npv = -investment
-        for year in range(1, time_horizon + 1):
-            npv += annual_benefit / ((1 + discount_rate) ** year)
+        npv = calculate_npv(annual_benefit, investment, time_horizon, discount_rate)
         
         # Calculate IRR (simplified approximation)
-        irr = (annual_benefit / investment) - 1 if investment > 0 else 0
+        irr = calculate_irr(annual_benefit, investment, time_horizon)
         
         # Create base scenario
         base_scenario = {
@@ -207,10 +253,10 @@ class ScenarioPlannerAgent(BaseAgent):
             'outputs': {
                 'total_benefit': total_benefit,
                 'net_benefit': net_benefit,
-                'roi_percentage': roi_percentage,
+                'roi_percentage': round(roi_percentage, 2),
                 'payback_period': payback_period,
-                'npv': npv,
-                'irr': irr
+                'npv': round(npv, 2),
+                'irr': round(irr * 100, 2)  # Convert to percentage
             },
             'confidence': 1.0,
             'risk_level': 'medium'
@@ -232,34 +278,59 @@ class ScenarioPlannerAgent(BaseAgent):
         # Apply optimistic adjustments
         if variables:
             # Use variable-specific adjustments
+            adjusted_values = {}
             for variable in variables:
                 var_name = variable['name']
                 var_type = variable['type']
                 base_value = variable['base_value']
+                adjustment_factor = 1.0
                 
                 # Calculate optimistic value based on variable type
                 if var_type == VariableType.REVENUE.value:
                     # Increase revenue by 20%
-                    optimistic_value = base_value * 1.2
+                    adjustment_factor = 1.2
                 elif var_type == VariableType.COST.value:
                     # Decrease cost by 15%
-                    optimistic_value = base_value * 0.85
+                    adjustment_factor = 0.85
                 elif var_type == VariableType.GROWTH_RATE.value:
                     # Increase growth rate by 30%
-                    optimistic_value = base_value * 1.3
+                    adjustment_factor = 1.3
                 elif var_type == VariableType.ADOPTION_RATE.value:
                     # Increase adoption rate by 25%
-                    optimistic_value = min(base_value * 1.25, 1.0)
+                    adjustment_factor = 1.25
+                    base_value = min(base_value * adjustment_factor, 1.0)
                 elif var_type == VariableType.EFFICIENCY_GAIN.value:
                     # Increase efficiency gain by 25%
-                    optimistic_value = base_value * 1.25
+                    adjustment_factor = 1.25
+                elif var_type == VariableType.INFLATION.value:
+                    # Decrease inflation by 20% (favorable)
+                    adjustment_factor = 0.8
+                elif var_type == VariableType.COMPETITIVE_PRESSURE.value:
+                    # Decrease competitive pressure by 30% (favorable)
+                    adjustment_factor = 0.7
+                elif var_type == VariableType.MARKET_ENTRY.value:
+                    # Increase market entry success by 25%
+                    adjustment_factor = 1.25
+                elif var_type == VariableType.REGULATORY_CHANGE.value:
+                    # Decrease regulatory burden by 15% (favorable)
+                    adjustment_factor = 0.85
+                elif var_type == VariableType.TECHNOLOGY_DISRUPTION.value:
+                    # Increase positive technology impact by 30%
+                    adjustment_factor = 1.3
                 else:
                     # Default 20% improvement
-                    optimistic_value = base_value * 1.2
+                    adjustment_factor = 1.2
+                
+                optimistic_value = base_value * adjustment_factor
+                adjusted_values[var_name] = optimistic_value
                 
                 # Apply to inputs
                 if var_name in optimistic_scenario['inputs']:
                     optimistic_scenario['inputs'][var_name] = optimistic_value
+            
+            # Apply variable dependencies if defined
+            if hasattr(self, 'dependency_matrix') and self.dependency_matrix:
+                self._apply_dependencies(optimistic_scenario['inputs'], adjusted_values)
         else:
             # Use default optimistic adjustments
             optimistic_scenario['inputs']['annual_benefit'] = base_scenario['inputs']['annual_benefit'] * 1.2
@@ -309,34 +380,58 @@ class ScenarioPlannerAgent(BaseAgent):
         # Apply pessimistic adjustments
         if variables:
             # Use variable-specific adjustments
+            adjusted_values = {}
             for variable in variables:
                 var_name = variable['name']
                 var_type = variable['type']
                 base_value = variable['base_value']
+                adjustment_factor = 1.0
                 
                 # Calculate pessimistic value based on variable type
                 if var_type == VariableType.REVENUE.value:
                     # Decrease revenue by 15%
-                    pessimistic_value = base_value * 0.85
+                    adjustment_factor = 0.85
                 elif var_type == VariableType.COST.value:
                     # Increase cost by 20%
-                    pessimistic_value = base_value * 1.2
+                    adjustment_factor = 1.2
                 elif var_type == VariableType.GROWTH_RATE.value:
                     # Decrease growth rate by 25%
-                    pessimistic_value = base_value * 0.75
+                    adjustment_factor = 0.75
                 elif var_type == VariableType.ADOPTION_RATE.value:
                     # Decrease adoption rate by 20%
-                    pessimistic_value = base_value * 0.8
+                    adjustment_factor = 0.8
                 elif var_type == VariableType.EFFICIENCY_GAIN.value:
                     # Decrease efficiency gain by 20%
-                    pessimistic_value = base_value * 0.8
+                    adjustment_factor = 0.8
+                elif var_type == VariableType.INFLATION.value:
+                    # Increase inflation by 30% (unfavorable)
+                    adjustment_factor = 1.3
+                elif var_type == VariableType.COMPETITIVE_PRESSURE.value:
+                    # Increase competitive pressure by 40% (unfavorable)
+                    adjustment_factor = 1.4
+                elif var_type == VariableType.MARKET_ENTRY.value:
+                    # Decrease market entry success by 25%
+                    adjustment_factor = 0.75
+                elif var_type == VariableType.REGULATORY_CHANGE.value:
+                    # Increase regulatory burden by 25% (unfavorable)
+                    adjustment_factor = 1.25
+                elif var_type == VariableType.TECHNOLOGY_DISRUPTION.value:
+                    # Decrease positive technology impact by 20%
+                    adjustment_factor = 0.8
                 else:
                     # Default 15% deterioration
-                    pessimistic_value = base_value * 0.85
+                    adjustment_factor = 0.85
+                
+                pessimistic_value = base_value * adjustment_factor
+                adjusted_values[var_name] = pessimistic_value
                 
                 # Apply to inputs
                 if var_name in pessimistic_scenario['inputs']:
                     pessimistic_scenario['inputs'][var_name] = pessimistic_value
+            
+            # Apply variable dependencies if defined
+            if hasattr(self, 'dependency_matrix') and self.dependency_matrix:
+                self._apply_dependencies(pessimistic_scenario['inputs'], adjusted_values)
         else:
             # Use default pessimistic adjustments
             pessimistic_scenario['inputs']['annual_benefit'] = base_scenario['inputs']['annual_benefit'] * 0.8
@@ -386,8 +481,11 @@ class ScenarioPlannerAgent(BaseAgent):
         # Apply custom variable values
         custom_variables = scenario_config.get('variables', {})
         for var_name, var_value in custom_variables.items():
-            if var_name in custom_scenario['inputs']:
-                custom_scenario['inputs'][var_name] = var_value
+            custom_scenario['inputs'][var_name] = var_value
+        
+        # Apply variable dependencies if defined
+        if hasattr(self, 'dependency_matrix') and self.dependency_matrix:
+            self._apply_dependencies(custom_scenario['inputs'], custom_variables)
         
         # Recalculate outputs
         investment = custom_scenario['inputs']['investment']
@@ -438,7 +536,6 @@ class ScenarioPlannerAgent(BaseAgent):
             
             for variable in variables:
                 var_name = variable['name']
-                var_type = variable['type']
                 base_value = variable['base_value']
                 distribution = variable.get('distribution', 'normal')
                 
@@ -684,7 +781,10 @@ class ScenarioPlannerAgent(BaseAgent):
         # Calculate overall sensitivity summary
         if results['variable_sensitivities']:
             # Sort variables by sensitivity score
-            results['variable_sensitivities'].sort(key=lambda x: x['metrics']['sensitivity_score'], reverse=True)
+            results['variable_sensitivities'].sort(
+                key=lambda x: x['metrics']['sensitivity_score'], 
+                reverse=True
+            )
             
             # Identify most sensitive variables
             most_sensitive = results['variable_sensitivities'][0]
@@ -758,7 +858,9 @@ class ScenarioPlannerAgent(BaseAgent):
         # Run each stress scenario
         for scenario in stress_scenarios:
             # Create scenario inputs
-            scenario_inputs = base_scenario['inputs'].copy()
+            scenario_inputs = {}
+            for key, value in base_scenario['inputs'].items():
+                scenario_inputs[key] = value
             
             # Apply adjustments
             for var_name, adjustment in scenario['adjustments'].items():
@@ -881,6 +983,66 @@ class ScenarioPlannerAgent(BaseAgent):
         }
         
         return results
+
+    def _apply_dependencies(self, inputs: Dict[str, Any], adjusted_values: Dict[str, Any]) -> None:
+        """Apply variable dependencies to ensure realistic scenarios."""
+        if not self.dependency_matrix:
+            return
+        
+        # Apply dependencies in multiple passes to handle chains of dependencies
+        for _ in range(3):  # Limit to 3 passes to prevent infinite loops
+            for var_name, dependencies in self.dependency_matrix.items():
+                if var_name not in inputs:
+                    continue
+                
+                for dep_var, relationship in dependencies.items():
+                    if dep_var not in adjusted_values:
+                        continue
+                    
+                    # Apply the relationship
+                    if relationship['type'] == 'proportional':
+                        # Direct proportional relationship
+                        factor = relationship['factor']
+                        change_pct = (adjusted_values[dep_var] / relationship['base_value']) - 1
+                        inputs[var_name] = inputs[var_name] * (1 + change_pct * factor)
+                    
+                    elif relationship['type'] == 'inverse':
+                        # Inverse relationship
+                        factor = relationship['factor']
+                        change_pct = (adjusted_values[dep_var] / relationship['base_value']) - 1
+                        inputs[var_name] = inputs[var_name] * (1 - change_pct * factor)
+                    
+                    elif relationship['type'] == 'threshold':
+                        # Threshold-based relationship
+                        threshold = relationship['threshold']
+                        if adjusted_values[dep_var] > threshold:
+                            inputs[var_name] = inputs[var_name] * relationship['above_factor']
+                        else:
+                            inputs[var_name] = inputs[var_name] * relationship['below_factor']
+
+    async def _retrieve_historical_scenarios(self, industry: str, scenario_type: str) -> List[Dict[str, Any]]:
+        """Retrieve historical scenarios from MCP memory for reference."""
+        try:
+            # Search for similar scenarios in episodic memory
+            query = {
+                "entity_type": "scenario_analysis",
+                "metadata.industry": industry,
+                "metadata.scenario_type": scenario_type
+            }
+            
+            historical_entities = await self.mcp_client.search_knowledge_graph_nodes(query, limit=5)
+            
+            historical_scenarios = []
+            for entity in historical_entities:
+                if hasattr(entity, 'data') and 'results' in entity.data:
+                    historical_scenarios.append(entity.data['results'])
+            
+            logger.info(f"Retrieved {len(historical_scenarios)} historical scenarios for {industry}/{scenario_type}")
+            return historical_scenarios
+            
+        except Exception as e:
+            logger.warning(f"Failed to retrieve historical scenarios: {e}")
+            return []
 
     async def _store_scenario_analysis(self, analysis_data: Dict[str, Any]) -> str:
         """Store scenario analysis results in MCP."""

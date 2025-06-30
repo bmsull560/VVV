@@ -47,7 +47,7 @@ class ValueDriverAgent(BaseAgent):
                 {
                     "name": "Reduce Manual Labor",
                     "description": "Automating manual processes to reduce employee hours and labor costs.",
-                    "keywords": ["manual process", "time-consuming", "slow", "automate", "labor intensive", "repetitive tasks", "manual work"],
+                    "keywords": ["manual process", "time-consuming", "slow", "automate", "labor intensive", "repetitive tasks", "manual work", "manual data entry", "labor costs"],
                     "tier_3_metrics": [
                         {"name": "Hours saved per week", "type": "number", "default_value": 10, "unit": "hours"},
                         {"name": "Average hourly rate", "type": "currency", "default_value": 50, "unit": "USD"},
@@ -89,7 +89,7 @@ class ValueDriverAgent(BaseAgent):
                 {
                     "name": "Accelerate Task Completion",
                     "description": "Reducing the time it takes to complete key business tasks and workflows.",
-                    "keywords": ["slow", "bottleneck", "time-consuming", "streamline", "faster", "quick", "speed up", "efficiency"],
+                    "keywords": ["slow", "bottleneck", "time-consuming", "streamline", "faster", "quick", "speed up", "efficiency", "accelerating task completion"],
                     "tier_3_metrics": [
                         {"name": "Time saved per task (minutes)", "type": "number", "default_value": 60, "unit": "minutes"},
                         {"name": "Tasks per week", "type": "number", "default_value": 20, "unit": "tasks"},
@@ -368,43 +368,43 @@ class ValueDriverAgent(BaseAgent):
             List of dictionaries containing keyword matches with context
         """
         matches = []
-        text_words = text.split()
-        
-        for keyword in keywords:
+        matched_indices = []  # To keep track of matched text portions
+
+        # Sort keywords by length in descending order to prioritize multi-word phrases
+        sorted_keywords = sorted(keywords, key=len, reverse=True)
+
+        for keyword in sorted_keywords:
             keyword_lower = keyword.lower()
             
-            # Check for exact keyword matches
-            if keyword_lower in text:
-                # Find the position and extract context
-                keyword_pos = text.find(keyword_lower)
-                context_start = max(0, keyword_pos - 50)
-                context_end = min(len(text), keyword_pos + len(keyword_lower) + 50)
-                context = text[context_start:context_end].strip()
+            # Use regex for more robust matching, including word boundaries
+            # This handles cases where keywords might be part of other words, e.g., 'man' in 'manual'
+            # but also allows for partial matches if not strict word boundaries
+            import re
+            # Use a more flexible regex that doesn't strictly require word boundaries
+        # This allows for keywords to be part of larger words or to handle variations
+        for match in re.finditer(re.escape(keyword_lower), text):
+                start, end = match.span()
                 
-                matches.append({
-                    'keyword': keyword,
-                    'context': context,
-                    'position': keyword_pos,
-                    'match_type': 'exact'
-                })
-            
-            # Check for partial matches or word variations
-            elif any(keyword_lower in word for word in text_words):
-                matching_words = [word for word in text_words if keyword_lower in word]
-                for word in matching_words[:2]:  # Limit to first 2 matches
-                    word_pos = text.find(word)
-                    context_start = max(0, word_pos - 50)
-                    context_end = min(len(text), word_pos + len(word) + 50)
+                # Check for overlap with already matched portions
+                overlap = False
+                for matched_start, matched_end in matched_indices:
+                    if max(start, matched_start) < min(end, matched_end):
+                        overlap = True
+                        break
+                
+                if not overlap:
+                    context_start = max(0, start - 50)
+                    context_end = min(len(text), end + 50)
                     context = text[context_start:context_end].strip()
                     
                     matches.append({
                         'keyword': keyword,
                         'context': context,
-                        'position': word_pos,
-                        'match_type': 'partial',
-                        'matched_word': word
+                        'position': start,
+                        'match_type': 'exact'
                     })
-        
+                    matched_indices.append((start, end))
+
         return matches
 
     def _calculate_confidence_score(self, keywords_found: List[Dict[str, Any]], total_keywords: int) -> float:
@@ -414,16 +414,16 @@ class ValueDriverAgent(BaseAgent):
         
         # Base score from keyword ratio
         keyword_ratio = len(keywords_found) / total_keywords
-        base_score = min(keyword_ratio * 0.8, 0.8)  # Max 80% from keywords
+        base_score = min(keyword_ratio * 1.0, 1.0)  # Max 100% from keywords
         
         # Bonus for multiple keyword matches
         if len(keywords_found) > 1:
-            base_score += 0.1
+            base_score += 0.15  # Increased bonus
         
         # Bonus for high-confidence keywords (longer matches)
         for kw in keywords_found:
             if len(kw['keyword']) > 8:  # Longer, more specific keywords
-                base_score += 0.05
+                base_score += 0.07  # Increased bonus
         
         return min(base_score, 1.0)
 
@@ -636,6 +636,7 @@ class ValueDriverAgent(BaseAgent):
         return recommendations
 
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
+    
         """
         Analyzes input text to find and categorize value drivers based on a hierarchical model.
         Enhanced with business intelligence, quantification, and industry-specific analysis.
@@ -647,9 +648,10 @@ class ValueDriverAgent(BaseAgent):
             # Validate inputs
             validation_result = await self.validate_inputs(inputs)
             if not validation_result.is_valid:
+                logger.error(f"ValueDriverAgent input validation failed: {validation_result.errors}")
                 return AgentResult(
                     status=AgentStatus.FAILED,
-                    data={"error": f"Validation failed: {validation_result.errors[0]}"},
+                    data={"error": f"Validation failed: {validation_result.errors}"},
                     execution_time_ms=int((time.monotonic() - start_time) * 1000)
                 )
             
@@ -672,8 +674,8 @@ class ValueDriverAgent(BaseAgent):
             if analysis_type == AnalysisType.FOCUSED.value and focus_areas:
                 pillars_to_analyze = focus_areas
             elif analysis_type == AnalysisType.QUICK_SCAN.value:
-                # Quick scan - analyze top 2 most likely pillars
-                pillars_to_analyze = list(self.VALUE_HIERARCHY.keys())[:2]
+                # Quick scan - analyze top 2 most likely pillars based on relevance to query
+                pillars_to_analyze = self._get_top_level_pillars(user_query, num_pillars=2)
             
             # Process each pillar
             for pillar_name in pillars_to_analyze:
@@ -761,9 +763,11 @@ class ValueDriverAgent(BaseAgent):
                 return AgentResult(
                     status=AgentStatus.COMPLETED,
                     data={
-                        "drivers": [], 
                         "message": "No specific value drivers identified with sufficient confidence.",
-                        "suggestions": list(self.VALUE_HIERARCHY.keys())[:3],
+                        "suggestions": self._get_top_level_pillars(),
+                        "value_drivers": [],
+                        "quantified_impact": {},
+                        "business_recommendations": [],
                         "analysis_metadata": {
                             "query_length": len(user_query),
                             "analysis_type": analysis_type,
@@ -808,6 +812,40 @@ class ValueDriverAgent(BaseAgent):
                     'risk_assessment': self._assess_implementation_risk(identified_pillars, quantified_impact)
                 }
             }
+
+            logger.debug(f"include_quantification: {include_quantification}")
+            logger.debug(f"identified_pillars: {identified_pillars is not None and len(identified_pillars) > 0}")
+            if include_quantification and identified_pillars:
+                roi_value_drivers = []
+                for pillar_impact in quantified_impact.get('pillar_breakdown', []):
+                    if pillar_impact['cost_savings'] > 0:
+                        roi_value_drivers.append({
+                            "name": f"{pillar_impact['pillar']} - Cost Savings",
+                            "description": f"Quantified cost savings from {pillar_impact['pillar']}.",
+                            "financial_impact": {
+                                "type": "cost_savings",
+                                "value_usd_per_year": pillar_impact['cost_savings']
+                            }
+                        })
+                    if pillar_impact['productivity_value'] > 0:
+                        roi_value_drivers.append({
+                            "name": f"{pillar_impact['pillar']} - Productivity Gains",
+                            "description": f"Quantified productivity gains from {pillar_impact['pillar']}.",
+                            "financial_impact": {
+                                "type": "productivity_gain",
+                                "value_usd_per_year": pillar_impact['productivity_value']
+                            }
+                        })
+                    if pillar_impact['revenue_impact'] > 0:
+                        roi_value_drivers.append({
+                            "name": f"{pillar_impact['pillar']} - Revenue Impact",
+                            "description": f"Quantified revenue impact from {pillar_impact['pillar']}.",
+                            "financial_impact": {
+                                "type": "revenue_increase",
+                                "value_usd_per_year": pillar_impact['revenue_impact']
+                            }
+                        })
+                response_data['value_drivers'] = roi_value_drivers
             
             # Store comprehensive results in MCP episodic memory
             await self._store_value_driver_analysis(response_data, user_query)
@@ -817,7 +855,13 @@ class ValueDriverAgent(BaseAgent):
             
             return AgentResult(
                 status=AgentStatus.COMPLETED,
-                data=response_data,
+                data={
+                    "value_drivers": response_data.get('value_drivers', []),
+                    "quantified_impact": response_data['business_intelligence']['quantified_impact'],
+                    "business_recommendations": response_data['business_intelligence']['recommendations'],
+                    "message": "Value drivers identified and quantified successfully.",
+                    "analysis_metadata": response_data['analysis_summary']
+                },
                 execution_time_ms=execution_time_ms
             )
             
@@ -879,6 +923,31 @@ class ValueDriverAgent(BaseAgent):
             return "Low Priority - Consider for future phases"
         else:
             return "Monitor - Requires further analysis"
+
+    def _get_top_level_pillars(self, user_query: str, num_pillars: int = 2) -> List[str]:
+        """
+        Identifies the top N most relevant top-level value pillars based on the user query.
+        """
+        pillar_scores = {}
+        user_query_lower = user_query.lower()
+
+        for pillar_name, pillar_data in self.VALUE_HIERARCHY.items():
+            all_pillar_keywords = []
+            for tier_2_driver in pillar_data['tier_2_drivers']:
+                all_pillar_keywords.extend(tier_2_driver['keywords'])
+
+            # Use _find_keywords_in_text to find matches
+            keywords_found = self._find_keywords_in_text(user_query_lower, all_pillar_keywords)
+            
+            # Score based on number of unique keywords found
+            score = len(set([kw['keyword'] for kw in keywords_found]))
+            pillar_scores[pillar_name] = score
+
+        # Sort pillars by score in descending order
+        sorted_pillars = sorted(pillar_scores.items(), key=lambda item: item[1], reverse=True)
+        
+        # Return the names of the top N pillars
+        return [pillar for pillar, score in sorted_pillars[:num_pillars]]
 
     def _assess_implementation_risk(self, identified_pillars: List[Dict[str, Any]], 
                                   quantified_impact: Dict[str, Any]) -> Dict[str, Any]:
