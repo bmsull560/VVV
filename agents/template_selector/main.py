@@ -8,6 +8,7 @@ transparent template recommendations.
 """
 
 import logging
+import textwrap
 import time
 from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
@@ -15,7 +16,8 @@ from enum import Enum
 from pydantic import BaseModel, Field, ValidationError
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
-from agents.core.mcp_client import MCPClient
+from agents.core.mcp_client import MCPClient 
+from memory.memory_types import KnowledgeEntity
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +66,10 @@ class SelectedTemplate(BaseModel):
     template_name: str
     description: str
     match_score: float
+    sections: List[str]
     confidence_score: float
     overall_score: float
-    sections: List[str]
+    suggested_customizations: List[str] = Field(default_factory=list)
 
 class TemplateSelectorResult(BaseModel):
     """Output model for the agent's results."""
@@ -86,6 +89,15 @@ class TemplateSelectorAgent(BaseAgent):
     def __init__(self, agent_id: str, mcp_client: MCPClient, config: Dict[str, Any]):
         super().__init__(agent_id, mcp_client, config)
         self.scoring_weights = self.config.get('scoring_weights', {})
+        if not self.scoring_weights:
+            # Default weights if not provided in config
+            self.scoring_weights = {
+                'industry_match': 0.25,
+                'objective_alignment': 0.30,
+                'stakeholder_fit': 0.15,
+                'complexity_match': 0.15,
+                'value_driver_alignment': 0.15
+            }
         self.template_database = self._load_template_database()
 
     def _load_template_database(self) -> Dict[str, TemplateDefinition]:
@@ -115,13 +127,23 @@ class TemplateSelectorAgent(BaseAgent):
                 # Check if the error is specifically for the 'industry' field
                 is_industry_error = any(err['loc'][0] == 'industry' for err in e.errors())
                 if is_industry_error and 'industry' in inputs:
-                    logger.warning(f"Unrecognized industry '{inputs['industry']}'. Falling back to generic.")
+                    logger.warning(f"Unrecognized industry '{inputs['industry']}'. Falling back to generic industry type.")
                     inputs['industry'] = IndustryType.GENERIC
                     validated_inputs = TemplateSelectorInput(**inputs) # Retry validation
                 else:
                     raise # Re-raise if it's a different validation error
 
-            logger.info(f"Input validation successful. Validated data: {validated_inputs.model_dump()}")
+            # Log redacted version to avoid logging potentially sensitive data
+            redacted_inputs = {
+                'business_objective': validated_inputs.business_objective,
+                'industry': validated_inputs.industry,
+                'fields_provided': {
+                    'stakeholder_types': validated_inputs.stakeholder_types is not None,
+                    'complexity_level': validated_inputs.complexity_level is not None,
+                    'primary_value_drivers': validated_inputs.primary_value_drivers is not None
+                }
+            }
+            logger.info(f"Input validation successful. Validated data: {redacted_inputs}")
 
             # 2. Perform analysis
             recommendations = self._get_template_recommendations(validated_inputs)
@@ -131,8 +153,8 @@ class TemplateSelectorAgent(BaseAgent):
             # 3. Format and return result
             result_data = self._format_result(recommendations, validated_inputs)
 
-            # 4. Record audit trail in MCP
-            await self._record_mcp_audit(result_data, validated_inputs)
+        # 4. Record audit trail in MCP
+        await self._record_mcp_audit(result_data, validated_inputs)
 
             execution_time_ms = int((time.monotonic() - start_time) * 1000)
             logger.info(f"Template selection completed in {execution_time_ms}ms. Selected: {result_data.selected_template.template_name}")
@@ -176,10 +198,11 @@ class TemplateSelectorAgent(BaseAgent):
                 template_id=template_id,
                 template_name=template_def.name,
                 description=template_def.description,
+                sections=template_def.sections,
                 match_score=round(match_score, 4),
                 confidence_score=round(confidence_score, 4),
                 overall_score=round(overall_score, 4),
-                sections=template_def.sections
+                suggested_customizations=self._generate_customizations(template_def, inputs)
             ))
 
         # Sort by the overall combined score
@@ -207,7 +230,8 @@ class TemplateSelectorAgent(BaseAgent):
             matching = set(inputs.stakeholder_types) & set(template.stakeholders)
             score = len(matching) / len(template.stakeholders) if template.stakeholders else 0.0
         else:
-            score = 0.5 # Neutral score if not provided
+            # Neutral score with slight preference for templates with fewer stakeholder types
+            score = 0.5 - (len(template.stakeholders) / 100)
         total_score += score * self.scoring_weights.get('stakeholder_fit', 0.15)
         component_scores['stakeholders'] = score
 
@@ -215,7 +239,8 @@ class TemplateSelectorAgent(BaseAgent):
         if inputs.complexity_level:
             score = 1.0 if inputs.complexity_level in template.complexity else 0.2
         else:
-            score = 0.5 # Neutral score
+            # Neutral score with preference for medium complexity if not specified
+            score = 0.7 if ComplexityLevel.MEDIUM in template.complexity else 0.5
         total_score += score * self.scoring_weights.get('complexity_match', 0.15)
         component_scores['complexity'] = score
 
@@ -224,7 +249,8 @@ class TemplateSelectorAgent(BaseAgent):
             matching = set(inputs.primary_value_drivers) & set(template.value_drivers)
             score = len(matching) / len(template.value_drivers) if template.value_drivers else 0.0
         else:
-            score = 0.5 # Neutral score
+            # Neutral score with preference for templates with more comprehensive value drivers
+            score = 0.5 + min(0.2, len(template.value_drivers) / 20)
         total_score += score * self.scoring_weights.get('value_driver_alignment', 0.15)
         component_scores['value_drivers'] = score
 
@@ -244,6 +270,35 @@ class TemplateSelectorAgent(BaseAgent):
         details = {field: (1.0 if getattr(inputs, field) is not None else 0.0) for field in optional_fields}
 
         return confidence, details
+    
+    def _generate_customizations(self, template: TemplateDefinition, inputs: TemplateSelectorInput) -> List[str]:
+        """Generates suggested customizations based on the template and input mismatch areas."""
+        customizations = []
+        
+        # Check for industry customization needs
+        if inputs.industry not in template.industries and IndustryType.GENERIC not in template.industries:
+            customizations.append(f"Customize industry-specific sections for {inputs.industry.value}")
+        
+        # Check for stakeholder customization needs
+        if inputs.stakeholder_types:
+            missing_stakeholders = set(inputs.stakeholder_types) - set(template.stakeholders)
+            if missing_stakeholders:
+                customizations.append(f"Add sections addressing {', '.join(missing_stakeholders)} stakeholder needs")
+        
+        # Check for value driver customization needs
+        if inputs.primary_value_drivers:
+            missing_drivers = set(inputs.primary_value_drivers) - set(template.value_drivers)
+            if missing_drivers:
+                customizations.append(f"Strengthen coverage of {', '.join(missing_drivers)} value drivers")
+        
+        # Check for complexity level
+        if inputs.complexity_level and inputs.complexity_level not in template.complexity:
+            if inputs.complexity_level == ComplexityLevel.HIGH and ComplexityLevel.MEDIUM in template.complexity:
+                customizations.append("Expand detailed analysis sections for higher complexity project")
+            elif inputs.complexity_level == ComplexityLevel.LOW and ComplexityLevel.MEDIUM in template.complexity:
+                customizations.append("Simplify presentation for lower complexity project")
+        
+        return customizations
 
     def _format_result(self, recommendations: List[SelectedTemplate], inputs: TemplateSelectorInput) -> TemplateSelectorResult:
         """Formats the final agent output."""
@@ -263,35 +318,83 @@ class TemplateSelectorAgent(BaseAgent):
             selection_rationale=rationale,
             execution_metadata=execution_metadata
         )
-
+        
     def _generate_selection_rationale(self, template: SelectedTemplate, inputs: TemplateSelectorInput) -> str:
         """Generates a human-readable rationale for the template selection."""
-        parts = [
-            f"The '{template.template_name}' was selected with an overall score of {template.overall_score:.2f}.",
-            f"It is a strong match for the '{inputs.industry.value}' industry and the '{inputs.business_objective}' objective."
-        ]
-        if inputs.stakeholder_types:
-            parts.append(f"It is well-suited for stakeholders including: {', '.join(inputs.stakeholder_types)}.")
-        if inputs.complexity_level:
-            parts.append(f"The template matches the project's '{inputs.complexity_level.value}' complexity.")
+        # Create a more detailed, well-structured rationale with score breakdown
+        rationale = f"""
+The '{template.template_name}' template has been selected as the optimal choice with an overall score of {template.overall_score:.2f} out of 1.00.
 
-        return " ".join(parts)
+Key factors that influenced this selection:
+• Industry alignment: The template is specifically designed for the {inputs.industry.value} industry
+• Business objective: Excellent match for "{inputs.business_objective}" initiatives
+"""
+
+        # Add stakeholder information if available
+        if inputs.stakeholder_types:
+            rationale += f"• Stakeholder focus: Well-suited for {', '.join(inputs.stakeholder_types)} needs\n"
+        
+        # Add complexity information if available
+        if inputs.complexity_level:
+            rationale += f"• Complexity: Appropriate for {inputs.complexity_level.value} complexity projects\n"
+        
+        # Add value driver information if available
+        if inputs.primary_value_drivers:
+            rationale += f"• Value drivers: Includes sections covering {', '.join(inputs.primary_value_drivers)}\n"
+        
+        # Add confidence information
+        rationale += f"\nConfidence score: {template.confidence_score:.2f} - "
+        if template.confidence_score > 0.8:
+            rationale += "High confidence based on comprehensive input data."
+        elif template.confidence_score > 0.5:
+            rationale += "Moderate confidence. Additional input details could improve selection precision."
+        else:
+            rationale += "Low confidence due to limited input data. Consider providing more details for better template matching."
+        
+        # Add customization suggestions if any
+        if template.suggested_customizations:
+            rationale += "\n\nRecommended customizations:\n"
+            for i, suggestion in enumerate(template.suggested_customizations, 1):
+                rationale += f"{i}. {suggestion}\n"
+        
+        return rationale.strip()
 
     async def _record_mcp_audit(self, result: TemplateSelectorResult, inputs: TemplateSelectorInput):
         """Records the execution details to MCP episodic memory for audit purposes."""
         try:
-            entity_name = f"template_selection_analysis_{int(time.time())}"
-            await self.mcp_client.memory.create_entity(
-                name=entity_name,
-                entity_type="Analysis",
-                observations=[
-                    f"Agent '{self.agent_id}' performed template selection.",
-                    f"Selected Template: {result.selected_template.template_name} (ID: {result.selected_template.template_id})",
-                    f"Overall Score: {result.selected_template.overall_score:.4f}",
-                    f"Input - Industry: {inputs.industry.value}",
-                    f"Input - Objective: {inputs.business_objective}"
-                ]
+            # Create a knowledge entity to store the template selection audit
+            audit_entity = KnowledgeEntity(
+                entity_type="template_selection_analysis",
+                data={
+                    "agent_id": self.agent_id,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "selected_template": {
+                        "template_id": result.selected_template.template_id,
+                        "template_name": result.selected_template.template_name,
+                        "match_score": result.selected_template.match_score,
+                        "confidence_score": result.selected_template.confidence_score,
+                        "overall_score": result.selected_template.overall_score
+                    },
+                    "input_data": {
+                        "industry": inputs.industry.value,
+                        "business_objective": inputs.business_objective,
+                        "has_stakeholder_types": inputs.stakeholder_types is not None,
+                        "has_complexity_level": inputs.complexity_level is not None,
+                        "has_primary_value_drivers": inputs.primary_value_drivers is not None
+                    },
+                    "alternative_templates": [
+                        {
+                            "template_id": template.template_id,
+                            "template_name": template.template_name,
+                            "overall_score": template.overall_score
+                        }
+                        for template in result.alternative_templates[:2]  # Include top 2 alternatives
+                    ]
+                }
             )
-            logger.info(f"Successfully recorded analysis in MCP under entity '{entity_name}'.")
+            
+            # Use the new create_entities API style
+            entities_result = await self.mcp_client.create_entities([audit_entity], user_id="system", role="agent")
+            logger.info(f"Successfully recorded template selection analysis in MCP")
         except Exception as e:
             logger.error(f"Failed to record analysis in MCP: {e}")
