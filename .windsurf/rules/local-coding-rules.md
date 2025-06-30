@@ -2,27 +2,35 @@
 trigger: always_on
 ---
 
-Local Rules (Code Generation & Modification)
-These rules, derived from .windsurf/rules/local-coding-rules.md, apply specifically to any agent tasked with writing, modifying, or reviewing code. They ensure the quality, security, and maintainability of the codebase itself.
+Local Rules (Specific to Modules, Agents, or Components)
+These rules provide granular guidance relevant to specific parts of the codebase, often reflecting design patterns or domain-specific best practices.
 
-1. Code Quality and Maintainability
+AI Agent Specific Conventions (Agents/global_config.yaml):
 
-Style and Formatting: All Python code MUST be formatted with black and adhere to ruff linter standards, as enforced by the project's pre-commit hooks.
-Type Safety: Code MUST include full type hinting and pass mypy static analysis to ensure type safety.
-Documentation: All modules, functions, and complex logic MUST be documented according to the pydocstyle standard.
-Modularity: Code MUST be modular and adhere to the single-responsibility principle. It must not introduce unnecessary dependencies or monolithic blocks.
-2. Security and Vulnerability Prevention
+Rule: Each agent should have its own main.py and configuration (.yaml) file under its dedicated directory (e.g., agents/intake_assistant/main.py, Agents/intake_assistant_agent.yaml).
 
-Secure Coding Practices: Generated code MUST follow secure coding best practices to prevent common vulnerabilities (e.g., injection, XSS).
-No Hardcoded Secrets: Sensitive configurations like API keys or credentials MUST NOT be hardcoded. They should be managed securely, for instance through environment variables.
-Input Sanitization: All inputs processed by the generated code MUST be properly sanitized and validated.
-3. Testability and Verification
+Implementation for AI Agents: When an AI agent generates new agent code or modifies existing ones, it would follow this directory and file structure.
 
-Testable Code: All generated code MUST be inherently testable, with clear interfaces and predictable behavior.
-Self-Correction: The coding agent SHOULD attempt to self-verify its code (e.g., syntax checks, running unit tests) before submitting it for review.
-4. Error Handling and Logging
+Rule: Agents must inherit from a common AgentBase class (agents/core/agent_base.py) to ensure consistent interface and core functionalities.
 
-Robust Exception Handling: Code MUST implement appropriate exception handling to prevent crashes and ensure graceful degradation.
-Logging: Generated code SHOULD incorporate appropriate logging to track its execution flow, providing insights for debugging and monitoring.
+Implementation for AI Agents: AI agents generating new agent code would be trained to adhere to this inheritance model.
 
-Do not checkin for most items instead continue to resolution or completion, then move on to the next items in the plan.md
+Memory Interaction Patterns:
+
+Rule: Agents interacting with specific memory tiers (e.g., memory/episodic.py, memory/semantic.py) should use the prescribed patterns for writing and retrieving data, including proper entity schemas (docs/entity_schemas.md).
+
+Implementation for AI Agents: AI agents would be guided to generate code that correctly structures data according to defined entity schemas before writing to memory and to interpret data according to these schemas upon retrieval.
+
+UI Component Standards (temp_ui_project):
+
+Rule: React/TypeScript components must follow established patterns (e.g., functional components, proper use of hooks useModelBuilder.ts, useFinancialCalculations.ts).
+
+Configuration Source: Implied by existing UI component code and tsconfig.json.
+
+Implementation for AI Agents: AI agents generating UI code would be specifically trained on the React/TypeScript best practices and component architecture used in temp_ui_project/src/components/workflow/ and temp_ui_project/src/components/model-builder/.
+
+Local Coding Rules (.windsurf/rules/local-coding-rules.md):
+
+Rule: Adherence to any specific coding best practices or anti-patterns documented in local-coding-rules.md (e.g., specific naming conventions, avoidance of certain library functions, preferred design patterns for domain-specific logic).
+
+Implementation for AI Agents: These would serve as direct guidelines for agent code generation, either through fine-tuning, prompt engineering, or post-generation linting against these specific rules.

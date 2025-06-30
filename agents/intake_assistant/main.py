@@ -13,9 +13,11 @@ import statistics
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from enum import Enum
+import functools
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
-from memory.types import KnowledgeEntity
+from memory.memory_types import KnowledgeEntity
+from agents.utils.validation import ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +72,9 @@ class IntakeAssistantAgent(BaseAgent):
         # Set up comprehensive validation rules
         if 'input_validation' not in config:
             config['input_validation'] = {
-                'required_fields': ['project_name', 'description', 'business_objective'],
+                'required_fields': ['user_query', 'project_name', 'description', 'business_objective'],
                 'field_types': {
+                    'user_query': 'string',
                     'project_name': 'string',
                     'description': 'string',
                     'business_objective': 'string',
@@ -90,6 +93,7 @@ class IntakeAssistantAgent(BaseAgent):
                     'regulatory_requirements': 'array'
                 },
                 'field_constraints': {
+                    'user_query': {'min_length': 1},
                     'project_name': {'min_length': 3, 'max_length': 100},
                     'description': {'min_length': 20, 'max_length': 2000},
                     'business_objective': {'min_length': 10, 'max_length': 500},
@@ -169,63 +173,111 @@ class IntakeAssistantAgent(BaseAgent):
             ]
         }
 
+    async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
+        """Processes the project intake, validates, classifies, and stores data."""
+        start_time = time.time()
+        project_id = inputs.get('project_id', str(uuid.uuid4()))
+        logger.info(f"[{self.agent_id}] Starting project intake for project_id: {project_id}")
+
+        try:
+            # 1. Input Validation
+            validation_result = await self.validate_inputs(inputs)
+            if not validation_result.is_valid:
+                error_message = f"Input validation failed: {', '.join(validation_result.errors)}"
+                logger.warning(f"[{self.agent_id}] Validation failed for project_id {project_id}: {error_message}")
+                return AgentResult(
+                    status=AgentStatus.FAILED,
+                    data={"message": error_message},
+                    execution_time_ms=int((time.time() - start_time) * 1000)
+                )
+                logger.warning(f"[{self.agent_id}] Input validation failed for project {project_id}: {validation_result.errors}")
+                return AgentResult(
+                    status=AgentStatus.FAILED,
+                    data={'error': 'Input validation failed', 'details': validation_result.errors},
+                    execution_time_ms=int((time.time() - start_time) * 1000)
+                )
+
+            # 2. Check for existing similar projects
+            project_name = inputs.get('project_name', '')
+            logger.debug(f"[{self.agent_id}] Project name before check: '{project_name}'")
+            if project_name:
+                existing_projects = await self._check_existing_projects(project_name)
+                if existing_projects:
+                    logger.warning(f"[{self.agent_id}] Similar projects found for {project_id}: {existing_projects}")
+                    return AgentResult(
+                        status=AgentStatus.FAILED,
+                        data={'error': 'Similar project name already exists', 'details': f"Found existing projects: {', '.join(existing_projects)}. Please choose a unique project name or update the existing one."},
+                        execution_time_ms=int((time.time() - start_time) * 1000)
+                    )
+
+            # 2. Data Structuring and Normalization
+            structured_data = self._structure_data(inputs)
+            logger.info(f"[{self.agent_id}] Structured data for project {project_id}")
+
+            # 3. Classification and Analysis
+            logger.info(f"[{self.agent_id}] Starting classification for project {project_id}")
+            try:
+                classification_results = self._classify_project(structured_data)
+                logger.info(f"[{self.agent_id}] Finished classification for project {project_id}: {classification_results}")
+            except Exception as e:
+                logger.error(f"[{self.agent_id}] Classification error for project {project_id}: {e}")
+                classification_results = []
+            
+            # 4. Generate Recommendations and Analysis Summary
+            recommendations = self._generate_recommendations(structured_data, classification_results)
+            analysis_summary = self._generate_analysis_summary(structured_data, classification_results, recommendations)
+            logger.info(f"[{self.agent_id}] Generated recommendations and analysis summary for project {project_id}")
+
+            # 5. Store Data in Memory (MCP)
+            mcp_storage_success = await self._store_in_mcp(project_id, structured_data, classification_results, analysis_summary, recommendations)
+            logger.info(f"[{self.agent_id}] MCP storage success for project {project_id}: {mcp_storage_success}")
+
+            # 6. Construct AgentResult
+            result_data = {
+                'project_id': project_id,
+                'project_data': structured_data,
+                'classification': classification_results,
+                'recommendations': recommendations,
+                'analysis_summary': analysis_summary,
+                'metadata': {
+                    'mcp_storage_success': mcp_storage_success
+                }
+            }
+            return AgentResult(
+                status=AgentStatus.COMPLETED,
+                data=result_data,
+                execution_time_ms=int((time.time() - start_time) * 1000)
+            )
+
+        except Exception as e:
+            error_message = f"An unexpected error occurred during core processing for agent {self.agent_id}: {e}"
+            logger.exception(error_message)
+            return AgentResult(
+                status=AgentStatus.FAILED,
+                data={'error': error_message, 'details': str(e)},
+                execution_time_ms=int((time.time() - start_time) * 1000)
+            )
+
     async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
-        """Perform intake-specific validations beyond standard validations."""
         errors = []
-        
-        # Validate project name uniqueness and quality
-        project_name = inputs.get('project_name', '').strip()
-        if project_name:
-            # Check for potential duplicate project names
-            existing_projects = await self._check_existing_projects(project_name)
-            if existing_projects:
-                errors.append(f"Similar project name already exists: '{existing_projects[0]}'. Consider using a more specific name.")
-            
-            # Check for meaningful project name
-            if len(project_name.split()) < 2:
-                errors.append("Project name should contain at least 2 words for clarity and specificity")
-        
-        # Enhanced industry classification validation
-        industry = inputs.get('industry', '').lower()
-        if industry and industry not in self.industry_classifications:
-            valid_industries = list(self.industry_classifications.keys())
-            errors.append(f"Invalid industry '{industry}'. Must be one of: {', '.join(valid_industries)}")
-        
-        # Enhanced department classification validation
-        department = inputs.get('department', '').lower()
-        if department and department not in self.department_classifications:
-            valid_departments = list(self.department_classifications.keys())
-            errors.append(f"Invalid department '{department}'. Must be one of: {', '.join(valid_departments)}")
-        
-        # Enhanced stakeholders structure validation
         stakeholders = inputs.get('stakeholders', [])
-        if stakeholders:
-            unique_roles = set()
-            for i, stakeholder in enumerate(stakeholders):
-                if not isinstance(stakeholder, dict):
-                    errors.append(f"Stakeholder {i} must be an object with 'name' and 'role' fields")
-                    continue
-                    
-                if 'name' not in stakeholder or not stakeholder['name'].strip():
-                    errors.append(f"Stakeholder {i} missing required 'name' field")
-                    
-                if 'role' not in stakeholder:
-                    errors.append(f"Stakeholder {i} missing required 'role' field")
-                elif stakeholder['role'] not in [role.value for role in StakeholderRole]:
-                    valid_roles = [role.value for role in StakeholderRole]
-                    errors.append(f"Stakeholder {i} has invalid role '{stakeholder['role']}'. Must be one of: {', '.join(valid_roles)}")
-                else:
-                    unique_roles.add(stakeholder['role'])
-            
-            # Check for essential roles
-            if len(stakeholders) > 0:
-                if 'sponsor' not in unique_roles and 'decision_maker' not in unique_roles:
-                    errors.append("Project should have at least one sponsor or decision maker identified")
-                if len(stakeholders) > 3 and 'financial_approver' not in unique_roles:
-                    errors.append("Projects with multiple stakeholders should include a financial approver")
-        
-        # Enhanced goals validation
-        goals = inputs.get('goals', [])
+
+        # Example: Validate 'project_name' length
+        project_name = inputs.get('project_name')
+        if project_name and len(project_name) < 5:
+            errors.append("Project name must be at least 5 characters long.")
+
+        # Example: Validate 'description' content
+        description = inputs.get('description')
+        if description and "test" in description.lower():
+            errors.append("Description cannot contain the word 'test'.")
+
+        # Example: Validate 'goals' is not empty if provided
+        goals = inputs.get('goals')
+        if isinstance(goals, list) and not goals:
+            errors.append("Goals cannot be an empty list if provided.")
+
+        # Example: Validate 'budget_range' against allowed values
         if goals:
             for i, goal in enumerate(goals):
                 if isinstance(goal, str):
@@ -285,37 +337,71 @@ class IntakeAssistantAgent(BaseAgent):
         
         return errors
 
+    @functools.lru_cache(maxsize=128)
     async def _check_existing_projects(self, project_name: str) -> List[str]:
-        """Check if a project with a similar name already exists in MCP memory."""
-        # This is a placeholder. In a real scenario, you'd use a more sophisticated
-        # search query with the MCP client to find similar project names.
-        # For now, we'll simulate a search.
-        # Assuming mcp_client has a search_entities method that can be queried.
-        # The actual implementation might involve fuzzy matching or semantic search.
+        """Check for existing projects with similar names in MCP."""
         try:
-            # Attempt to search for entities with the given project name
-            # This assumes a search_entities method exists and returns KnowledgeEntity objects
-            # with a 'name' attribute in their content or metadata.
-            # The query might need to be adjusted based on the actual MCPClient API.
-            # For a simple check, we'll look for exact matches or very close ones.
-            # A more robust solution would involve a semantic search or regex matching.
-            search_results = await self.mcp_client.search_entities(
-                query=project_name,
-                entity_type="project_intake", # Assuming this is the entity type for project intakes
-                limit=5 # Limit results to avoid excessive data
-            )
+            logger.debug(f"Searching MCP for existing projects with query: '{project_name}'")
+            search_results = await self.mcp_client.search_knowledge_graph_nodes(query=project_name)
+            print(f"[DEBUG] search_results for '{project_name}': {search_results}")
 
-            existing_names = []
-            for entity in search_results:
-                # Assuming the project name is stored in the 'name' field of the KnowledgeEntity
-                if hasattr(entity, 'name') and entity.name:
-                    # Simple case-insensitive check for similarity
-                    if project_name.lower() in entity.name.lower() or entity.name.lower() in project_name.lower():
-                        existing_names.append(entity.name)
-            return existing_names
+            existing_project_names: List[str] = []
+            for result in search_results:
+                name = result.get('name') or ''
+                observations = result.get('observations') or []
+
+                if project_name.lower() in name.lower():
+                    existing_project_names.append(name)
+                    logger.debug(f"Found existing project by name: {name}")
+                    continue
+
+                for obs in observations:
+                    if isinstance(obs, str) and project_name.lower() in obs.lower():
+                        existing_project_names.append(name)
+                        logger.debug(f"Found existing project by observation: {name}")
+                        break
+
+            print(f"[DEBUG] existing_project_names: {existing_project_names}")
+            return list(dict.fromkeys(existing_project_names))
         except Exception as e:
-            logger.warning(f"Failed to check existing projects in MCP: {e}")
-            return [] # Return empty list on error to not block validation
+            logger.error(f"Error checking existing projects: {e}", exc_info=True)
+            return []
+
+
+            logger.error(f"Error checking existing projects in MCP with query '{project_name}': {e}", exc_info=True)
+            # Return empty list on error to avoid blocking validation, but log the error.
+            return []
+
+    def _structure_data(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        """Structures and normalizes raw input data into a consistent format."""
+        try:
+            # Placeholder for actual data structuring and normalization logic
+            # In a real scenario, this would involve:
+            # - Type conversions (e.g., string to int/float)
+            # - Standardizing formats (e.g., dates, currency)
+            # - Mapping input fields to internal data models
+            # - Handling missing or default values
+            logger.debug(f"Structuring data for inputs: {inputs.keys()}")
+            structured_data = inputs.copy() # For now, just copy the inputs
+            
+            # Example of a simple structuring step:
+            # Ensure 'goals' and 'success_criteria' are lists of strings
+            goals_input = inputs.get('goals', [])
+            if not isinstance(goals_input, list):
+                goals_input = [goals_input]
+            structured_data['goals'] = [str(g) for g in goals_input if g is not None]
+
+            success_criteria_input = inputs.get('success_criteria', [])
+            if not isinstance(success_criteria_input, list):
+                success_criteria_input = [success_criteria_input]
+            structured_data['success_criteria'] = [str(sc) for sc in success_criteria_input if sc is not None]
+
+            logger.info("Data structuring completed successfully.")
+            return structured_data
+        except Exception as e:
+            logger.error(f"Error structuring data: {e}", exc_info=True)
+            # Depending on severity, might re-raise or return a partial/empty dict
+            raise ValueError(f"Failed to structure data: {e}")
 
     def _classify_project_type(self, inputs: Dict[str, Any]) -> List[str]:
         """Classify project type based on business objective and description."""
@@ -946,167 +1032,231 @@ class IntakeAssistantAgent(BaseAgent):
         
         Args:
             inputs: Dictionary containing project information fields
-            
+        
         Returns:
             AgentResult with structured project data, recommendations, and analysis
         """
         start_time = time.monotonic()
-        
+        execution_time_ms = 0 # Initialize to 0
+
         try:
-            logger.info(f"Starting enhanced intake processing for agent {self.agent_id}")
+            logger.info(f"Starting enhanced intake processing for agent {self.agent_id} with inputs: {inputs.keys()}")
             
             # Perform comprehensive input validation
             validation_result = await self.validate_inputs(inputs)
             if not validation_result.is_valid:
-                logger.warning(f"Input validation failed: {validation_result.errors}")
+                logger.warning(f"Input validation failed for agent {self.agent_id}: {validation_result.errors}")
+                execution_time_ms = int((time.monotonic() - start_time) * 1000)
                 return AgentResult(
                     status=AgentStatus.FAILED,
                     data={'error': 'Input validation failed', 'details': validation_result.errors},
-                    execution_time_ms=int((time.monotonic() - start_time) * 1000)
+                    execution_time_ms=execution_time_ms,
+                    error_details=f"Input validation failed: {validation_result.errors}"
                 )
             
-            # Generate unique project ID with timestamp for better tracking
-            project_id = f"proj_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}"
-            
-            # Enhanced business intelligence analysis
-            project_types = self._classify_project_type(inputs)
-            quality_assessment = self._assess_intake_quality(inputs)
-            
-            # Calculate enhanced project complexity with industry factors
-            complexity_analysis = self._calculate_enhanced_project_complexity(inputs, project_types)
-            
-            # Generate comprehensive recommendations
-            recommendations = self._generate_enhanced_recommendations(inputs, project_types, quality_assessment)
-            
-            # Industry and department intelligence
-            industry_intelligence = self._generate_industry_intelligence(inputs)
-            
-            # Structure comprehensive project data with business intelligence
-            project_data = {
-                'project_id': project_id,
-                'basic_info': {
-                    'project_name': inputs.get('project_name', ''),
-                    'description': inputs.get('description', ''),
-                    'business_objective': inputs.get('business_objective', ''),
-                    'industry': inputs.get('industry', ''),
-                    'department': inputs.get('department', ''),
-                    'created_timestamp': datetime.now().isoformat(),
-                    'project_phase': inputs.get('project_phase', ProjectPhase.PLANNING.value)
-                },
-                'business_context': {
-                    'project_types': project_types,
-                    'primary_classification': project_types[0] if project_types else 'unclassified',
-                    'goals': inputs.get('goals', []),
-                    'success_criteria': inputs.get('success_criteria', []),
-                    'constraints': inputs.get('constraints', []),
-                    'expected_participants': inputs.get('expected_participants', 0),
-                    'geographic_scope': inputs.get('geographic_scope', 'local'),
-                    'regulatory_requirements': inputs.get('regulatory_requirements', [])
-                },
-                'stakeholders': inputs.get('stakeholders', []),
-                'financial_scope': {
-                    'budget_range': inputs.get('budget_range', 'undefined'),
-                    'timeline': inputs.get('timeline', 'quarterly'),
-                    'urgency': inputs.get('urgency', ProjectUrgency.MEDIUM.value),
-                    'budget_confidence': self._assess_budget_confidence(inputs),
-                    'estimated_budget_midpoint': self._estimate_budget_midpoint(inputs.get('budget_range'))
-                },
-                'analysis_results': {
-                    'quality_assessment': quality_assessment,
-                    'complexity_analysis': complexity_analysis,
-                    'industry_intelligence': industry_intelligence,
-                    'risk_factors': self._identify_initial_risk_factors(inputs, complexity_analysis),
-                    'readiness_score': self._calculate_project_readiness_score(quality_assessment, complexity_analysis)
-                }
-            }
-            
-            # Create enhanced knowledge entity for MCP memory storage
-            knowledge_entity = KnowledgeEntity(
-                id=f"intake_{project_id}",
-                title=f"Project Intake: {inputs.get('project_name', 'Unknown')}",
-                content={
-                    'project_data': project_data,
-                    'input_validation': {
-                        'validation_passed': True,
-                        'validation_timestamp': datetime.now().isoformat(),
-                        'quality_score': quality_assessment['overall_score']
-                    },
-                    'business_intelligence': {
-                        'primary_project_type': project_types[0] if project_types else 'unclassified',
-                        'complexity_score': complexity_analysis['overall_score'],
-                        'industry_risk_factor': industry_intelligence.get('risk_factor', 1.0),
-                        'recommended_next_agents': recommendations['agent_workflow_suggestions']
-                    }
-                },
-                metadata={
-                    'agent_id': self.agent_id,
-                    'created_at': datetime.now().isoformat(),
+            try:
+                # Generate unique project ID with timestamp for better tracking
+                project_name_for_id = inputs.get('project_name', 'unknown_project').replace(' ', '_').lower()
+                # Generate unique project ID with timestamp for better tracking
+                project_name_for_id = inputs.get('project_name', 'unknown_project').replace(' ', '_').lower()
+                project_id = f"proj_{project_name_for_id}_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}"
+                logger.debug(f"Generated project ID: {project_id}")
+
+                # Check for existing projects with similar names
+                existing_projects = await self._check_existing_projects(inputs.get('project_name', ''))
+                if existing_projects:
+                    logger.warning(f"Similar projects already exist: {existing_projects}")
+                    execution_time_ms = int((time.monotonic() - start_time) * 1000)
+                    return AgentResult(
+                        status=AgentStatus.FAILED,
+                        data={'error': 'Similar project name already exists', 'details': f"Found: {', '.join(existing_projects)}"},
+                        execution_time_ms=execution_time_ms,
+                        error_details="Duplicate project detected"
+                    )
+
+                # Enhanced business intelligence analysis
+                project_types = self._classify_project_type(inputs)
+                logger.debug(f"Classified project types: {project_types}")
+
+                quality_assessment = self._assess_intake_quality(inputs)
+                logger.debug(f"Assessed intake quality: {quality_assessment}")
+                
+                # Calculate enhanced project complexity with industry factors
+                complexity_analysis = self._calculate_enhanced_project_complexity(inputs, project_types)
+                logger.debug(f"Calculated complexity analysis: {complexity_analysis}")
+                
+                # Generate comprehensive recommendations
+                recommendations = self._generate_enhanced_recommendations(inputs, project_types, quality_assessment)
+                logger.debug(f"Generated recommendations: {recommendations}")
+                
+                # Industry and department intelligence
+                industry_intelligence = self._generate_industry_intelligence(inputs)
+                logger.debug(f"Generated industry intelligence: {industry_intelligence}")
+
+                # Identify initial risk factors
+                risk_factors = self._identify_initial_risk_factors(inputs, complexity_analysis)
+                logger.debug(f"Identified initial risk factors: {risk_factors}")
+
+                # Calculate project readiness score
+                readiness_score = self._calculate_project_readiness_score(quality_assessment, complexity_analysis)
+                logger.debug(f"Calculated project readiness score: {readiness_score}")
+                
+                # Structure comprehensive project data with business intelligence
+                project_data = {
                     'project_id': project_id,
-                    'industry': inputs.get('industry', 'unknown'),
-                    'department': inputs.get('department', 'unknown'),
-                    'urgency_level': inputs.get('urgency', 'medium'),
-                    'budget_range': inputs.get('budget_range', 'undefined'),
-                    'stakeholder_count': len(inputs.get('stakeholders', [])),
-                    'intake_quality': quality_assessment['overall_quality']
+                    'basic_info': {
+                        'project_name': inputs.get('project_name', ''),
+                        'description': inputs.get('description', ''),
+                        'business_objective': inputs.get('business_objective', ''),
+                        'industry': inputs.get('industry', ''),
+                        'department': inputs.get('department', ''),
+                        'created_timestamp': datetime.now().isoformat(),
+                        'project_phase': inputs.get('project_phase', ProjectPhase.PLANNING.value)
+                    },
+                    'business_context': {
+                        'project_types': project_types,
+                        'primary_classification': project_types[0] if project_types else 'unclassified',
+                        'goals': inputs.get('goals', []),
+                        'success_criteria': inputs.get('success_criteria', []),
+                        'constraints': inputs.get('constraints', []),
+                        'expected_participants': inputs.get('expected_participants', 0),
+                        'geographic_scope': inputs.get('geographic_scope', 'local'),
+                        'regulatory_requirements': inputs.get('regulatory_requirements', [])
+                    },
+                    'stakeholders': inputs.get('stakeholders', []),
+                    'financial_scope': {
+                        'budget_range': inputs.get('budget_range', 'undefined'),
+                        'timeline': inputs.get('timeline', 'quarterly'),
+                        'urgency': inputs.get('urgency', ProjectUrgency.MEDIUM.value),
+                        'budget_confidence': self._assess_budget_confidence(inputs),
+                        'estimated_budget_midpoint': self._estimate_budget_midpoint(inputs.get('budget_range'))
+                    },
+                    'analysis_results': {
+                        'quality_assessment': quality_assessment,
+                        'complexity_analysis': complexity_analysis,
+                        'industry_intelligence': industry_intelligence,
+                        'risk_factors': risk_factors,
+                        'readiness_score': readiness_score
+                    }
                 }
-            )
-            
-            # Store in MCP episodic memory
-            await self.mcp_client.create_entities([knowledge_entity])
-            logger.info(f"Stored project intake data in MCP memory: {knowledge_entity.entity_id}")
-            
-            # Store working memory for workflow coordination
-            working_memory = {
-                'current_project_id': project_id,
-                'last_agent': 'intake_assistant',
-                'workflow_state': 'intake_complete',
-                'recommended_next_steps': recommendations['next_steps'],
-                'recommended_agents': recommendations['agent_workflow_suggestions'],
-                'complexity_level': complexity_analysis['complexity_level'],
-                'quality_level': quality_assessment['overall_quality']
-            }
-            
-            # Calculate execution time
-            execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            
-            # Structure comprehensive response data
-            response_data = {
-                'project_data': project_data,
-                'recommendations': recommendations,
-                'analysis_summary': {
-                    'intake_quality': quality_assessment['overall_quality'],
-                    'quality_score': quality_assessment['overall_score'],
-                    'project_complexity': complexity_analysis['complexity_level'],
-                    'complexity_score': complexity_analysis['overall_score'],
-                    'primary_project_type': project_types[0] if project_types else 'unclassified',
-                    'identified_project_types': project_types,
-                    'readiness_score': project_data['analysis_results']['readiness_score']
-                },
-                'next_steps': recommendations['next_steps'],
-                'working_memory': working_memory,
-                'metadata': {
-                    'processing_time_ms': execution_time_ms,
-                    'agent_version': '2.0',
-                    'validation_passed': True,
-                    'mcp_storage_success': True
+                logger.debug(f"Structured project data for {project_id}")
+                
+                # Create enhanced knowledge entity for MCP memory storage
+                knowledge_entity = KnowledgeEntity(
+                    id=f"intake_{project_id}",
+                    title=f"Project Intake: {inputs.get('project_name', 'Unknown')}",
+                    content={
+                        'project_data': project_data,
+                        'input_validation': {
+                            'validation_passed': True,
+                            'validation_timestamp': datetime.now().isoformat(),
+                            'quality_score': quality_assessment['overall_score']
+                        },
+                        'business_intelligence': {
+                            'primary_project_type': project_types[0] if project_types else 'unclassified',
+                            'complexity_score': complexity_analysis['overall_score'],
+                            'industry_risk_factor': industry_intelligence.get('risk_factor', 1.0),
+                            'recommended_next_agents': recommendations['agent_workflow_suggestions']
+                        }
+                    },
+                    metadata={
+                        'agent_id': self.agent_id,
+                        'created_at': datetime.now().isoformat(),
+                        'project_id': project_id,
+                        'industry': inputs.get('industry', 'unknown'),
+                        'department': inputs.get('department', 'unknown'),
+                        'urgency_level': inputs.get('urgency', 'medium'),
+                        'budget_range': inputs.get('budget_range', 'undefined'),
+                        'stakeholder_count': len(inputs.get('stakeholders', [])),
+                        'intake_quality': quality_assessment['overall_quality']
+                    }
+                )
+                
+                # Store in MCP episodic memory
+                try:
+                    # Audit log before writing to memory
+                    logger.info(f"AUDIT: Attempting to create KnowledgeEntity for project {project_id} in MCP. Entity ID: {knowledge_entity.id}")
+                    await self.mcp_client.create_entities([knowledge_entity])
+                    logger.info(f"Successfully stored project intake for {project_id} in MCP. Entity ID: {knowledge_entity.id}")
+                    # Audit log after successful write
+                    logger.info(f"AUDIT: Successfully created KnowledgeEntity. Entity ID: {knowledge_entity.id}")
+                except Exception as mem_e:
+                    logger.error(f"Failed to store knowledge entity for {project_id} in MCP: {mem_e}", exc_info=True)
+                    # Audit log for failed write
+                    logger.critical(f"AUDIT: Failed to create KnowledgeEntity. Entity ID: {knowledge_entity.id}. Error: {mem_e}")
+                    execution_time_ms = int((time.monotonic() - start_time) * 1000)
+                    return AgentResult(
+                        status=AgentStatus.FAILED,
+                        data={'error': 'Failed to store project data in memory', 'details': str(mem_e)},
+                        execution_time_ms=execution_time_ms,
+                        error_details=f"MCP storage failed: {str(mem_e)}"
+                    )
+
+                # Store working memory for workflow coordination
+                working_memory = {
+                    'current_project_id': project_id,
+                    'last_agent': 'intake_assistant',
+                    'workflow_state': 'intake_complete',
+                    'recommended_next_steps': recommendations['next_steps'],
+                    'recommended_agents': recommendations['agent_workflow_suggestions'],
+                    'complexity_level': complexity_analysis['complexity_level'],
+                    'quality_level': quality_assessment['overall_quality']
                 }
-            }
+                logger.debug(f"Prepared working memory for {project_id}")
+                
+                execution_time_ms = int((time.monotonic() - start_time) * 1000)
+                
+                # Structure comprehensive response data
+                response_data = {
+                    'project_data': project_data,
+                    'recommendations': recommendations,
+                    'analysis_summary': {
+                        'intake_quality': quality_assessment['overall_quality'],
+                        'quality_score': quality_assessment['overall_score'],
+                        'project_complexity': complexity_analysis['complexity_level'],
+                        'complexity_score': complexity_analysis['overall_score'],
+                        'primary_project_type': project_types[0] if project_types else 'unclassified',
+                        'identified_project_types': project_types,
+                        'readiness_score': project_data['analysis_results']['readiness_score']
+                    },
+                    'next_steps': recommendations['next_steps'],
+                    'working_memory': working_memory,
+                    'metadata': {
+                        'processing_time_ms': execution_time_ms,
+                        'agent_version': '2.0',
+                        'validation_passed': True,
+                        'mcp_storage_success': True # This will be true if the try block above succeeded
+                    }
+                }
+                
+                logger.info(f"Enhanced intake processing completed successfully in {execution_time_ms}ms for project {project_id}")
+                
+                return AgentResult(
+                    status=AgentStatus.COMPLETED,
+                    data=response_data,
+                    execution_time_ms=execution_time_ms
+                )
             
-            logger.info(f"Enhanced intake processing completed successfully in {execution_time_ms}ms for project {project_id}")
-            
-            return AgentResult(
-                status=AgentStatus.SUCCESS,
-                data=response_data,
-                execution_time_ms=execution_time_ms
-            )
+            except Exception as e:
+                execution_time_ms = int((time.monotonic() - start_time) * 1000)
+                error_msg = f"An error occurred during core processing for agent {self.agent_id}: {e}"
+                logger.error(error_msg, exc_info=True)
+                
+                return AgentResult(
+                    status=AgentStatus.FAILED,
+                    data={'error': error_msg, 'execution_time_ms': execution_time_ms},
+                    execution_time_ms=execution_time_ms,
+                    error_details=error_msg
+                )
             
         except Exception as e:
             execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            error_msg = f"Enhanced intake processing failed: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            error_msg = f"An unexpected error occurred during intake processing for agent {self.agent_id}: {e}"
+            logger.critical(error_msg, exc_info=True)
             
             return AgentResult(
                 status=AgentStatus.FAILED,
                 data={'error': error_msg, 'execution_time_ms': execution_time_ms},
-                execution_time_ms=execution_time_ms
+                execution_time_ms=execution_time_ms,
+                error_details=error_msg
             )

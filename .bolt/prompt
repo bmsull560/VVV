@@ -1,0 +1,76 @@
+When working on the B2BValue project, adhere to the following project-specific instructions to ensure consistency, quality, and alignment with project goals:
+
+General Project Principles
+Focus on Business Value Modeling: All work should directly contribute to enhancing the platform's capabilities in business value quantification, ROI modeling, and strategic decision-making.
+
+Sprint-Based Development: Follow the defined six-sprint roadmap, prioritizing immediate tasks as outlined in the project plan.
+
+"Production-Ready" Mindset: Aim for high quality and robustness, with a focus on comprehensive business intelligence, advanced validation, and MCP memory integration for all components, especially agents.
+
+Coding Standards
+Code Quality Tools: Always use black, ruff, and mypy for code formatting, linting, and static type checking.
+
+Secure Coding Practices: Implement secure coding practices and avoid hard-coded secrets. Load sensitive information from environment variables.
+
+Naming Conventions: Adhere to specific naming conventions and preferred design patterns as documented in local-coding-rules.md.
+
+Dependency Management: Ensure all Python dependencies from requirements.txt and requirements-test.txt are installed in the .venv.
+
+AI Agent Development Guidelines
+Dedicated Structure: Each agent must have its own main.py and a corresponding YAML configuration file under its dedicated directory (e.g., agents/intake_assistant/main.py, Agents/intake_assistant_agent.yaml).
+
+Inheritance: Agents must inherit from the common AgentBase class (agents/core/agent_base.py) to ensure a consistent interface and core functionalities.
+
+MCP Adherence: Agents must strictly adhere to the Model Context Protocol (MCP) rules for data interaction:
+
+Read inputs exclusively from the MCP.
+
+Write all outputs back to the MCP.
+
+Validate inputs against defined rules.
+
+Ensure data records are immutable with versioning.
+
+Correctly structure data according to defined entity schemas (docs/entity_schemas.md) before writing to memory and interpret data according to these schemas upon retrieval.
+
+Shared Utilities: Utilize the shared utility modules:
+
+agents/utils/calculations.py for financial calculations, statistical analysis, risk assessment, and business intelligence functions.
+
+agents/utils/validation.py for comprehensive input validation, business domain validation, type checking, range validation, and sanitization.
+
+LLM Client Usage: Use the robust LLM client (agents/core/llm_client.py) with secure API key handling, retry logic, and multi-provider support.
+
+Memory Interaction Guidelines
+Tiered Memory System: Understand and utilize the multi-tiered memory architecture:
+
+Working Memory: For ephemeral context during workflow execution.
+
+Episodic Memory (PostgreSQL-backed): For persistent storage of workflow execution histories.
+
+Semantic Memory: For long-term knowledge storage using vector embeddings.
+
+Knowledge Graph: For storing relationships between entities.
+
+Memory Manager: Interact with memory through the Memory Manager (memory/core.py) which acts as the central orchestrator and enforces access control.
+
+UI Development Standards (temp_ui_project)
+React/TypeScript Best Practices: Follow established patterns for React/TypeScript components, including functional components and proper use of hooks (useModelBuilder.ts, useFinancialCalculations.ts).
+
+Workflow Wizard: Develop UI components to support the multi-step Business Case Creation wizard workflow.
+
+User Experience: Prioritize UX improvements, including interactive dashboard components, real-time feedback, auto-save, and responsive design.
+
+Testing and Quality Assurance
+Comprehensive Testing: Achieve high unit, integration, and end-to-end test coverage across the codebase.
+
+Integration Tests: Create and run additional integration tests for cross-agent workflows and MCP compliance, validating data flow, error handling, and performance.
+
+Pytest Configuration: Ensure pytest.ini is correctly configured to include project root in python_paths for proper test collection.
+
+Security and Deployment
+Secret Management: Remove hard-coded SECRET_KEY values and document secure deployment practices for secret management, loading from environment variables.
+
+PostgreSQL Backend: Ensure PostgreSQL is correctly configured for EpisodicMemory and KnowledgeGraph storage, including connection details and migration scripts.
+
+Access Control: Maintain and refine RBAC policies in memory/core.py and agents/core/mcp_client.py, ensuring correct default access control for roles like 'agent'.

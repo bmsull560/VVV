@@ -17,7 +17,7 @@ from memory.working import WorkingMemory
 from memory.episodic import EpisodicMemory
 from memory.semantic import SemanticMemory
 from memory.knowledge_graph import KnowledgeGraph
-from memory.types import (
+from memory.memory_types import (
     MemoryEntity, 
     ContextMemoryEntity,
     WorkflowMemoryEntity,

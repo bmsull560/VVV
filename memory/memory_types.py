@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime, timezone
 import uuid
+from types import MappingProxyType
+
 
 
 class DataSensitivity(Enum):

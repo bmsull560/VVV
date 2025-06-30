@@ -389,7 +389,7 @@ class RevenueLeadConversionCalculatorAgent(BaseAgent):
             logger.info(f"Lead conversion analysis completed in {execution_time_ms}ms")
             
             return AgentResult(
-                status=AgentStatus.SUCCESS,
+                status=AgentStatus.COMPLETED,
                 data=response_data,
                 execution_time_ms=execution_time_ms
             )

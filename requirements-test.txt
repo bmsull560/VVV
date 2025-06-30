@@ -1,4 +1,8 @@
 # Testing Dependencies for B2BValue Integration Tests
+pytest==8.2.2
+pytest-asyncio==1.0.0
+aiosqlite==0.21.0
+
 # Install with: pip install -r requirements-test.txt
 
 # Core testing framework

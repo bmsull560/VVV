@@ -3,7 +3,7 @@ import asyncio
 import os
 from memory.semantic import SemanticMemory
 from memory.storage_backend import SQLiteStorageBackend
-from memory.types import KnowledgeEntity
+from memory.memory_types import KnowledgeEntity
 
 class TestSemanticMemory(unittest.TestCase):
 

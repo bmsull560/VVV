@@ -10,6 +10,7 @@ import asyncio
 import time
 import statistics
 from typing import Dict, Any, List, Tuple
+from memory.memory_types import KnowledgeEntity
 from unittest.mock import Mock, AsyncMock
 from concurrent.futures import ThreadPoolExecutor
 import psutil

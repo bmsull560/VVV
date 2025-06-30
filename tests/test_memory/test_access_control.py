@@ -1,12 +1,12 @@
 import pytest
 
-from memory.types import MemoryAccess, MemoryAccessControl, ContextMemoryEntity, MemoryTier
+from memory.memory_types import MemoryAccess, MemoryAccessControl, ContextMemoryEntity, MemoryTier
 from memory.core import MemoryManager
 
 
 # Memory Manager Access Control Tests
 from memory.core import MemoryManager
-from memory.types import ContextMemoryEntity, MemoryTier # Add other entities as needed
+from memory.memory_types import ContextMemoryEntity, MemoryTier # Add other entities as needed
 
 # Test data for MemoryManager tests
 USER_AGENT = "agent_user_1"

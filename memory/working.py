@@ -13,7 +13,7 @@ import json
 import time
 from datetime import datetime, timezone
 
-from memory.types import MemoryEntity, ContextMemoryEntity, MemoryTier
+from memory.memory_types import MemoryEntity, ContextMemoryEntity, MemoryTier
 
 logger = logging.getLogger(__name__)
 
