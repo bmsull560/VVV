@@ -324,7 +324,7 @@ class TestBusinessCaseWorkflow:
             for entity in entities_list:
                 if hasattr(entity, 'id'):
                     stored_entities[entity.id] = entity
-            return AsyncMock()
+            return {'status': 'success', 'entity_ids': [e.id for e in entities_list]}
         
         def get_entity_side_effect(entity_id):
             return stored_entities.get(entity_id)
