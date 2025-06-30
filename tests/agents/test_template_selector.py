@@ -32,6 +32,7 @@ def mock_mcp_client():
 
     client = MagicMock()
     client.memory = mock_memory
+    client.create_entities = AsyncMock()
     return client
 
 @pytest.fixture
@@ -156,16 +157,15 @@ async def test_mcp_audit_recording(template_agent, mock_mcp_client):
     }
     await template_agent.execute(valid_input)
 
-    mock_mcp_client.memory.create_entity.assert_called_once()
     mock_mcp_client.create_entities.assert_called_once()
     # Get the first argument (list of entities) from the call
     entity_list = mock_mcp_client.create_entities.call_args.args[0]
     assert len(entity_list) == 1
     entity = entity_list[0]
-    assert entity.entity_type == "template_selection_analysis"
-    assert entity.data["selected_template"]["template_name"] == "Tech Growth Business Case"
-    assert entity.data["input_data"]["industry"] == "technology"
-    assert entity.data["input_data"]["business_objective"] == "product_launch"
+    assert entity.title.startswith("Template Selection Analysis")
+    assert entity.metadata["selected_template"]["template_name"] == "Tech Growth Business Case"
+    assert entity.metadata["input_data"]["industry"] == "technology"
+    assert entity.metadata["input_data"]["business_objective"] == "product_launch"
 
 @pytest.mark.asyncio
 async def test_graceful_handling_of_unexpected_error(template_agent):

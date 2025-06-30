@@ -364,10 +364,13 @@ Key factors that influenced this selection:
         try:
             # Create a knowledge entity to store the template selection audit
             audit_entity = KnowledgeEntity(
-                entity_type="template_selection_analysis",
-                data={
+                title=f"Template Selection Analysis: {inputs.industry.value}",
+                content=f"Selected template '{result.selected_template.template_name}' for {inputs.industry.value} industry business case",
+                content_type="application/json",
+                source="template_selector_agent",
+                metadata={
                     "agent_id": self.agent_id,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": time.time(),
                     "selected_template": {
                         "template_id": result.selected_template.template_id,
                         "template_name": result.selected_template.template_name,
