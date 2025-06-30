@@ -2,12 +2,13 @@ import pytest
 import asyncio
 from typing import Dict, Any
 import logging
-
 from agents.roi_calculator.main import ROICalculatorAgent
 from agents.value_driver.main import ValueDriverAgent
 from agents.core.agent_base import AgentStatus
 from agents.core.mcp_client import MCPClient
 from memory.core import MemoryManager
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
 @pytest.fixture
@@ -34,7 +35,7 @@ async def test_valuedriver_to_roi_workflow(mcp_client: MCPClient):
     value_driver_agent = ValueDriverAgent("value-driver-001", mcp_client, value_driver_config)
 
     value_driver_inputs = {
-        "user_query": "We need to reduce manual data entry and improve sales efficiency.",
+        "user_query": "We need to automate manual data entry processes to reduce labor costs and improve sales team efficiency by accelerating task completion.",
         "include_quantification": True
     }
     value_driver_result = await value_driver_agent.execute(value_driver_inputs)
