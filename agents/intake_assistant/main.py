@@ -1,1262 +1,875 @@
 """
 Intake Assistant Agent
 
-This agent serves as the primary entry point for users starting a new business case.
-It gathers essential project information, validates inputs, structures data for downstream
-agents, and provides intelligent guidance throughout the intake process.
+This agent gathers initial user input via a conversational interface and extracts
+key business context like company profile, pain points, and strategic goals.
 """
 
 import logging
 import time
+import re
 import uuid
-import statistics
-from datetime import datetime
-from typing import Dict, Any, List, Optional
+import json
+from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
 import functools
 
 from agents.core.agent_base import BaseAgent, AgentResult, AgentStatus
-from memory.memory_types import KnowledgeEntity
-from agents.utils.validation import ValidationResult
+from memory.memory_types import KnowledgeEntity, DataSensitivity
 
 logger = logging.getLogger(__name__)
 
-class ProjectPhase(Enum):
-    """Project development phases for lifecycle management."""
-    PLANNING = "planning"
-    ANALYSIS = "analysis"
-    DEVELOPMENT = "development"
-    IMPLEMENTATION = "implementation"
-    EVALUATION = "evaluation"
+class ProjectType(Enum):
+    """Types of projects for business intelligence categorization."""
+    DIGITAL_TRANSFORMATION = "digital_transformation"
+    COST_OPTIMIZATION = "cost_optimization"
+    REVENUE_GROWTH = "revenue_growth"
+    CUSTOMER_EXPERIENCE = "customer_experience"
+    OPERATIONAL_EFFICIENCY = "operational_efficiency"
+    RISK_MITIGATION = "risk_mitigation"
+    COMPLIANCE = "compliance"
+    INNOVATION = "innovation"
+    OTHER = "other"
 
-class ProjectUrgency(Enum):
-    """Project urgency levels for prioritization."""
+class ProjectComplexity(Enum):
+    """Complexity levels for projects."""
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
-    CRITICAL = "critical"
-
-class StakeholderRole(Enum):
-    """Stakeholder roles for project engagement."""
-    SPONSOR = "sponsor"
-    DECISION_MAKER = "decision_maker"
-    TECHNICAL_LEAD = "technical_lead"
-    BUSINESS_OWNER = "business_owner"
-    END_USER = "end_user"
-    FINANCIAL_APPROVER = "financial_approver"
-
-class IntakeQuality(Enum):
-    """Quality assessment levels for intake completeness."""
-    EXCELLENT = "excellent"
-    GOOD = "good"
-    ADEQUATE = "adequate"
-    POOR = "poor"
-
-class ProjectType(Enum):
-    """Project type classifications for better routing."""
-    COST_REDUCTION = "cost_reduction"
-    REVENUE_GROWTH = "revenue_growth"
-    OPERATIONAL_EFFICIENCY = "operational_efficiency"
-    DIGITAL_TRANSFORMATION = "digital_transformation"
-    COMPLIANCE = "compliance"
-    INNOVATION = "innovation"
-    INFRASTRUCTURE = "infrastructure"
+    VERY_HIGH = "very_high"
 
 class IntakeAssistantAgent(BaseAgent):
     """
-    Processes initial user input to structure and store comprehensive project information.
-    Provides intelligent validation, guidance, and data structuring for business case development.
+    Production-ready agent for comprehensive project intake and business intelligence.
+    
+    This agent gathers initial user input, extracts key business context, and performs
+    advanced analysis to provide intelligent recommendations and insights.
     """
 
     def __init__(self, agent_id: str, mcp_client, config: Dict[str, Any]):
-        # Set up comprehensive validation rules
+        # Enhanced validation rules
         if 'input_validation' not in config:
             config['input_validation'] = {
-                'required_fields': ['user_query', 'project_name', 'description', 'business_objective'],
+                'required_fields': [
+                    'project_name', 'description', 'business_objective'
+                ],
                 'field_types': {
-                    'user_query': 'string',
                     'project_name': 'string',
                     'description': 'string',
                     'business_objective': 'string',
+                    'industry': 'string',
+                    'department': 'string',
                     'goals': 'array',
+                    'success_criteria': 'array',
                     'stakeholders': 'array',
                     'budget_range': 'string',
                     'timeline': 'string',
                     'urgency': 'string',
-                    'success_criteria': 'array',
-                    'constraints': 'array',
-                    'industry': 'string',
-                    'department': 'string',
-                    'project_phase': 'string',
                     'expected_participants': 'number',
                     'geographic_scope': 'string',
                     'regulatory_requirements': 'array'
                 },
                 'field_constraints': {
-                    'user_query': {'min_length': 1},
                     'project_name': {'min_length': 3, 'max_length': 100},
-                    'description': {'min_length': 20, 'max_length': 2000},
-                    'business_objective': {'min_length': 10, 'max_length': 500},
-                    'budget_range': {'allowed_values': ['under_50k', '50k_to_250k', '250k_to_1m', 'over_1m', 'undefined']},
-                    'timeline': {'allowed_values': ['immediate', 'quarterly', 'annual', 'multi_year', 'ongoing']},
-                    'urgency': {'allowed_values': ['low', 'medium', 'high', 'critical']},
-                    'project_phase': {'allowed_values': ['planning', 'analysis', 'development', 'implementation', 'evaluation']},
-                    'expected_participants': {'min_value': 1, 'max_value': 10000},
-                    'geographic_scope': {'allowed_values': ['local', 'regional', 'national', 'international', 'global']}
+                    'description': {'min_length': 20},
+                    'urgency': {'enum': ['low', 'medium', 'high', 'critical']},
+                    'budget_range': {'enum': ['under_50k', '50k_to_250k', '250k_to_1m', 'over_1m']},
+                    'timeline': {'enum': ['immediate', 'quarterly', 'annual', 'multi_year']}
                 }
             }
         
         super().__init__(agent_id, mcp_client, config)
         
-        # Enhanced industry classifications with business context
-        self.industry_classifications = {
-            'healthcare': {'risk_factor': 1.3, 'regulatory_complexity': 'high', 'typical_timeline_multiplier': 1.2},
-            'financial_services': {'risk_factor': 1.4, 'regulatory_complexity': 'high', 'typical_timeline_multiplier': 1.3},
-            'manufacturing': {'risk_factor': 1.1, 'regulatory_complexity': 'medium', 'typical_timeline_multiplier': 1.1},
-            'retail': {'risk_factor': 0.9, 'regulatory_complexity': 'low', 'typical_timeline_multiplier': 0.9},
-            'technology': {'risk_factor': 1.0, 'regulatory_complexity': 'low', 'typical_timeline_multiplier': 0.8},
-            'education': {'risk_factor': 0.8, 'regulatory_complexity': 'medium', 'typical_timeline_multiplier': 1.1},
-            'government': {'risk_factor': 1.2, 'regulatory_complexity': 'high', 'typical_timeline_multiplier': 1.4},
-            'telecommunications': {'risk_factor': 1.1, 'regulatory_complexity': 'medium', 'typical_timeline_multiplier': 1.0},
-            'energy': {'risk_factor': 1.3, 'regulatory_complexity': 'high', 'typical_timeline_multiplier': 1.2},
-            'consulting': {'risk_factor': 0.9, 'regulatory_complexity': 'low', 'typical_timeline_multiplier': 0.9},
-            'media': {'risk_factor': 1.0, 'regulatory_complexity': 'low', 'typical_timeline_multiplier': 0.9},
-            'transportation': {'risk_factor': 1.2, 'regulatory_complexity': 'medium', 'typical_timeline_multiplier': 1.1},
-            'real_estate': {'risk_factor': 1.0, 'regulatory_complexity': 'medium', 'typical_timeline_multiplier': 1.0},
-            'non_profit': {'risk_factor': 0.7, 'regulatory_complexity': 'medium', 'typical_timeline_multiplier': 1.2},
-            'other': {'risk_factor': 1.0, 'regulatory_complexity': 'medium', 'typical_timeline_multiplier': 1.0}
+        # Initialize business intelligence components
+        self.industry_benchmarks = {
+            'technology': {'avg_roi': 35, 'avg_timeline_months': 9, 'complexity_factor': 1.2},
+            'healthcare': {'avg_roi': 28, 'avg_timeline_months': 12, 'complexity_factor': 1.5},
+            'financial_services': {'avg_roi': 32, 'avg_timeline_months': 10, 'complexity_factor': 1.3},
+            'manufacturing': {'avg_roi': 25, 'avg_timeline_months': 14, 'complexity_factor': 1.1},
+            'retail': {'avg_roi': 30, 'avg_timeline_months': 8, 'complexity_factor': 1.0},
+            'education': {'avg_roi': 22, 'avg_timeline_months': 15, 'complexity_factor': 1.2},
+            'government': {'avg_roi': 18, 'avg_timeline_months': 18, 'complexity_factor': 1.4},
+            'other': {'avg_roi': 25, 'avg_timeline_months': 12, 'complexity_factor': 1.2}
         }
         
-        # Enhanced department classifications with complexity factors
-        self.department_classifications = {
-            'it': {'complexity_factor': 1.2, 'stakeholder_intensity': 'high'},
-            'finance': {'complexity_factor': 1.3, 'stakeholder_intensity': 'high'},
-            'operations': {'complexity_factor': 1.1, 'stakeholder_intensity': 'medium'},
-            'sales': {'complexity_factor': 0.9, 'stakeholder_intensity': 'medium'},
-            'marketing': {'complexity_factor': 0.8, 'stakeholder_intensity': 'medium'},
-            'hr': {'complexity_factor': 1.0, 'stakeholder_intensity': 'high'},
-            'customer_service': {'complexity_factor': 0.9, 'stakeholder_intensity': 'medium'},
-            'procurement': {'complexity_factor': 1.1, 'stakeholder_intensity': 'medium'},
-            'legal': {'complexity_factor': 1.4, 'stakeholder_intensity': 'high'},
-            'executive': {'complexity_factor': 1.5, 'stakeholder_intensity': 'high'},
-            'product': {'complexity_factor': 1.2, 'stakeholder_intensity': 'high'},
-            'engineering': {'complexity_factor': 1.3, 'stakeholder_intensity': 'medium'},
-            'quality': {'complexity_factor': 1.1, 'stakeholder_intensity': 'medium'},
-            'security': {'complexity_factor': 1.4, 'stakeholder_intensity': 'high'},
-            'compliance': {'complexity_factor': 1.3, 'stakeholder_intensity': 'high'},
-            'strategy': {'complexity_factor': 1.5, 'stakeholder_intensity': 'high'},
-            'other': {'complexity_factor': 1.0, 'stakeholder_intensity': 'medium'}
-        }
-        
-        # Project type classification keywords for intelligent routing
         self.project_type_keywords = {
-            ProjectType.COST_REDUCTION.value: [
-                'cost', 'save', 'reduce', 'cut', 'eliminate', 'optimize', 'streamline', 'efficiency'
+            ProjectType.DIGITAL_TRANSFORMATION: [
+                'digital', 'transformation', 'modernize', 'modernization', 'platform', 'cloud', 'migration'
             ],
-            ProjectType.REVENUE_GROWTH.value: [
-                'revenue', 'sales', 'growth', 'expand', 'market', 'customer', 'profit', 'income'
+            ProjectType.COST_OPTIMIZATION: [
+                'cost', 'saving', 'reduction', 'optimize', 'efficiency', 'budget', 'expense'
             ],
-            ProjectType.OPERATIONAL_EFFICIENCY.value: [
-                'process', 'workflow', 'automation', 'productivity', 'performance', 'efficiency'
+            ProjectType.REVENUE_GROWTH: [
+                'revenue', 'growth', 'sales', 'market', 'expansion', 'customer acquisition', 'upsell'
             ],
-            ProjectType.DIGITAL_TRANSFORMATION.value: [
-                'digital', 'technology', 'modernize', 'cloud', 'data', 'analytics', 'ai', 'machine learning'
+            ProjectType.CUSTOMER_EXPERIENCE: [
+                'customer', 'experience', 'satisfaction', 'journey', 'engagement', 'retention', 'loyalty'
             ],
-            ProjectType.COMPLIANCE.value: [
-                'compliance', 'regulatory', 'audit', 'governance', 'policy', 'standards', 'requirement'
+            ProjectType.OPERATIONAL_EFFICIENCY: [
+                'operational', 'efficiency', 'streamline', 'process', 'workflow', 'automation', 'productivity'
             ],
-            ProjectType.INNOVATION.value: [
-                'innovation', 'new', 'research', 'development', 'breakthrough', 'competitive', 'advantage'
+            ProjectType.RISK_MITIGATION: [
+                'risk', 'mitigation', 'compliance', 'security', 'protection', 'resilience', 'continuity'
             ],
-            ProjectType.INFRASTRUCTURE.value: [
-                'infrastructure', 'system', 'platform', 'foundation', 'architecture', 'upgrade'
+            ProjectType.COMPLIANCE: [
+                'compliance', 'regulatory', 'regulation', 'legal', 'governance', 'audit', 'standard'
+            ],
+            ProjectType.INNOVATION: [
+                'innovation', 'research', 'development', 'new product', 'disruptive', 'emerging', 'prototype'
             ]
         }
 
-    async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
-        """Processes the project intake, validates, classifies, and stores data."""
-        start_time = time.time()
-        project_id = inputs.get('project_id', str(uuid.uuid4()))
-        logger.info(f"[{self.agent_id}] Starting project intake for project_id: {project_id}")
-
-        try:
-            # 1. Input Validation
-            validation_result = await self.validate_inputs(inputs)
-            if not validation_result.is_valid:
-                error_message = f"Input validation failed: {', '.join(validation_result.errors)}"
-                logger.warning(f"[{self.agent_id}] Validation failed for project_id {project_id}: {error_message}")
-                return AgentResult(
-                    status=AgentStatus.FAILED,
-                    data={"message": error_message},
-                    execution_time_ms=int((time.time() - start_time) * 1000)
-                )
-                logger.warning(f"[{self.agent_id}] Input validation failed for project {project_id}: {validation_result.errors}")
-                return AgentResult(
-                    status=AgentStatus.FAILED,
-                    data={'error': 'Input validation failed', 'details': validation_result.errors},
-                    execution_time_ms=int((time.time() - start_time) * 1000)
-                )
-
-            # 2. Check for existing similar projects
-            project_name = inputs.get('project_name', '')
-            logger.debug(f"[{self.agent_id}] Project name before check: '{project_name}'")
-            if project_name:
-                existing_projects = await self._check_existing_projects(project_name)
-                if existing_projects:
-                    logger.warning(f"[{self.agent_id}] Similar projects found for {project_id}: {existing_projects}")
-                    return AgentResult(
-                        status=AgentStatus.FAILED,
-                        data={'error': 'Similar project name already exists', 'details': f"Found existing projects: {', '.join(existing_projects)}. Please choose a unique project name or update the existing one."},
-                        execution_time_ms=int((time.time() - start_time) * 1000)
-                    )
-
-            # 2. Data Structuring and Normalization
-            structured_data = self._structure_data(inputs)
-            logger.info(f"[{self.agent_id}] Structured data for project {project_id}")
-
-            # 3. Classification and Analysis
-            logger.info(f"[{self.agent_id}] Starting classification for project {project_id}")
-            try:
-                classification_results = self._classify_project(structured_data)
-                logger.info(f"[{self.agent_id}] Finished classification for project {project_id}: {classification_results}")
-            except Exception as e:
-                logger.error(f"[{self.agent_id}] Classification error for project {project_id}: {e}")
-                classification_results = []
-            
-            # 4. Generate Recommendations and Analysis Summary
-            recommendations = self._generate_recommendations(structured_data, classification_results)
-            analysis_summary = self._generate_analysis_summary(structured_data, classification_results, recommendations)
-            logger.info(f"[{self.agent_id}] Generated recommendations and analysis summary for project {project_id}")
-
-            # 5. Store Data in Memory (MCP)
-            mcp_storage_success = await self._store_in_mcp(project_id, structured_data, classification_results, analysis_summary, recommendations)
-            logger.info(f"[{self.agent_id}] MCP storage success for project {project_id}: {mcp_storage_success}")
-
-            # 6. Construct AgentResult
-            result_data = {
-                'project_id': project_id,
-                'project_data': structured_data,
-                'classification': classification_results,
-                'recommendations': recommendations,
-                'analysis_summary': analysis_summary,
-                'metadata': {
-                    'mcp_storage_success': mcp_storage_success
-                }
-            }
-            return AgentResult(
-                status=AgentStatus.COMPLETED,
-                data=result_data,
-                execution_time_ms=int((time.time() - start_time) * 1000)
-            )
-
-        except Exception as e:
-            error_message = f"An unexpected error occurred during core processing for agent {self.agent_id}: {e}"
-            logger.exception(error_message)
-            return AgentResult(
-                status=AgentStatus.FAILED,
-                data={'error': error_message, 'details': str(e)},
-                execution_time_ms=int((time.time() - start_time) * 1000)
-            )
-
     async def _custom_validations(self, inputs: Dict[str, Any]) -> List[str]:
+        """Enhanced validation for intake assistant inputs."""
         errors = []
-        stakeholders = inputs.get('stakeholders', [])
-
-        # Example: Validate 'project_name' length
-        project_name = inputs.get('project_name')
-        if project_name and len(project_name) < 5:
+        
+        # Project name validation
+        project_name = inputs.get('project_name', '')
+        if len(project_name) < 5:
             errors.append("Project name must be at least 5 characters long.")
-
-        # Example: Validate 'description' content
-        description = inputs.get('description')
-        if description and "test" in description.lower():
-            errors.append("Description cannot contain the word 'test'.")
-
-        # Example: Validate 'goals' is not empty if provided
-        goals = inputs.get('goals')
-        if isinstance(goals, list) and not goals:
+        
+        # Check for existing projects with similar names
+        existing_projects = await self._check_existing_projects(project_name)
+        if existing_projects:
+            errors.append(f"Similar project name already exists: {existing_projects[0]}")
+        
+        # Description validation
+        description = inputs.get('description', '')
+        if len(description) < 20:
+            errors.append("Description must be at least 20 characters long.")
+        
+        # Goals validation
+        goals = inputs.get('goals', [])
+        if goals and not goals:
             errors.append("Goals cannot be an empty list if provided.")
-
-        # Example: Validate 'budget_range' against allowed values
-        if goals:
-            for i, goal in enumerate(goals):
-                if isinstance(goal, str):
-                    goal_text = goal.strip()
-                    if len(goal_text) < 10:
-                        errors.append(f"Goal {i} must be at least 10 characters long for meaningful analysis")
-                    elif not any(char.isupper() for char in goal_text):
-                        errors.append(f"Goal {i} should include proper capitalization for professional presentation")
         
-        # Enhanced success criteria validation
-        success_criteria = inputs.get('success_criteria', [])
-        if success_criteria:
-            measurable_criteria = 0
-            for i, criterion in enumerate(success_criteria):
-                if isinstance(criterion, str):
-                    criterion_text = criterion.strip()
-                    if len(criterion_text) < 5:
-                        errors.append(f"Success criterion {i} must be at least 5 characters long")
-                    else:
-                        # Check for measurable indicators
-                        measurable_keywords = ['%', 'percent', 'reduce', 'increase', 'save', 'improve', 'achieve', 'target']
-                        if any(keyword in criterion_text.lower() for keyword in measurable_keywords):
-                            measurable_criteria += 1
-            
-            if len(success_criteria) > 2 and measurable_criteria == 0:
-                errors.append("Consider including at least one measurable success criterion (with percentages, targets, or specific metrics)")
-        
-        # Business objective quality validation
-        business_objective = inputs.get('business_objective', '').strip()
-        if business_objective:
-            if len(business_objective.split()) < 5:
-                errors.append("Business objective should be at least 5 words for comprehensive analysis")
-            
-            # Check for actionable language
-            actionable_keywords = ['improve', 'reduce', 'increase', 'achieve', 'implement', 'enhance', 'optimize', 'streamline']
-            if not any(keyword in business_objective.lower() for keyword in actionable_keywords):
-                errors.append("Business objective should include actionable language (improve, reduce, increase, achieve, etc.)")
-        
-        # Budget and timeline consistency validation
-        budget_range = inputs.get('budget_range')
-        timeline = inputs.get('timeline')
-        urgency = inputs.get('urgency')
-        
-        if budget_range == 'over_1m' and timeline == 'immediate':
-            errors.append("Large budget projects (>$1M) typically require longer timelines than 'immediate'")
-        
-        if urgency == 'critical' and timeline == 'multi_year':
-            errors.append("Critical urgency projects typically shouldn't have multi-year timelines")
-        
-        # Expected participants validation
-        expected_participants = inputs.get('expected_participants')
-        if expected_participants is not None:
-            if expected_participants < 1:
-                errors.append("Expected participants must be at least 1")
-            elif expected_participants > len(stakeholders) * 10 and len(stakeholders) > 0:
-                errors.append("Expected participants seems unusually high compared to identified stakeholders. Please verify.")
+        # Stakeholders validation
+        stakeholders = inputs.get('stakeholders', [])
+        if stakeholders:
+            for i, stakeholder in enumerate(stakeholders):
+                if not isinstance(stakeholder, dict):
+                    errors.append(f"Stakeholder {i} must be an object.")
+                    continue
+                
+                if 'name' not in stakeholder or not stakeholder['name']:
+                    errors.append(f"Stakeholder {i} must have a name.")
+                
+                if 'role' not in stakeholder or not stakeholder['role']:
+                    errors.append(f"Stakeholder {i} must have a role.")
+                
+                if 'influence_level' in stakeholder and stakeholder['influence_level'] not in ['low', 'medium', 'high']:
+                    errors.append(f"Stakeholder {i} influence level must be 'low', 'medium', or 'high'.")
         
         return errors
 
-    @functools.lru_cache(maxsize=128)
+    @functools.lru_cache(maxsize=32)
     async def _check_existing_projects(self, project_name: str) -> List[str]:
-        """Check for existing projects with similar names in MCP."""
-        try:
-            logger.debug(f"Searching MCP for existing projects with query: '{project_name}'")
-            search_results = await self.mcp_client.search_knowledge_graph_nodes(query=project_name)
-            print(f"[DEBUG] search_results for '{project_name}': {search_results}")
-
-            existing_project_names: List[str] = []
-            for result in search_results:
-                name = result.get('name') or ''
-                observations = result.get('observations') or []
-
-                if project_name.lower() in name.lower():
-                    existing_project_names.append(name)
-                    logger.debug(f"Found existing project by name: {name}")
-                    continue
-
-                for obs in observations:
-                    if isinstance(obs, str) and project_name.lower() in obs.lower():
-                        existing_project_names.append(name)
-                        logger.debug(f"Found existing project by observation: {name}")
-                        break
-
-            print(f"[DEBUG] existing_project_names: {existing_project_names}")
-            return list(dict.fromkeys(existing_project_names))
-        except Exception as e:
-            logger.error(f"Error checking existing projects: {e}", exc_info=True)
-            return []
-
-
-            logger.error(f"Error checking existing projects in MCP with query '{project_name}': {e}", exc_info=True)
-            # Return empty list on error to avoid blocking validation, but log the error.
-            return []
-
-    def _structure_data(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        """Structures and normalizes raw input data into a consistent format."""
-        try:
-            # Placeholder for actual data structuring and normalization logic
-            # In a real scenario, this would involve:
-            # - Type conversions (e.g., string to int/float)
-            # - Standardizing formats (e.g., dates, currency)
-            # - Mapping input fields to internal data models
-            # - Handling missing or default values
-            logger.debug(f"Structuring data for inputs: {inputs.keys()}")
-            structured_data = inputs.copy() # For now, just copy the inputs
-            
-            # Example of a simple structuring step:
-            # Ensure 'goals' and 'success_criteria' are lists of strings
-            goals_input = inputs.get('goals', [])
-            if not isinstance(goals_input, list):
-                goals_input = [goals_input]
-            structured_data['goals'] = [str(g) for g in goals_input if g is not None]
-
-            success_criteria_input = inputs.get('success_criteria', [])
-            if not isinstance(success_criteria_input, list):
-                success_criteria_input = [success_criteria_input]
-            structured_data['success_criteria'] = [str(sc) for sc in success_criteria_input if sc is not None]
-
-            logger.info("Data structuring completed successfully.")
-            return structured_data
-        except Exception as e:
-            logger.error(f"Error structuring data: {e}", exc_info=True)
-            # Depending on severity, might re-raise or return a partial/empty dict
-            raise ValueError(f"Failed to structure data: {e}")
-
-    def _classify_project_type(self, inputs: Dict[str, Any]) -> List[str]:
-        """Classify project type based on business objective and description."""
-        classification_scores = {}
+        """Check for existing projects with similar names."""
+        logger.debug(f"search_results for '{project_name}': []")
         
-        # Combine text fields for analysis
-        text_to_analyze = ' '.join([
-            inputs.get('business_objective', ''),
+        try:
+            # Search for similar project names
+            search_results = await self.mcp_client.search_nodes(project_name)
+            
+            # Extract project names from search results
+            existing_names = []
+            for result in search_results:
+                if isinstance(result, dict) and 'name' in result:
+                    existing_names.append(result['name'])
+                elif hasattr(result, 'name'):
+                    existing_names.append(result.name)
+            
+            logger.debug(f"existing_project_names: {existing_names}")
+            return existing_names
+        except Exception as e:
+            logger.error(f"Error checking existing projects: {e}")
+            return []
+
+    def _classify_project_type(self, inputs: Dict[str, Any]) -> ProjectType:
+        """Classify the project type based on input text."""
+        # Combine relevant text fields for analysis
+        text = ' '.join([
+            inputs.get('project_name', ''),
             inputs.get('description', ''),
-            ' '.join(inputs.get('goals', []))
+            inputs.get('business_objective', ''),
+            ' '.join(inputs.get('goals', [])),
+            ' '.join(inputs.get('success_criteria', []))
         ]).lower()
         
-        # Score each project type based on keyword matches
+        # Count keyword matches for each project type
+        type_scores = {}
         for project_type, keywords in self.project_type_keywords.items():
-            score = 0
-            for keyword in keywords:
-                if keyword in text_to_analyze:
-                    score += 1
+            score = sum(1 for keyword in keywords if keyword.lower() in text)
+            type_scores[project_type] = score
+        
+        # Return the project type with the highest score, or OTHER if no clear match
+        if not type_scores:
+            return ProjectType.OTHER
             
-            if score > 0:
-                classification_scores[project_type] = score / len(keywords)
+        max_score = max(type_scores.values())
+        if max_score == 0:
+            return ProjectType.OTHER
+            
+        # Get all types with the max score
+        max_types = [pt for pt, score in type_scores.items() if score == max_score]
+        return max_types[0]  # Return the first one if there are ties
+
+    def _assess_project_complexity(self, inputs: Dict[str, Any]) -> Tuple[ProjectComplexity, float]:
+        """Assess project complexity and return a complexity score."""
+        # Base complexity factors
+        factors = {
+            'stakeholder_count': len(inputs.get('stakeholders', [])) * 0.2,
+            'goal_count': len(inputs.get('goals', [])) * 0.15,
+            'timeline': {
+                'immediate': 0.5,
+                'quarterly': 1.0,
+                'annual': 1.5,
+                'multi_year': 2.0
+            }.get(inputs.get('timeline', 'quarterly'), 1.0),
+            'budget': {
+                'under_50k': 0.7,
+                '50k_to_250k': 1.0,
+                '250k_to_1m': 1.5,
+                'over_1m': 2.0
+            }.get(inputs.get('budget_range', '50k_to_250k'), 1.0),
+            'urgency': {
+                'low': 0.7,
+                'medium': 1.0,
+                'high': 1.3,
+                'critical': 1.6
+            }.get(inputs.get('urgency', 'medium'), 1.0),
+            'participants': min(inputs.get('expected_participants', 5) / 10, 2.0),
+            'geographic_scope': {
+                'local': 0.8,
+                'regional': 1.0,
+                'national': 1.3,
+                'global': 1.8
+            }.get(inputs.get('geographic_scope', 'national'), 1.0),
+            'regulatory_requirements': len(inputs.get('regulatory_requirements', [])) * 0.3
+        }
         
-        # Sort by score and return top classifications
-        sorted_types = sorted(classification_scores.items(), key=lambda x: x[1], reverse=True)
+        # Industry-specific complexity factor
+        industry = inputs.get('industry', 'other').lower()
+        industry_factor = self.industry_benchmarks.get(
+            industry, 
+            self.industry_benchmarks['other']
+        )['complexity_factor']
         
-        # Return types that score above 0.1 threshold
-        return [ptype for ptype, score in sorted_types if score > 0.1]
+        # Calculate weighted complexity score
+        complexity_score = sum(factors.values()) * industry_factor
+        
+        # Map score to complexity level
+        if complexity_score < 5:
+            return ProjectComplexity.LOW, complexity_score
+        elif complexity_score < 8:
+            return ProjectComplexity.MEDIUM, complexity_score
+        elif complexity_score < 12:
+            return ProjectComplexity.HIGH, complexity_score
+        else:
+            return ProjectComplexity.VERY_HIGH, complexity_score
+
+    def _analyze_industry_context(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze industry-specific context and benchmarks."""
+        industry = inputs.get('industry', 'other').lower()
+        benchmarks = self.industry_benchmarks.get(
+            industry, 
+            self.industry_benchmarks['other']
+        )
+        
+        # Adjust benchmarks based on project type
+        project_type = self._classify_project_type(inputs)
+        type_adjustments = {
+            ProjectType.DIGITAL_TRANSFORMATION: {'roi': 1.2, 'timeline': 1.3},
+            ProjectType.COST_OPTIMIZATION: {'roi': 1.1, 'timeline': 0.9},
+            ProjectType.REVENUE_GROWTH: {'roi': 1.3, 'timeline': 1.0},
+            ProjectType.CUSTOMER_EXPERIENCE: {'roi': 1.1, 'timeline': 1.1},
+            ProjectType.OPERATIONAL_EFFICIENCY: {'roi': 1.0, 'timeline': 0.9},
+            ProjectType.RISK_MITIGATION: {'roi': 0.8, 'timeline': 1.2},
+            ProjectType.COMPLIANCE: {'roi': 0.7, 'timeline': 1.3},
+            ProjectType.INNOVATION: {'roi': 1.4, 'timeline': 1.4},
+            ProjectType.OTHER: {'roi': 1.0, 'timeline': 1.0}
+        }
+        
+        adjustment = type_adjustments.get(project_type, {'roi': 1.0, 'timeline': 1.0})
+        
+        return {
+            'industry': industry,
+            'project_type': project_type.value,
+            'avg_roi_percentage': benchmarks['avg_roi'] * adjustment['roi'],
+            'avg_timeline_months': benchmarks['avg_timeline_months'] * adjustment['timeline'],
+            'complexity_factor': benchmarks['complexity_factor'],
+            'industry_specific_factors': self._get_industry_specific_factors(industry)
+        }
+
+    def _get_industry_specific_factors(self, industry: str) -> Dict[str, Any]:
+        """Get industry-specific factors for business intelligence."""
+        industry_factors = {
+            'technology': {
+                'innovation_focus': True,
+                'technical_debt_consideration': True,
+                'rapid_change_environment': True,
+                'talent_competition': True,
+                'regulatory_complexity': 'low'
+            },
+            'healthcare': {
+                'innovation_focus': False,
+                'technical_debt_consideration': False,
+                'rapid_change_environment': False,
+                'talent_competition': True,
+                'regulatory_complexity': 'high'
+            },
+            'financial_services': {
+                'innovation_focus': True,
+                'technical_debt_consideration': True,
+                'rapid_change_environment': False,
+                'talent_competition': True,
+                'regulatory_complexity': 'high'
+            },
+            'manufacturing': {
+                'innovation_focus': False,
+                'technical_debt_consideration': True,
+                'rapid_change_environment': False,
+                'talent_competition': False,
+                'regulatory_complexity': 'medium'
+            },
+            'retail': {
+                'innovation_focus': True,
+                'technical_debt_consideration': False,
+                'rapid_change_environment': True,
+                'talent_competition': False,
+                'regulatory_complexity': 'low'
+            },
+            'education': {
+                'innovation_focus': False,
+                'technical_debt_consideration': False,
+                'rapid_change_environment': False,
+                'talent_competition': False,
+                'regulatory_complexity': 'medium'
+            },
+            'government': {
+                'innovation_focus': False,
+                'technical_debt_consideration': True,
+                'rapid_change_environment': False,
+                'talent_competition': False,
+                'regulatory_complexity': 'high'
+            }
+        }
+        
+        return industry_factors.get(industry, {
+            'innovation_focus': False,
+            'technical_debt_consideration': False,
+            'rapid_change_environment': False,
+            'talent_competition': False,
+            'regulatory_complexity': 'medium'
+        })
 
     def _assess_intake_quality(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """Assess the quality and completeness of the intake information."""
-        quality_factors = {
-            'completeness_score': 0,
-            'detail_quality_score': 0,
-            'stakeholder_coverage_score': 0,
-            'goal_clarity_score': 0,
-            'overall_quality': IntakeQuality.POOR.value
+        # Define required and optional fields with weights
+        field_weights = {
+            # Required fields
+            'project_name': {'required': True, 'weight': 1.0},
+            'description': {'required': True, 'weight': 1.0},
+            'business_objective': {'required': True, 'weight': 1.0},
+            # Important fields
+            'industry': {'required': False, 'weight': 0.8},
+            'department': {'required': False, 'weight': 0.7},
+            'goals': {'required': False, 'weight': 0.9},
+            'success_criteria': {'required': False, 'weight': 0.9},
+            'stakeholders': {'required': False, 'weight': 0.8},
+            # Helpful fields
+            'budget_range': {'required': False, 'weight': 0.6},
+            'timeline': {'required': False, 'weight': 0.6},
+            'urgency': {'required': False, 'weight': 0.5},
+            'expected_participants': {'required': False, 'weight': 0.4},
+            'geographic_scope': {'required': False, 'weight': 0.3},
+            'regulatory_requirements': {'required': False, 'weight': 0.5}
         }
         
-        # Calculate completeness score (percentage of fields provided)
-        total_possible_fields = 13  # Number of main fields
-        provided_fields = sum(1 for field in ['project_name', 'description', 'business_objective', 
-                                             'goals', 'stakeholders', 'budget_range', 'timeline', 
-                                             'urgency', 'success_criteria', 'constraints', 'industry', 
-                                             'department', 'project_phase'] 
-                             if inputs.get(field))
-        quality_factors['completeness_score'] = (provided_fields / total_possible_fields) * 100
+        # Calculate completeness score
+        total_weight = sum(field['weight'] for field in field_weights.values())
+        weighted_score = 0
         
-        # Assess detail quality
-        detail_score = 0
+        for field, config in field_weights.items():
+            if field in inputs and inputs[field]:
+                # Check array fields for meaningful content
+                if isinstance(inputs[field], list):
+                    if len(inputs[field]) > 0:
+                        weighted_score += config['weight']
+                # Check string fields for meaningful content
+                elif isinstance(inputs[field], str):
+                    if len(inputs[field]) > 3:
+                        weighted_score += config['weight']
+                # Other field types
+                else:
+                    weighted_score += config['weight']
+        
+        completeness_score = weighted_score / total_weight
+        
+        # Assess quality of key fields
+        quality_scores = {}
+        
+        # Description quality
         description = inputs.get('description', '')
-        if len(description) > 100:
-            detail_score += 25
-        if len(description) > 300:
-            detail_score += 25
-        
-        business_objective = inputs.get('business_objective', '')
-        if len(business_objective) > 50:
-            detail_score += 25
-        if any(keyword in business_objective.lower() for keyword in ['improve', 'reduce', 'increase', 'achieve']):
-            detail_score += 25
-        
-        quality_factors['detail_quality_score'] = detail_score
-        
-        # Assess stakeholder coverage
-        stakeholders = inputs.get('stakeholders', [])
-        stakeholder_score = min(100, len(stakeholders) * 20)  # Cap at 100%
-        
-        # Bonus for key roles
-        roles = [s.get('role') for s in stakeholders if isinstance(s, dict)]
-        if 'sponsor' in roles or 'decision_maker' in roles:
-            stakeholder_score += 10
-        if 'financial_approver' in roles:
-            stakeholder_score += 10
-        
-        quality_factors['stakeholder_coverage_score'] = min(100, stakeholder_score)
-        
-        # Assess goal clarity
-        goals = inputs.get('goals', [])
-        goal_score = 0
-        if goals:
-            avg_goal_length = sum(len(str(goal)) for goal in goals) / len(goals)
-            if avg_goal_length > 20:
-                goal_score = 50
-            if avg_goal_length > 50:
-                goal_score = 100
-        
-        quality_factors['goal_clarity_score'] = goal_score
-        
-        # Calculate overall quality
-        overall_score = (
-            quality_factors['completeness_score'] * 0.3 +
-            quality_factors['detail_quality_score'] * 0.25 +
-            quality_factors['stakeholder_coverage_score'] * 0.25 +
-            quality_factors['goal_clarity_score'] * 0.2
-        )
-        
-        if overall_score >= 80:
-            quality_factors['overall_quality'] = IntakeQuality.EXCELLENT.value
-        elif overall_score >= 65:
-            quality_factors['overall_quality'] = IntakeQuality.GOOD.value
-        elif overall_score >= 45:
-            quality_factors['overall_quality'] = IntakeQuality.ADEQUATE.value
+        if description:
+            word_count = len(description.split())
+            quality_scores['description'] = min(1.0, word_count / 50)
         else:
-            quality_factors['overall_quality'] = IntakeQuality.POOR.value
+            quality_scores['description'] = 0.0
         
-        quality_factors['overall_score'] = round(overall_score, 1)
+        # Goals quality
+        goals = inputs.get('goals', [])
+        if goals:
+            avg_goal_length = sum(len(str(goal).split()) for goal in goals) / len(goals)
+            quality_scores['goals'] = min(1.0, avg_goal_length / 5)
+        else:
+            quality_scores['goals'] = 0.0
         
-        return quality_factors
+        # Stakeholders quality
+        stakeholders = inputs.get('stakeholders', [])
+        if stakeholders:
+            stakeholder_completeness = sum(
+                1 for s in stakeholders 
+                if isinstance(s, dict) and 'name' in s and 'role' in s
+            ) / len(stakeholders)
+            quality_scores['stakeholders'] = stakeholder_completeness
+        else:
+            quality_scores['stakeholders'] = 0.0
+        
+        # Calculate overall quality score
+        quality_weight = 0.7  # Weight for quality vs. completeness
+        overall_score = (completeness_score * (1 - quality_weight) + 
+                        (sum(quality_scores.values()) / len(quality_scores) if quality_scores else 0) * quality_weight)
+        
+        return {
+            'completeness_score': completeness_score,
+            'quality_scores': quality_scores,
+            'overall_score': overall_score,
+            'assessment': self._get_quality_assessment(overall_score)
+        }
 
-    def _generate_enhanced_recommendations(self, inputs: Dict[str, Any], project_types: List[str], 
-                                         quality_assessment: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate enhanced intelligent recommendations based on comprehensive analysis."""
-        recommendations = {
-            'template_suggestions': [],
-            'stakeholder_suggestions': [],
-            'timeline_recommendations': [],
-            'risk_considerations': [],
-            'next_steps': [],
-            'agent_workflow_suggestions': [],
-            'quality_improvement_suggestions': []
-        }
+    def _get_quality_assessment(self, score: float) -> str:
+        """Get a qualitative assessment based on the quality score."""
+        if score >= 0.9:
+            return "Excellent - Very comprehensive project intake with detailed information."
+        elif score >= 0.75:
+            return "Good - Solid project intake with most key information provided."
+        elif score >= 0.6:
+            return "Adequate - Basic project information provided, but could benefit from more details."
+        elif score >= 0.4:
+            return "Minimal - Limited project information, additional details recommended."
+        else:
+            return "Insufficient - Critical information missing, requires significant additional input."
+
+    def _generate_recommendations(self, inputs: Dict[str, Any], 
+                                business_intelligence: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generate intelligent recommendations based on project analysis."""
+        recommendations = []
         
-        # Enhanced template suggestions based on project types
-        template_mapping = {
-            ProjectType.COST_REDUCTION.value: ['cost_reduction', 'operational_efficiency'],
-            ProjectType.REVENUE_GROWTH.value: ['revenue_growth', 'market_expansion'],
-            ProjectType.OPERATIONAL_EFFICIENCY.value: ['operational_efficiency', 'process_improvement'],
-            ProjectType.DIGITAL_TRANSFORMATION.value: ['digital_transformation', 'technology_upgrade'],
-            ProjectType.COMPLIANCE.value: ['compliance', 'governance'],
-            ProjectType.INNOVATION.value: ['innovation', 'research_development'],
-            ProjectType.INFRASTRUCTURE.value: ['infrastructure', 'system_upgrade']
-        }
+        # Project type-specific recommendations
+        project_type = business_intelligence.get('project_type', 'other')
+        complexity = business_intelligence.get('complexity', {}).get('level', 'medium')
         
-        for project_type in project_types:
-            if project_type in template_mapping:
-                recommendations['template_suggestions'].extend(template_mapping[project_type])
+        # Recommendation: Value Driver Focus
+        if project_type == 'cost_optimization':
+            recommendations.append({
+                'type': 'value_driver_focus',
+                'title': 'Focus on Cost Reduction Value Drivers',
+                'description': 'Prioritize quantifying operational cost savings, resource optimization, and efficiency gains.',
+                'priority': 'high'
+            })
+        elif project_type == 'revenue_growth':
+            recommendations.append({
+                'type': 'value_driver_focus',
+                'title': 'Focus on Revenue Enhancement Value Drivers',
+                'description': 'Prioritize quantifying revenue uplift, market expansion, and customer acquisition benefits.',
+                'priority': 'high'
+            })
+        elif project_type == 'operational_efficiency':
+            recommendations.append({
+                'type': 'value_driver_focus',
+                'title': 'Focus on Productivity Value Drivers',
+                'description': 'Prioritize quantifying time savings, process improvements, and resource utilization.',
+                'priority': 'high'
+            })
         
-        # Default to standard ROI if no specific match
-        if not recommendations['template_suggestions']:
-            recommendations['template_suggestions'] = ['standard_roi', 'business_case_basic']
+        # Recommendation: Stakeholder Engagement
+        stakeholders = inputs.get('stakeholders', [])
+        if not any(s.get('role') == 'sponsor' for s in stakeholders if isinstance(s, dict)):
+            recommendations.append({
+                'type': 'stakeholder_engagement',
+                'title': 'Identify Executive Sponsor',
+                'description': 'Add a project sponsor with executive authority to ensure project success.',
+                'priority': 'high'
+            })
         
-        # Remove duplicates and limit to 3
-        recommendations['template_suggestions'] = list(set(recommendations['template_suggestions']))[:3]
+        # Recommendation: Risk Assessment
+        if complexity in ['high', 'very_high']:
+            recommendations.append({
+                'type': 'risk_assessment',
+                'title': 'Conduct Detailed Risk Assessment',
+                'description': 'This project has high complexity. A comprehensive risk assessment is recommended.',
+                'priority': 'high'
+            })
         
-        # Enhanced stakeholder suggestions
-        existing_stakeholders = {s.get('role') for s in inputs.get('stakeholders', []) if isinstance(s, dict)}
+        # Recommendation: Success Metrics
+        if not inputs.get('success_criteria'):
+            recommendations.append({
+                'type': 'success_metrics',
+                'title': 'Define Clear Success Metrics',
+                'description': 'Add specific, measurable success criteria to enable proper ROI tracking.',
+                'priority': 'medium'
+            })
         
-        if 'financial_approver' not in existing_stakeholders:
-            recommendations['stakeholder_suggestions'].append('Add a financial approver for budget approval and ROI validation')
+        # Recommendation: Budget Confidence
+        budget_confidence = business_intelligence.get('budget_confidence', {}).get('level', 'medium')
+        if budget_confidence == 'low':
+            recommendations.append({
+                'type': 'budget_refinement',
+                'title': 'Refine Budget Estimates',
+                'description': 'Current budget estimates have low confidence. Consider a more detailed cost analysis.',
+                'priority': 'medium'
+            })
         
-        if 'technical_lead' not in existing_stakeholders and ProjectType.DIGITAL_TRANSFORMATION.value in project_types:
-            recommendations['stakeholder_suggestions'].append('Include a technical lead for technology-related initiatives')
-        
-        if 'end_user' not in existing_stakeholders:
-            recommendations['stakeholder_suggestions'].append('Consider adding end-user representatives for requirements validation')
-        
-        if len(existing_stakeholders) < 3:
-            recommendations['stakeholder_suggestions'].append('Consider expanding stakeholder representation for comprehensive input')
-        
-        # Industry and department-specific recommendations
-        industry = inputs.get('industry', '').lower()
-        department = inputs.get('department', '').lower()
-        
-        if industry in self.industry_classifications:
-            industry_data = self.industry_classifications[industry]
-            if industry_data['regulatory_complexity'] == 'high':
-                recommendations['risk_considerations'].append(f'{industry.title()} industry requires careful regulatory compliance planning')
-            
-            if industry_data['risk_factor'] > 1.2:
-                recommendations['risk_considerations'].append(f'High-risk industry requires enhanced risk mitigation strategies')
-        
-        if department in self.department_classifications:
-            dept_data = self.department_classifications[department]
-            if dept_data['stakeholder_intensity'] == 'high':
-                recommendations['stakeholder_suggestions'].append(f'{department.title()} projects typically require extensive stakeholder coordination')
-        
-        # Timeline recommendations based on complexity and urgency
-        urgency = inputs.get('urgency', 'medium')
-        budget_range = inputs.get('budget_range', 'undefined')
-        timeline = inputs.get('timeline', 'quarterly')
-        
-        if urgency == 'critical' and budget_range in ['250k_to_1m', 'over_1m']:
-            recommendations['timeline_recommendations'].append('Critical high-budget projects need accelerated decision-making processes')
-        elif urgency == 'low' and timeline == 'immediate':
-            recommendations['timeline_recommendations'].append('Low urgency projects can benefit from thorough planning phases')
-        
-        if budget_range == 'over_1m':
-            recommendations['timeline_recommendations'].append('Large budget projects typically require extended approval cycles')
-        
-        # Agent workflow suggestions based on project characteristics
-        recommended_agents = ['value_driver']
-        
-        if ProjectType.COST_REDUCTION.value in project_types:
-            recommended_agents.extend(['cost_reduction', 'efficiency_analysis'])
-        if ProjectType.REVENUE_GROWTH.value in project_types:
-            recommended_agents.extend(['revenue_calculator', 'market_analysis'])
-        if budget_range in ['250k_to_1m', 'over_1m']:
-            recommended_agents.append('risk_mitigation')
-        if len(inputs.get('stakeholders', [])) > 5:
-            recommended_agents.append('collaboration_coordinator')
-        
-        recommendations['agent_workflow_suggestions'] = list(set(recommended_agents))
-        
-        # Quality improvement suggestions
-        if quality_assessment['overall_quality'] in [IntakeQuality.POOR.value, IntakeQuality.ADEQUATE.value]:
-            if quality_assessment['detail_quality_score'] < 50:
-                recommendations['quality_improvement_suggestions'].append('Expand project description with more specific details')
-            if quality_assessment['stakeholder_coverage_score'] < 50:
-                recommendations['quality_improvement_suggestions'].append('Identify additional key stakeholders and their roles')
-            if quality_assessment['goal_clarity_score'] < 50:
-                recommendations['quality_improvement_suggestions'].append('Define more specific and measurable project goals')
-        
-        # Standard next steps
-        recommendations['next_steps'] = [
-            'Review and validate all project information',
-            'Confirm stakeholder availability and engagement',
-            'Proceed to template selection for business case development',
-            'Begin detailed value driver analysis'
-        ]
+        # Add general recommendations if list is empty
+        if not recommendations:
+            recommendations.append({
+                'type': 'general',
+                'title': 'Proceed with Standard Analysis',
+                'description': 'Project intake is complete. Proceed with standard value driver analysis.',
+                'priority': 'medium'
+            })
         
         return recommendations
 
-    def _calculate_enhanced_project_complexity(self, inputs: Dict[str, Any], project_types: List[str]) -> Dict[str, Any]:
-        """Calculate enhanced project complexity with industry and project type factors."""
-        complexity_factors = {
-            'stakeholder_complexity': 0,
-            'goal_complexity': 0,
-            'budget_complexity': 0,
-            'timeline_complexity': 0,
-            'urgency_complexity': 0,
-            'industry_complexity': 0,
-            'department_complexity': 0,
-            'project_type_complexity': 0,
-            'regulatory_complexity': 0
-        }
+    def _assess_budget_confidence(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        """Assess confidence level in budget estimates."""
+        budget_range = inputs.get('budget_range', '')
+        has_detailed_goals = bool(inputs.get('goals', []))
+        has_timeline = bool(inputs.get('timeline', ''))
+        has_stakeholders = len(inputs.get('stakeholders', [])) > 0
         
-        # Enhanced stakeholder complexity analysis
-        stakeholders = inputs.get('stakeholders', [])
-        stakeholder_count = len(stakeholders)
+        # Calculate confidence score
+        confidence_factors = [
+            0.6 if budget_range else 0.0,  # Having any budget range gives base confidence
+            0.2 if has_detailed_goals else 0.0,
+            0.1 if has_timeline else 0.0,
+            0.1 if has_stakeholders else 0.0
+        ]
         
-        if stakeholder_count <= 2:
-            complexity_factors['stakeholder_complexity'] = 1
-        elif stakeholder_count <= 5:
-            complexity_factors['stakeholder_complexity'] = 2
-        elif stakeholder_count <= 10:
-            complexity_factors['stakeholder_complexity'] = 3
+        confidence_score = sum(confidence_factors)
+        
+        # Determine confidence level
+        if confidence_score >= 0.8:
+            confidence_level = 'high'
+        elif confidence_score >= 0.5:
+            confidence_level = 'medium'
         else:
-            complexity_factors['stakeholder_complexity'] = 4
-        
-        # Add complexity for stakeholder role diversity
-        unique_roles = set(s.get('role') for s in stakeholders if isinstance(s, dict))
-        if len(unique_roles) > 4:
-            complexity_factors['stakeholder_complexity'] += 1
-        
-        # Enhanced goal complexity
-        goals = inputs.get('goals', [])
-        goal_count = len(goals)
-        avg_goal_length = sum(len(str(goal)) for goal in goals) / max(1, goal_count)
-        
-        if goal_count <= 2:
-            complexity_factors['goal_complexity'] = 1
-        elif goal_count <= 5:
-            complexity_factors['goal_complexity'] = 2
-        else:
-            complexity_factors['goal_complexity'] = 3
-        
-        # Add complexity for detailed goals
-        if avg_goal_length > 100:
-            complexity_factors['goal_complexity'] += 1
-        
-        # Enhanced budget complexity
-        budget_range = inputs.get('budget_range', 'undefined')
-        budget_complexity_map = {
-            'under_50k': 1,
-            '50k_to_250k': 2,
-            '250k_to_1m': 3,
-            'over_1m': 4,
-            'undefined': 2
-        }
-        complexity_factors['budget_complexity'] = budget_complexity_map.get(budget_range, 2)
-        
-        # Enhanced timeline complexity
-        timeline = inputs.get('timeline', 'quarterly')
-        timeline_complexity_map = {
-            'immediate': 4,
-            'quarterly': 2,
-            'annual': 3,
-            'multi_year': 4,
-            'ongoing': 3
-        }
-        complexity_factors['timeline_complexity'] = timeline_complexity_map.get(timeline, 2)
-        
-        # Enhanced urgency complexity
-        urgency = inputs.get('urgency', 'medium')
-        urgency_complexity_map = {
-            'low': 1,
-            'medium': 2,
-            'high': 3,
-            'critical': 4
-        }
-        complexity_factors['urgency_complexity'] = urgency_complexity_map.get(urgency, 2)
-        
-        # Industry complexity factor
-        industry = inputs.get('industry', '').lower()
-        if industry in self.industry_classifications:
-            industry_data = self.industry_classifications[industry]
-            risk_factor = industry_data['risk_factor']
-            
-            if risk_factor <= 0.8:
-                complexity_factors['industry_complexity'] = 1
-            elif risk_factor <= 1.0:
-                complexity_factors['industry_complexity'] = 2
-            elif risk_factor <= 1.2:
-                complexity_factors['industry_complexity'] = 3
-            else:
-                complexity_factors['industry_complexity'] = 4
-                
-            # Add regulatory complexity
-            reg_complexity = industry_data['regulatory_complexity']
-            if reg_complexity == 'high':
-                complexity_factors['regulatory_complexity'] = 3
-            elif reg_complexity == 'medium':
-                complexity_factors['regulatory_complexity'] = 2
-            else:
-                complexity_factors['regulatory_complexity'] = 1
-        else:
-            complexity_factors['industry_complexity'] = 2
-            complexity_factors['regulatory_complexity'] = 2
-        
-        # Department complexity factor
-        department = inputs.get('department', '').lower()
-        if department in self.department_classifications:
-            dept_data = self.department_classifications[department]
-            dept_complexity = dept_data['complexity_factor']
-            
-            if dept_complexity <= 0.9:
-                complexity_factors['department_complexity'] = 1
-            elif dept_complexity <= 1.1:
-                complexity_factors['department_complexity'] = 2
-            elif dept_complexity <= 1.3:
-                complexity_factors['department_complexity'] = 3
-            else:
-                complexity_factors['department_complexity'] = 4
-        else:
-            complexity_factors['department_complexity'] = 2
-        
-        # Project type complexity
-        type_complexity_map = {
-            ProjectType.COST_REDUCTION.value: 2,
-            ProjectType.REVENUE_GROWTH.value: 3,
-            ProjectType.OPERATIONAL_EFFICIENCY.value: 2,
-            ProjectType.DIGITAL_TRANSFORMATION.value: 4,
-            ProjectType.COMPLIANCE.value: 3,
-            ProjectType.INNOVATION.value: 4,
-            ProjectType.INFRASTRUCTURE.value: 3
-        }
-        
-        if project_types:
-            max_type_complexity = max(type_complexity_map.get(ptype, 2) for ptype in project_types)
-            complexity_factors['project_type_complexity'] = max_type_complexity
-        else:
-            complexity_factors['project_type_complexity'] = 2
-        
-        # Calculate weighted overall score
-        weights = {
-            'stakeholder_complexity': 0.15,
-            'goal_complexity': 0.10,
-            'budget_complexity': 0.15,
-            'timeline_complexity': 0.15,
-            'urgency_complexity': 0.10,
-            'industry_complexity': 0.15,
-            'department_complexity': 0.10,
-            'project_type_complexity': 0.15,
-            'regulatory_complexity': 0.15
-        }
-        
-        overall_score = sum(complexity_factors[factor] * weights[factor] for factor in complexity_factors)
-        
-        # Determine complexity level
-        if overall_score <= 1.5:
-            complexity_level = 'low'
-        elif overall_score <= 2.5:
-            complexity_level = 'medium'
-        elif overall_score <= 3.5:
-            complexity_level = 'high'
-        else:
-            complexity_level = 'very_high'
+            confidence_level = 'low'
         
         return {
-            'overall_score': round(overall_score, 2),
-            'complexity_level': complexity_level,
-            'complexity_factors': complexity_factors,
-            'risk_indicators': [factor for factor, score in complexity_factors.items() if score >= 3],
-            'complexity_summary': f"Overall complexity is {complexity_level} (score: {overall_score:.1f}/4.0)"
-        }
-
-    def _generate_industry_intelligence(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate industry-specific intelligence and insights."""
-        industry = inputs.get('industry', '').lower()
-        
-        intelligence = {
-            'risk_factor': 1.0,
-            'regulatory_complexity': 'medium',
-            'typical_timeline_multiplier': 1.0,
-            'industry_insights': [],
-            'regulatory_considerations': [],
-            'success_factors': []
-        }
-        
-        if industry in self.industry_classifications:
-            industry_data = self.industry_classifications[industry]
-            intelligence.update(industry_data)
-            
-            # Industry-specific insights
-            industry_insights_map = {
-                'healthcare': [
-                    'HIPAA compliance required for patient data',
-                    'FDA approval may be needed for medical devices',
-                    'Clinical validation often extends timelines'
-                ],
-                'financial_services': [
-                    'SOX compliance critical for financial reporting',
-                    'Regulatory approval processes can be lengthy',
-                    'Data security and privacy are paramount'
-                ],
-                'manufacturing': [
-                    'Safety protocols must be rigorously followed',
-                    'Supply chain disruptions can impact timelines',
-                    'Quality standards certification may be required'
-                ],
-                'technology': [
-                    'Rapid technology evolution requires agile approaches',
-                    'Scalability considerations are critical',
-                    'Security and privacy by design essential'
-                ],
-                'government': [
-                    'Procurement processes can be complex and lengthy',
-                    'Public transparency requirements must be met',
-                    'Budget approval cycles may impact timing'
-                ]
+            'score': confidence_score,
+            'level': confidence_level,
+            'factors': {
+                'has_budget_range': bool(budget_range),
+                'has_detailed_goals': has_detailed_goals,
+                'has_timeline': has_timeline,
+                'has_stakeholders': has_stakeholders
             }
-            
-            intelligence['industry_insights'] = industry_insights_map.get(industry, [
-                'Industry-specific regulations may apply',
-                'Market conditions should be monitored',
-                'Competitive landscape analysis recommended'
-            ])
-            
-            # Regulatory considerations
-            if intelligence['regulatory_complexity'] == 'high':
-                intelligence['regulatory_considerations'] = [
-                    'Early regulatory consultation recommended',
-                    'Compliance documentation must be comprehensive',
-                    'Regular compliance audits may be required',
-                    'Legal review essential for all major decisions'
-                ]
-            elif intelligence['regulatory_complexity'] == 'medium':
-                intelligence['regulatory_considerations'] = [
-                    'Standard compliance frameworks should be followed',
-                    'Industry best practices must be observed',
-                    'Periodic compliance reviews recommended'
-                ]
+        }
+
+    def _structure_data(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        """Structure and normalize input data."""
+        structured_data = {}
+        
+        # Copy simple string fields directly
+        string_fields = ['project_name', 'description', 'business_objective', 
+                        'industry', 'department', 'budget_range', 'timeline', 
+                        'urgency', 'geographic_scope']
+        
+        for field in string_fields:
+            if field in inputs:
+                structured_data[field] = inputs[field]
+        
+        # Handle numeric fields
+        numeric_fields = ['expected_participants']
+        for field in numeric_fields:
+            if field in inputs:
+                try:
+                    structured_data[field] = int(inputs[field])
+                except (ValueError, TypeError):
+                    structured_data[field] = 0
+        
+        # Handle array fields, ensuring they are lists of strings
+        array_fields = ['goals', 'success_criteria', 'regulatory_requirements']
+        for field in array_fields:
+            if field in inputs:
+                if isinstance(inputs[field], list):
+                    # Filter out None values and convert non-string items to strings
+                    structured_data[field] = [str(item) for item in inputs[field] if item is not None]
+                elif inputs[field] is not None:
+                    # Convert non-list values to a single-item list
+                    structured_data[field] = [str(inputs[field])]
+                else:
+                    structured_data[field] = []
             else:
-                intelligence['regulatory_considerations'] = [
-                    'Basic regulatory compliance sufficient',
-                    'Standard business practices apply'
-                ]
+                structured_data[field] = []
         
-        return intelligence
-
-    def _assess_budget_confidence(self, inputs: Dict[str, Any]) -> str:
-        """Assess confidence level in budget estimates."""
-        budget_range = inputs.get('budget_range', 'undefined')
-        
-        if budget_range == 'undefined':
-            return 'very_low'
-        
-        # Check for detailed financial planning indicators
-        financial_indicators = 0
-        
-        if inputs.get('success_criteria'):
-            # Look for quantified success criteria
-            for criterion in inputs.get('success_criteria', []):
-                if any(indicator in str(criterion).lower() for indicator in ['%', 'dollar', '$', 'cost', 'save']):
-                    financial_indicators += 1
-        
-        if inputs.get('constraints'):
-            # Look for budget-related constraints
-            for constraint in inputs.get('constraints', []):
-                if any(indicator in str(constraint).lower() for indicator in ['budget', 'cost', 'funding', 'financial']):
-                    financial_indicators += 1
-        
-        # Check stakeholder financial expertise
-        stakeholders = inputs.get('stakeholders', [])
-        has_financial_approver = any(s.get('role') == 'financial_approver' for s in stakeholders if isinstance(s, dict))
-        
-        if has_financial_approver:
-            financial_indicators += 2
-        
-        # Determine confidence based on indicators
-        if financial_indicators >= 4:
-            return 'high'
-        elif financial_indicators >= 2:
-            return 'medium'
-        elif financial_indicators >= 1:
-            return 'low'
+        # Handle stakeholder objects
+        if 'stakeholders' in inputs and isinstance(inputs['stakeholders'], list):
+            structured_data['stakeholders'] = []
+            for stakeholder in inputs['stakeholders']:
+                if isinstance(stakeholder, dict):
+                    # Ensure required fields
+                    if 'name' in stakeholder and 'role' in stakeholder:
+                        structured_data['stakeholders'].append({
+                            'name': stakeholder['name'],
+                            'role': stakeholder['role'],
+                            'influence_level': stakeholder.get('influence_level', 'medium')
+                        })
         else:
-            return 'very_low'
-
-    def _estimate_budget_midpoint(self, budget_range: str) -> int:
-        """Estimate budget midpoint for planning purposes."""
-        budget_estimates = {
-            'under_50k': 25000,
-            '50k_to_250k': 150000,
-            '250k_to_1m': 625000,
-            'over_1m': 2000000,
-            'undefined': 0
-        }
+            structured_data['stakeholders'] = []
         
-        return budget_estimates.get(budget_range, 0)
-
-    def _identify_initial_risk_factors(self, inputs: Dict[str, Any], complexity_analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Identify initial risk factors based on intake information."""
-        risk_factors = []
-        
-        # High complexity risks
-        if complexity_analysis['complexity_level'] in ['high', 'very_high']:
-            risk_factors.append({
-                'type': 'complexity',
-                'description': f"High project complexity ({complexity_analysis['complexity_level']}) increases delivery risk",
-                'impact': 'medium',
-                'likelihood': 'high'
-            })
-        
-        # Stakeholder risks
-        stakeholders = inputs.get('stakeholders', [])
-        if len(stakeholders) > 8:
-            risk_factors.append({
-                'type': 'stakeholder',
-                'description': 'Large stakeholder group may create coordination challenges',
-                'impact': 'medium',
-                'likelihood': 'medium'
-            })
-        elif len(stakeholders) < 2:
-            risk_factors.append({
-                'type': 'stakeholder',
-                'description': 'Limited stakeholder engagement may affect project success',
-                'impact': 'medium',
-                'likelihood': 'high'
-            })
-        
-        # Budget risks
-        budget_range = inputs.get('budget_range', 'undefined')
-        if budget_range == 'undefined':
-            risk_factors.append({
-                'type': 'financial',
-                'description': 'Undefined budget creates planning and approval risks',
-                'impact': 'high',
-                'likelihood': 'high'
-            })
-        elif budget_range == 'over_1m':
-            risk_factors.append({
-                'type': 'financial',
-                'description': 'Large budget projects face increased scrutiny and approval complexity',
-                'impact': 'medium',
-                'likelihood': 'medium'
-            })
-        
-        # Timeline risks
-        timeline = inputs.get('timeline', 'quarterly')
-        urgency = inputs.get('urgency', 'medium')
-        
-        if timeline == 'immediate' and urgency != 'critical':
-            risk_factors.append({
-                'type': 'timeline',
-                'description': 'Immediate timeline without critical urgency may indicate unclear priorities',
-                'impact': 'low',
-                'likelihood': 'medium'
-            })
-        elif urgency == 'critical' and timeline in ['annual', 'multi_year']:
-            risk_factors.append({
-                'type': 'timeline',
-                'description': 'Critical urgency with extended timeline creates conflicting expectations',
-                'impact': 'medium',
-                'likelihood': 'high'
-            })
-        
-        # Industry-specific risks
-        industry = inputs.get('industry', '').lower()
-        if industry in self.industry_classifications:
-            industry_data = self.industry_classifications[industry]
-            if industry_data['risk_factor'] > 1.2:
-                risk_factors.append({
-                    'type': 'regulatory',
-                    'description': f'High-risk industry ({industry}) requires enhanced compliance and risk management',
-                    'impact': 'high',
-                    'likelihood': 'medium'
-                })
-        
-        return risk_factors
-
-    def _calculate_project_readiness_score(self, quality_assessment: Dict[str, Any], complexity_analysis: Dict[str, Any]) -> float:
-        """Calculate overall project readiness score."""
-        # Base score from quality assessment
-        quality_score = quality_assessment['overall_score']
-        
-        # Adjust for complexity (higher complexity reduces readiness)
-        complexity_penalty = {
-            'low': 0,
-            'medium': 10,
-            'high': 20,
-            'very_high': 30
-        }
-        
-        complexity_level = complexity_analysis['complexity_level']
-        adjusted_score = quality_score - complexity_penalty.get(complexity_level, 10)
-        
-        # Ensure score is between 0 and 100
-        readiness_score = max(0, min(100, adjusted_score))
-        
-        return round(readiness_score, 1)
+        return structured_data
 
     async def execute(self, inputs: Dict[str, Any]) -> AgentResult:
         """
-        Process initial user input to structure and store comprehensive project information.
-        
-        Enhanced with business intelligence, quality assessment, and production-ready features.
+        Process project intake information and provide business intelligence.
         
         Args:
-            inputs: Dictionary containing project information fields
-        
+            inputs: Dictionary containing project details including:
+                - project_name: Name of the project
+                - description: Detailed project description
+                - business_objective: Primary business objective
+                - industry: Industry sector
+                - department: Department responsible
+                - goals: List of project goals
+                - success_criteria: List of success criteria
+                - stakeholders: List of stakeholder objects
+                - budget_range: Budget range category
+                - timeline: Project timeline category
+                - urgency: Project urgency level
+                - expected_participants: Number of expected participants
+                - geographic_scope: Geographic scope of the project
+                - regulatory_requirements: List of regulatory requirements
+                
         Returns:
-            AgentResult with structured project data, recommendations, and analysis
+            AgentResult with project data, business intelligence, and recommendations
         """
         start_time = time.monotonic()
-        execution_time_ms = 0 # Initialize to 0
-
+        
         try:
-            logger.info(f"Starting enhanced intake processing for agent {self.agent_id} with inputs: {inputs.keys()}")
+            logger.info(f"Starting project intake for agent {self.agent_id}")
             
-            # Perform comprehensive input validation
+            # Validate inputs
             validation_result = await self.validate_inputs(inputs)
             if not validation_result.is_valid:
-                logger.warning(f"Input validation failed for agent {self.agent_id}: {validation_result.errors}")
-                execution_time_ms = int((time.monotonic() - start_time) * 1000)
                 return AgentResult(
                     status=AgentStatus.FAILED,
-                    data={'error': 'Input validation failed', 'details': validation_result.errors},
-                    execution_time_ms=execution_time_ms,
-                    error_details=f"Input validation failed: {validation_result.errors}"
+                    data={
+                        "error": "Input validation failed",
+                        "details": validation_result.errors
+                    },
+                    execution_time_ms=int((time.monotonic() - start_time) * 1000)
                 )
             
+            # Structure and normalize input data
+            structured_data = self._structure_data(inputs)
+            
+            # Check for existing projects with similar names
+            existing_projects = await self._check_existing_projects(structured_data.get('project_name', ''))
+            if existing_projects:
+                return AgentResult(
+                    status=AgentStatus.FAILED,
+                    data={
+                        "error": f"Similar project name already exists: {existing_projects[0]}",
+                        "details": f"Please choose a different project name to avoid confusion with existing project: {existing_projects[0]}"
+                    },
+                    execution_time_ms=int((time.monotonic() - start_time) * 1000)
+                )
+            
+            # Generate project ID
+            project_id = f"proj_{uuid.uuid4().hex[:8]}"
+            
+            # Perform business intelligence analysis
+            project_type = self._classify_project_type(structured_data)
+            complexity_level, complexity_score = self._assess_project_complexity(structured_data)
+            industry_context = self._analyze_industry_context(structured_data)
+            budget_confidence = self._assess_budget_confidence(structured_data)
+            intake_quality = self._assess_intake_quality(structured_data)
+            
+            # Compile business intelligence
+            business_intelligence = {
+                'project_type': project_type.value,
+                'complexity': {
+                    'level': complexity_level.value,
+                    'score': complexity_score,
+                    'factors': {
+                        'stakeholder_count': len(structured_data.get('stakeholders', [])),
+                        'goal_count': len(structured_data.get('goals', [])),
+                        'timeline': structured_data.get('timeline', 'quarterly'),
+                        'budget': structured_data.get('budget_range', '50k_to_250k'),
+                        'urgency': structured_data.get('urgency', 'medium')
+                    }
+                },
+                'industry_context': industry_context,
+                'budget_confidence': budget_confidence,
+                'intake_quality': intake_quality
+            }
+            
+            # Generate recommendations
+            recommendations = self._generate_recommendations(structured_data, business_intelligence)
+            
+            # Prepare project data for storage and response
+            project_data = {
+                'project_id': project_id,
+                'project_name': structured_data.get('project_name', ''),
+                'description': structured_data.get('description', ''),
+                'business_objective': structured_data.get('business_objective', ''),
+                'industry': structured_data.get('industry', ''),
+                'department': structured_data.get('department', ''),
+                'goals': structured_data.get('goals', []),
+                'success_criteria': structured_data.get('success_criteria', []),
+                'stakeholders': structured_data.get('stakeholders', []),
+                'budget_range': structured_data.get('budget_range', ''),
+                'timeline': structured_data.get('timeline', ''),
+                'urgency': structured_data.get('urgency', ''),
+                'expected_participants': structured_data.get('expected_participants', 0),
+                'geographic_scope': structured_data.get('geographic_scope', ''),
+                'regulatory_requirements': structured_data.get('regulatory_requirements', []),
+                'created_at': time.time(),
+                'created_by': inputs.get('user_id', 'anonymous')
+            }
+            
+            # Store project data in MCP memory
             try:
-                # Generate unique project ID with timestamp for better tracking
-                project_name_for_id = inputs.get('project_name', 'unknown_project').replace(' ', '_').lower()
-                # Generate unique project ID with timestamp for better tracking
-                project_name_for_id = inputs.get('project_name', 'unknown_project').replace(' ', '_').lower()
-                project_id = f"proj_{project_name_for_id}_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}"
-                logger.debug(f"Generated project ID: {project_id}")
-
-                # Check for existing projects with similar names
-                existing_projects = await self._check_existing_projects(inputs.get('project_name', ''))
-                if existing_projects:
-                    logger.warning(f"Similar projects already exist: {existing_projects}")
-                    execution_time_ms = int((time.monotonic() - start_time) * 1000)
-                    return AgentResult(
-                        status=AgentStatus.FAILED,
-                        data={'error': 'Similar project name already exists', 'details': f"Found: {', '.join(existing_projects)}"},
-                        execution_time_ms=execution_time_ms,
-                        error_details="Duplicate project detected"
-                    )
-
-                # Enhanced business intelligence analysis
-                project_types = self._classify_project_type(inputs)
-                logger.debug(f"Classified project types: {project_types}")
-
-                quality_assessment = self._assess_intake_quality(inputs)
-                logger.debug(f"Assessed intake quality: {quality_assessment}")
+                logger.info("AUDIT: Attempting to create KnowledgeEntity")
                 
-                # Calculate enhanced project complexity with industry factors
-                complexity_analysis = self._calculate_enhanced_project_complexity(inputs, project_types)
-                logger.debug(f"Calculated complexity analysis: {complexity_analysis}")
-                
-                # Generate comprehensive recommendations
-                recommendations = self._generate_enhanced_recommendations(inputs, project_types, quality_assessment)
-                logger.debug(f"Generated recommendations: {recommendations}")
-                
-                # Industry and department intelligence
-                industry_intelligence = self._generate_industry_intelligence(inputs)
-                logger.debug(f"Generated industry intelligence: {industry_intelligence}")
-
-                # Identify initial risk factors
-                risk_factors = self._identify_initial_risk_factors(inputs, complexity_analysis)
-                logger.debug(f"Identified initial risk factors: {risk_factors}")
-
-                # Calculate project readiness score
-                readiness_score = self._calculate_project_readiness_score(quality_assessment, complexity_analysis)
-                logger.debug(f"Calculated project readiness score: {readiness_score}")
-                
-                # Structure comprehensive project data with business intelligence
-                project_data = {
-                    'project_id': project_id,
-                    'basic_info': {
-                        'project_name': inputs.get('project_name', ''),
-                        'description': inputs.get('description', ''),
-                        'business_objective': inputs.get('business_objective', ''),
-                        'industry': inputs.get('industry', ''),
-                        'department': inputs.get('department', ''),
-                        'created_timestamp': datetime.now().isoformat(),
-                        'project_phase': inputs.get('project_phase', ProjectPhase.PLANNING.value)
-                    },
-                    'business_context': {
-                        'project_types': project_types,
-                        'primary_classification': project_types[0] if project_types else 'unclassified',
-                        'goals': inputs.get('goals', []),
-                        'success_criteria': inputs.get('success_criteria', []),
-                        'constraints': inputs.get('constraints', []),
-                        'expected_participants': inputs.get('expected_participants', 0),
-                        'geographic_scope': inputs.get('geographic_scope', 'local'),
-                        'regulatory_requirements': inputs.get('regulatory_requirements', [])
-                    },
-                    'stakeholders': inputs.get('stakeholders', []),
-                    'financial_scope': {
-                        'budget_range': inputs.get('budget_range', 'undefined'),
-                        'timeline': inputs.get('timeline', 'quarterly'),
-                        'urgency': inputs.get('urgency', ProjectUrgency.MEDIUM.value),
-                        'budget_confidence': self._assess_budget_confidence(inputs),
-                        'estimated_budget_midpoint': self._estimate_budget_midpoint(inputs.get('budget_range'))
-                    },
-                    'analysis_results': {
-                        'quality_assessment': quality_assessment,
-                        'complexity_analysis': complexity_analysis,
-                        'industry_intelligence': industry_intelligence,
-                        'risk_factors': risk_factors,
-                        'readiness_score': readiness_score
-                    }
-                }
-                logger.debug(f"Structured project data for {project_id}")
-                
-                # Create enhanced knowledge entity for MCP memory storage
+                # Create knowledge entity
                 knowledge_entity = KnowledgeEntity(
-                    id=f"intake_{project_id}",
-                    title=f"Project Intake: {inputs.get('project_name', 'Unknown')}",
-                    content={
-                        'project_data': project_data,
-                        'input_validation': {
-                            'validation_passed': True,
-                            'validation_timestamp': datetime.now().isoformat(),
-                            'quality_score': quality_assessment['overall_score']
-                        },
-                        'business_intelligence': {
-                            'primary_project_type': project_types[0] if project_types else 'unclassified',
-                            'complexity_score': complexity_analysis['overall_score'],
-                            'industry_risk_factor': industry_intelligence.get('risk_factor', 1.0),
-                            'recommended_next_agents': recommendations['agent_workflow_suggestions']
-                        }
-                    },
+                    title=f"Project Intake: {structured_data.get('project_name', '')}",
+                    content=json.dumps({
+                        **project_data,
+                        'business_intelligence': business_intelligence
+                    }),
+                    content_type="application/json",
+                    source="project_intake",
                     metadata={
-                        'agent_id': self.agent_id,
-                        'created_at': datetime.now().isoformat(),
                         'project_id': project_id,
-                        'industry': inputs.get('industry', 'unknown'),
-                        'department': inputs.get('department', 'unknown'),
-                        'urgency_level': inputs.get('urgency', 'medium'),
-                        'budget_range': inputs.get('budget_range', 'undefined'),
-                        'stakeholder_count': len(inputs.get('stakeholders', [])),
-                        'intake_quality': quality_assessment['overall_quality']
-                    }
+                        'project_type': project_type.value,
+                        'industry': structured_data.get('industry', ''),
+                        'complexity': complexity_level.value,
+                        'created_at': time.time()
+                    },
+                    creator_id=inputs.get('user_id', 'system'),
+                    sensitivity=DataSensitivity.INTERNAL
                 )
                 
-                # Store in MCP episodic memory
-                try:
-                    # Audit log before writing to memory
-                    logger.info(f"AUDIT: Attempting to create KnowledgeEntity for project {project_id} in MCP. Entity ID: {knowledge_entity.id}")
-                    await self.mcp_client.create_entities([knowledge_entity])
-                    logger.info(f"Successfully stored project intake for {project_id} in MCP. Entity ID: {knowledge_entity.id}")
-                    # Audit log after successful write
-                    logger.info(f"AUDIT: Successfully created KnowledgeEntity. Entity ID: {knowledge_entity.id}")
-                except Exception as mem_e:
-                    logger.error(f"Failed to store knowledge entity for {project_id} in MCP: {mem_e}", exc_info=True)
-                    # Audit log for failed write
-                    logger.critical(f"AUDIT: Failed to create KnowledgeEntity. Entity ID: {knowledge_entity.id}. Error: {mem_e}")
-                    execution_time_ms = int((time.monotonic() - start_time) * 1000)
+                # Store in MCP memory
+                await self.mcp_client.create_entities([knowledge_entity])
+                
+                logger.info(f"AUDIT: Successfully created KnowledgeEntity")
+                logger.info(f"Successfully stored project intake for {project_id}")
+                
+                mcp_storage_success = True
+            except Exception as e:
+                logger.error(f"AUDIT: Failed to create KnowledgeEntity: {e}")
+                logger.error(f"Failed to store project data in memory: {e}")
+                
+                mcp_storage_success = False
+                
+                # If storage fails but we have all the data, we can still return it
+                # This allows the workflow to continue even if persistence fails
+                if not project_data:
                     return AgentResult(
                         status=AgentStatus.FAILED,
-                        data={'error': 'Failed to store project data in memory', 'details': str(mem_e)},
-                        execution_time_ms=execution_time_ms,
-                        error_details=f"MCP storage failed: {str(mem_e)}"
+                        data={
+                            "error": "Failed to store project data in memory",
+                            "details": str(e)
+                        },
+                        execution_time_ms=int((time.monotonic() - start_time) * 1000),
+                        error_details=f"MCP storage failed: {e}"
                     )
-
-                # Store working memory for workflow coordination
-                working_memory = {
-                    'current_project_id': project_id,
-                    'last_agent': 'intake_assistant',
-                    'workflow_state': 'intake_complete',
-                    'recommended_next_steps': recommendations['next_steps'],
-                    'recommended_agents': recommendations['agent_workflow_suggestions'],
-                    'complexity_level': complexity_analysis['complexity_level'],
-                    'quality_level': quality_assessment['overall_quality']
-                }
-                logger.debug(f"Prepared working memory for {project_id}")
-                
-                execution_time_ms = int((time.monotonic() - start_time) * 1000)
-                
-                # Structure comprehensive response data
-                response_data = {
-                    'project_data': project_data,
-                    'recommendations': recommendations,
-                    'analysis_summary': {
-                        'intake_quality': quality_assessment['overall_quality'],
-                        'quality_score': quality_assessment['overall_score'],
-                        'project_complexity': complexity_analysis['complexity_level'],
-                        'complexity_score': complexity_analysis['overall_score'],
-                        'primary_project_type': project_types[0] if project_types else 'unclassified',
-                        'identified_project_types': project_types,
-                        'readiness_score': project_data['analysis_results']['readiness_score']
-                    },
-                    'next_steps': recommendations['next_steps'],
-                    'working_memory': working_memory,
-                    'metadata': {
-                        'processing_time_ms': execution_time_ms,
-                        'agent_version': '2.0',
-                        'validation_passed': True,
-                        'mcp_storage_success': True # This will be true if the try block above succeeded
-                    }
-                }
-                
-                logger.info(f"Enhanced intake processing completed successfully in {execution_time_ms}ms for project {project_id}")
-                
-                return AgentResult(
-                    status=AgentStatus.COMPLETED,
-                    data=response_data,
-                    execution_time_ms=execution_time_ms
-                )
             
-            except Exception as e:
-                execution_time_ms = int((time.monotonic() - start_time) * 1000)
-                error_msg = f"An error occurred during core processing for agent {self.agent_id}: {e}"
-                logger.error(error_msg, exc_info=True)
-                
-                return AgentResult(
-                    status=AgentStatus.FAILED,
-                    data={'error': error_msg, 'execution_time_ms': execution_time_ms},
-                    execution_time_ms=execution_time_ms,
-                    error_details=error_msg
-                )
+            # Prepare response data
+            response_data = {
+                'project_data': project_data,
+                'business_intelligence': business_intelligence,
+                'recommendations': recommendations,
+                'analysis_summary': self._generate_analysis_summary(project_data, business_intelligence),
+                'metadata': {
+                    'agent_id': self.agent_id,
+                    'execution_time': time.time(),
+                    'mcp_storage_success': mcp_storage_success
+                }
+            }
+            
+            # Add all fields from project_data to the top level for backward compatibility
+            response_data.update(project_data)
+            
+            execution_time_ms = int((time.monotonic() - start_time) * 1000)
+            logger.info(f"Project intake completed in {execution_time_ms}ms")
+            
+            return AgentResult(
+                status=AgentStatus.COMPLETED,
+                data=response_data,
+                execution_time_ms=execution_time_ms
+            )
             
         except Exception as e:
             execution_time_ms = int((time.monotonic() - start_time) * 1000)
-            error_msg = f"An unexpected error occurred during intake processing for agent {self.agent_id}: {e}"
-            logger.critical(error_msg, exc_info=True)
-            
+            logger.error(f"An error occurred during core processing for agent {self.agent_id}: {e}")
             return AgentResult(
                 status=AgentStatus.FAILED,
-                data={'error': error_msg, 'execution_time_ms': execution_time_ms},
+                data={
+                    "error": f"An error occurred during core processing for agent {self.agent_id}: {e}",
+                    "details": str(e)
+                },
                 execution_time_ms=execution_time_ms,
-                error_details=error_msg
+                error_details=str(e)
             )
+
+    def _generate_analysis_summary(self, project_data: Dict[str, Any], 
+                                 business_intelligence: Dict[str, Any]) -> str:
+        """Generate a concise analysis summary for the project."""
+        project_name = project_data.get('project_name', 'the project')
+        project_type = business_intelligence.get('project_type', 'other')
+        complexity = business_intelligence.get('complexity', {}).get('level', 'medium')
+        industry = project_data.get('industry', 'the industry')
+        
+        # Format project type for readability
+        formatted_project_type = project_type.replace('_', ' ').title()
+        
+        # Generate summary
+        summary = f"This {formatted_project_type} project in the {industry} industry has {complexity} complexity. "
+        
+        # Add goal summary if available
+        goals = project_data.get('goals', [])
+        if goals:
+            if len(goals) == 1:
+                summary += f"The primary goal is to {goals[0].lower()}. "
+            else:
+                summary += f"Key goals include {goals[0].lower()}"
+                if len(goals) > 1:
+                    summary += f" and {goals[1].lower()}"
+                summary += ". "
+        
+        # Add stakeholder summary if available
+        stakeholders = project_data.get('stakeholders', [])
+        if stakeholders:
+            sponsor_count = sum(1 for s in stakeholders if s.get('role') == 'sponsor')
+            user_count = sum(1 for s in stakeholders if s.get('role') == 'user')
+            
+            if sponsor_count > 0:
+                summary += f"The project has {sponsor_count} sponsor(s) and {user_count} end user(s). "
+        
+        # Add timeline and budget summary
+        timeline = project_data.get('timeline', '')
+        budget_range = project_data.get('budget_range', '')
+        
+        if timeline and budget_range:
+            # Format budget range for readability
+            formatted_budget = budget_range.replace('_', ' to ').replace('under ', 'under $').replace('over ', 'over $')
+            summary += f"It has a {timeline} timeline with a budget of {formatted_budget}."
+        
+        return summary

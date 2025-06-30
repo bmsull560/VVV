@@ -14,5 +14,6 @@ Flask==3.0.3
 Flask-Cors==4.0.1
 greenlet==3.2.3
 orjson==3.10.18
+orjson==3.10.18
 simple-salesforce
 anthropic
